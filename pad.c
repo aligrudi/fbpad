@@ -126,10 +126,8 @@ static void advance(int c)
 		col = 0;
 	}
 	if (row >= rows) {
-		fb_scroll(-char_height);
+		fb_scroll(-char_height, mixed_color(0));
 		row = rows - 1;
-		fb_box(row * char_height, 0, fb_rows(), fb_cols(),
-			mixed_color(0));
 	}
 }
 

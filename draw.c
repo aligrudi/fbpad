@@ -85,15 +85,18 @@ static char *rowaddr(int r)
 	return fb + (r + vinfo.yoffset) * finfo.line_length;
 }
 
-void fb_scroll(int n)
+void fb_scroll(int n, u16_t val)
 {
 	int s = 0, e = fb_rows();
 	int r;
-	if (n < 0)
-		s = -n;
-	else
+	if (n > 0)
 		e -= n;
-	for (r = s; r < e; r++) {
+	else
+		s = -n;
+	for (r = s; r < e; r++)
 		memcpy(rowaddr(r + n), rowaddr(r), finfo.line_length);
-	}
+	if (n > 0)
+		fb_box(0, 0, n, fb_cols(), val);
+	else
+		fb_box(fb_rows() + n, 0, fb_rows(), fb_cols(), val);
 }
