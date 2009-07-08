@@ -79,7 +79,8 @@ static void draw_bitmap(FT_Bitmap *bitmap, int r, int c, int fg, int bg)
 	for (i = 0; i < bitmap->rows; i++) {
 		for (j = 0; j < bitmap->width; j++) {
 			u8_t val = bitmap->buffer[i * bitmap->width + j];
-			fb_put(r + i, c + j, mixed_color(fg, bg, val));
+			if (val)
+				fb_put(r + i, c + j, mixed_color(fg, bg, val));
 		}
 	}
 }
