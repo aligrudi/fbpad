@@ -97,9 +97,8 @@ void pad_put(int ch, int r, int c)
 	draw_bitmap(&face->glyph->bitmap, sr, sc);
 }
 
-static int advance(int c)
+static void advance(int c)
 {
-	int printable = 0;
 	switch (c) {
 	case '\n':
 		row++;
@@ -120,7 +119,6 @@ static int advance(int c)
 	case '\v':
 		break;
 	default:
-		printable = 1;
 		col++;
 	}
 	if (col >= cols) {
@@ -129,13 +127,13 @@ static int advance(int c)
 	}
 	if (row >= rows)
 		row = rows - 1;
-	return printable;
 }
 
 void pad_add(int c)
 {
-	if (advance(c))
+	if (!strchr("\a\b\f\n\r\t\v", c))
 		pad_put(c, row, col);
+	advance(c);
 }
 
 void pad_blank(void)
