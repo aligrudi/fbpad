@@ -132,7 +132,7 @@ static void escape(void)
 			setmode(0);
 		break;
 	default:
-		printf("unknown escapse <%c>\n", c);
+		printf("unknown escape <%c>\n", c);
 	}
 }
 
