@@ -114,8 +114,9 @@ static void pad_show(int r, int c, int reverse)
 			FT_GlyphSlot_Own_Bitmap(face->glyph);
 			FT_Bitmap_Embolden(library, &face->glyph->bitmap, 32, 32);
 		}
-		sr -= face->glyph->bitmap_top - char_height;
-		sc += face->glyph->bitmap_left / 2;
+		sr += char_height + (face->size->metrics.descender >> 6) -
+			(face->glyph->metrics.horiBearingY >> 6);
+		sc += face->glyph->metrics.horiBearingX >> 6;
 		draw_bitmap(&face->glyph->bitmap, sr, sc, fgcolor, bgcolor);
 	}
 }
