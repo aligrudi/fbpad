@@ -58,7 +58,7 @@ void pad_free(void)
 #define CB(a)		((a) & 0x0000ff)
 #define COLORMERGE(f, b, c)		((b) + (((f) - (b)) * (c) >> 8u))
 
-static u16_t mixed_color(u8_t val)
+static u16_t mixed_color(int fg, int bg, u8_t val)
 {
 	unsigned int fore = cd[fg], back = cd[bg];
 	u8_t r = COLORMERGE(CR(fore), CR(back), val);
@@ -67,13 +67,18 @@ static u16_t mixed_color(u8_t val)
 	return fb_color(r, g, b);
 }
 
-static void draw_bitmap(FT_Bitmap *bitmap, int r, int c)
+static u16_t color2fb(int c)
+{
+	return mixed_color(fg, c, 0);
+}
+
+static void draw_bitmap(FT_Bitmap *bitmap, int r, int c, int fg, int bg)
 {
 	int i, j;
 	for (i = 0; i < bitmap->rows; i++) {
 		for (j = 0; j < bitmap->width; j++) {
 			u8_t val = bitmap->buffer[i * bitmap->width + j];
-			fb_put(r + i, c + j, mixed_color(val));
+			fb_put(r + i, c + j, mixed_color(fg, bg, val));
 		}
 	}
 }
@@ -88,23 +93,38 @@ void pad_bg(int c)
 	bg = c;
 }
 
-void pad_put(int ch, int r, int c)
+static void pad_show(int r, int c, int reverse)
 {
 	int sr = char_height * r;
 	int sc = char_width * c;
-	FT_Load_Char(face, ch, FT_LOAD_RENDER);
-	if (fg >= 8) {
-		int FT_GlyphSlot_Own_Bitmap(FT_GlyphSlot);
-		FT_GlyphSlot_Own_Bitmap(face->glyph);
-		FT_Bitmap_Embolden(library, &face->glyph->bitmap, 32, 32);
+	struct square *sqr = &screen[r * cols + c];
+	int fg = sqr->fg;
+	int bg = sqr->bg;
+	if (reverse) {
+		int t = bg;
+		bg = fg;
+		fg = t;
 	}
-	fb_box(sr, sc, sr + char_height, sc + char_width, mixed_color(0));
-	sr -= face->glyph->bitmap_top - char_height;
-	sc += face->glyph->bitmap_left / 2;
-	draw_bitmap(&face->glyph->bitmap, sr, sc);
+	fb_box(sr, sc, sr + char_height, sc + char_width, color2fb(bg));
+	if (isprint(sqr->c)) {
+		FT_Load_Char(face, sqr->c, FT_LOAD_RENDER);
+		if (fg >= 8) {
+			int FT_GlyphSlot_Own_Bitmap(FT_GlyphSlot);
+			FT_GlyphSlot_Own_Bitmap(face->glyph);
+			FT_Bitmap_Embolden(library, &face->glyph->bitmap, 32, 32);
+		}
+		sr -= face->glyph->bitmap_top - char_height;
+		sc += face->glyph->bitmap_left / 2;
+		draw_bitmap(&face->glyph->bitmap, sr, sc, fg, bg);
+	}
+}
+
+void pad_put(int ch, int r, int c)
+{
 	screen[r * cols + c].c = ch;
 	screen[r * cols + c].fg = fg;
 	screen[r * cols + c].bg = bg;
+	pad_show(r, c, 0);
 }
 
 static void pad_empty(int sr, int er)
@@ -120,7 +140,7 @@ static void pad_scroll(int n)
 		e -= n;
 	else
 		s = -n;
-	fb_scroll(char_height * n, mixed_color(0));
+	fb_scroll(char_height * n, color2fb(bg));
 	row = rows + n;
 	for (r = s; r < e; r++)
 		memcpy(&screen[(r + n) * cols], &screen[r * cols],
@@ -165,20 +185,22 @@ static void advance(int c)
 
 void pad_add(int c)
 {
-	if (!strchr("\a\b\f\n\r\t\v", c))
-		pad_put(c, row, col);
+	pad_put(c, row, col);
 	advance(c);
+	pad_show(row, col, 1);
 }
 
 void pad_blank(void)
 {
-	fb_box(0, 0, fb_rows(), fb_cols(), mixed_color(0));
+	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(bg));
 }
 
 void pad_move(int r, int c)
 {
+	pad_show(row, col, 0);
 	row = MIN(r, rows - 1);
 	col = MIN(c, cols - 1);
+	pad_show(row, col, 1);
 }
 
 int pad_row(void)
