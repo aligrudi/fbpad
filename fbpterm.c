@@ -81,7 +81,8 @@ static void kill_line(void)
 {
 	int i;
 	for (i = pad_col(); i < pad_cols(); i++)
-		pad_put(' ', pad_row(), i);
+		pad_put('\0', pad_row(), i);
+	pad_move(pad_row(), pad_col());
 }
 
 static void escape(void)

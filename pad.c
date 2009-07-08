@@ -123,7 +123,7 @@ static void pad_show(int r, int c, int reverse)
 void pad_put(int ch, int r, int c)
 {
 	struct square *sqr = SQRADDR(r, c);
-	if (!strchr("\a\b\f\n\r\v", ch)) {
+	if (!ch || !strchr("\a\b\f\n\r\v", ch)) {
 		sqr->c = ch;
 		sqr->fg = fg;
 		sqr->bg = bg;
