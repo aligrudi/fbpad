@@ -1,15 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_BITMAP_H
 #include "draw.h"
+#include "util.h"
 
 #define FONTFACE	"/home/ali/.fonts/monaco.ttf"
 #define FONTSIZE	10
 #define DPI		192
-#define MIN(a, b)	((a) < (b) ? (a) : (b))
-#define MAX(a, b)	((a) > (b) ? (a) : (b))
 #define MAXSQUARES	1 << 15
 
 static FT_Library library;

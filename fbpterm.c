@@ -111,16 +111,16 @@ static void escape(void)
 		pad_move(0, 0);
 		break;
 	case 'A':
-		pad_move(pad_row() - args[0], pad_col());
+		pad_move(pad_row() - MAX(1, args[0]), pad_col());
 		break;
 	case 'B':
-		pad_move(pad_row() + args[0], pad_col());
+		pad_move(pad_row() + MAX(1, args[0]), pad_col());
 		break;
 	case 'C':
-		pad_move(pad_row(), pad_col() + args[0]);
+		pad_move(pad_row(), pad_col() + MAX(1, args[0]));
 		break;
 	case 'D':
-		pad_move(pad_row(), pad_col() - args[0]);
+		pad_move(pad_row(), pad_col() - MAX(1, args[0]));
 		break;
 	case 'K':
 		kill_line();
