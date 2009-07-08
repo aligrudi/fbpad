@@ -104,7 +104,7 @@ static void escape(void)
 	switch (c) {
 	case 'H':
 	case 'f':
-		pad_move(args[0], args[1]);
+		pad_move(MAX(0, args[0] - 1), MAX(0, args[1] - 1));
 		break;
 	case 'J':
 		pad_blank();
