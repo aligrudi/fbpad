@@ -99,14 +99,14 @@ static void pad_show(int r, int c, int reverse)
 	int sr = char_height * r;
 	int sc = char_width * c;
 	struct square *sqr = SQRADDR(r, c);
-	int fg = sqr->fg;
-	int bg = sqr->bg;
+	int fgcolor = sqr->c ? sqr->fg : fg;
+	int bgcolor = sqr->c ? sqr->bg : bg;
 	if (reverse) {
-		int t = bg;
-		bg = fg;
-		fg = t;
+		int t = bgcolor;
+		bgcolor = fgcolor;
+		fgcolor = t;
 	}
-	fb_box(sr, sc, sr + char_height, sc + char_width, color2fb(bg));
+	fb_box(sr, sc, sr + char_height, sc + char_width, color2fb(bgcolor));
 	if (isprint(sqr->c)) {
 		FT_Load_Char(face, sqr->c, FT_LOAD_RENDER);
 		if (fg >= 8) {
@@ -116,16 +116,18 @@ static void pad_show(int r, int c, int reverse)
 		}
 		sr -= face->glyph->bitmap_top - char_height;
 		sc += face->glyph->bitmap_left / 2;
-		draw_bitmap(&face->glyph->bitmap, sr, sc, fg, bg);
+		draw_bitmap(&face->glyph->bitmap, sr, sc, fgcolor, bgcolor);
 	}
 }
 
 void pad_put(int ch, int r, int c)
 {
 	struct square *sqr = SQRADDR(r, c);
-	sqr->c = ch;
-	sqr->fg = fg;
-	sqr->bg = bg;
+	if (!strchr("\a\b\f\r\v", ch)) {
+		sqr->c = ch;
+		sqr->fg = fg;
+		sqr->bg = bg;
+	}
 	pad_show(r, c, 0);
 }
 
