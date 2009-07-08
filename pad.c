@@ -10,6 +10,7 @@
 #define DPI		192
 #define MIN(a, b)	((a) < (b) ? (a) : (b))
 #define MAX(a, b)	((a) > (b) ? (a) : (b))
+#define MAXSQUARES	1 << 15
 
 static FT_Library library;
 static FT_Face face;
@@ -17,6 +18,12 @@ static int rows, cols;
 static int row, col;
 static int char_height, char_width;
 static int fg, bg;
+
+static struct square {
+	int c;
+	int fg;
+	int bg;
+} screen[MAXSQUARES];
 
 static unsigned int cd[] = {
 	0x0a0a0a, 0xc04444, 0x339933, 0xcccc66,
@@ -95,6 +102,33 @@ void pad_put(int ch, int r, int c)
 	sr -= face->glyph->bitmap_top - char_height;
 	sc += face->glyph->bitmap_left / 2;
 	draw_bitmap(&face->glyph->bitmap, sr, sc);
+	screen[r * cols + c].c = ch;
+	screen[r * cols + c].fg = fg;
+	screen[r * cols + c].bg = bg;
+}
+
+static void pad_empty(int sr, int er)
+{
+	memset(&screen[sr * cols], 0, (er - sr) * sizeof(screen[0]) * cols);
+}
+
+static void pad_scroll(int n)
+{
+	int s = 0, e = rows;
+	int r;
+	if (n > 0)
+		e -= n;
+	else
+		s = -n;
+	fb_scroll(char_height * n, mixed_color(0));
+	row = rows + n;
+	for (r = s; r < e; r++)
+		memcpy(&screen[(r + n) * cols], &screen[r * cols],
+			rows * sizeof(screen[0]));
+	if (n > 0)
+		pad_empty(0, n);
+	else
+		pad_empty(rows + n, rows);
 }
 
 static void advance(int c)
@@ -125,10 +159,8 @@ static void advance(int c)
 		row++;
 		col = 0;
 	}
-	if (row >= rows) {
-		fb_scroll(-char_height, mixed_color(0));
-		row = rows - 1;
-	}
+	if (row >= rows)
+		pad_scroll(rows - row - 1);
 }
 
 void pad_add(int c)
