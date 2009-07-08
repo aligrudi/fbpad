@@ -11,6 +11,7 @@
 #define FONTSIZE	10
 #define DPI		192
 #define MAXSQUARES	1 << 15
+#define SQRADDR(r, c)		(&screen[(r) * cols + (c)])
 
 static FT_Library library;
 static FT_Face face;
@@ -97,7 +98,7 @@ static void pad_show(int r, int c, int reverse)
 {
 	int sr = char_height * r;
 	int sc = char_width * c;
-	struct square *sqr = &screen[r * cols + c];
+	struct square *sqr = SQRADDR(r, c);
 	int fg = sqr->fg;
 	int bg = sqr->bg;
 	if (reverse) {
@@ -121,15 +122,16 @@ static void pad_show(int r, int c, int reverse)
 
 void pad_put(int ch, int r, int c)
 {
-	screen[r * cols + c].c = ch;
-	screen[r * cols + c].fg = fg;
-	screen[r * cols + c].bg = bg;
+	struct square *sqr = SQRADDR(r, c);
+	sqr->c = ch;
+	sqr->fg = fg;
+	sqr->bg = bg;
 	pad_show(r, c, 0);
 }
 
 static void pad_empty(int sr, int er)
 {
-	memset(&screen[sr * cols], 0, (er - sr) * sizeof(screen[0]) * cols);
+	memset(SQRADDR(sr, 0), 0, (er - sr) * sizeof(screen[0]) * cols);
 }
 
 static void pad_scroll(int n)
@@ -143,7 +145,7 @@ static void pad_scroll(int n)
 	fb_scroll(char_height * n, color2fb(bg));
 	row = rows + n;
 	for (r = s; r < e; r++)
-		memcpy(&screen[(r + n) * cols], &screen[r * cols],
+		memcpy(SQRADDR(r + n, 0), SQRADDR(r, 0),
 			rows * sizeof(screen[0]));
 	if (n > 0)
 		pad_empty(0, n);
