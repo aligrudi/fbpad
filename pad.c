@@ -193,6 +193,7 @@ void pad_add(int c)
 void pad_blank(void)
 {
 	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(bg));
+	memset(screen, 0, sizeof(screen));
 }
 
 void pad_move(int r, int c)
