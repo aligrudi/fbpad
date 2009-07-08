@@ -121,11 +121,19 @@ static void escape_bracket(void)
 	case 'K':
 		kill_line();
 		break;
+	case 'c':
+		break;
+	case 'h':
+		break;
+	case 'l':
+		break;
 	case 'm':
 		for (i = 0; i < n; i++)
 			setmode(args[i]);
 		if (!n)
 			setmode(0);
+		break;
+	case 'r':
 		break;
 	default:
 		printf("unknown escape bracket char <%c>\n", c);
