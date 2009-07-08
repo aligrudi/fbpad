@@ -89,13 +89,13 @@ static void escape_bracket(void)
 {
 	int args[MAXESCARGS] = {0};
 	int i;
-	int n = -1;
+	int n = 0;
 	int c = 0;
 	for (i = 0; i < ARRAY_SIZE(args) && !isalpha(c); i++) {
 		int arg = 0;
 		while (isdigit((c = readpty())))
 			arg = arg * 10 + (c - '0');
-		args[++n] = arg;
+		args[n++] = arg;
 	}
 	switch (c) {
 	case 'H':
