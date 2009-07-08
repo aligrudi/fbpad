@@ -85,22 +85,17 @@ static void kill_line(void)
 	pad_move(pad_row(), pad_col());
 }
 
-static void escape(void)
+static void escape_bracket(void)
 {
 	int args[MAXESCARGS] = {0};
 	int i;
 	int n = -1;
-	int c = readpty();
-	if (c != '[') {
-		writepty(ESC);
-		writepty(c);
-		return;
-	}
+	int c = 0;
 	for (i = 0; i < ARRAY_SIZE(args) && !isalpha(c); i++) {
 		int arg = 0;
 		while (isdigit((c = readpty())))
 			arg = arg * 10 + (c - '0');
-		args[n++] = arg;
+		args[++n] = arg;
 	}
 	switch (c) {
 	case 'H':
@@ -133,7 +128,20 @@ static void escape(void)
 			setmode(0);
 		break;
 	default:
-		printf("unknown escape <%c>\n", c);
+		printf("unknown escape bracket char <%c>\n", c);
+	}
+}
+
+static void escape(void)
+{
+	int c = readpty();
+	if (c == '[') {
+		escape_bracket();
+	} else {
+		printf("unknown escape char <%c>\n", c);
+		writepty(ESC);
+		writepty(c);
+		return;
 	}
 }
 
