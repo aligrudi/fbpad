@@ -125,8 +125,12 @@ static void advance(int c)
 		row++;
 		col = 0;
 	}
-	if (row >= rows)
+	if (row >= rows) {
+		fb_scroll(-char_height);
 		row = rows - 1;
+		fb_box(row * char_height, 0, fb_rows(), fb_cols(),
+			mixed_color(0));
+	}
 }
 
 void pad_add(int c)

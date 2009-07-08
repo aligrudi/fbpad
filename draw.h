@@ -8,3 +8,4 @@ void fb_put(int r, int c, u16_t val);
 int fb_rows(void);
 int fb_cols(void);
 void fb_box(int sr, int sc, int er, int ec, u16_t val);
+void fb_scroll(int n);

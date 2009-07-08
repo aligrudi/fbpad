@@ -79,3 +79,21 @@ void fb_box(int sr, int sc, int er, int ec, u16_t val)
 		for (c = sc; c < ec; c++)
 			fb_put(r, c, val);
 }
+
+static char *rowaddr(int r)
+{
+	return fb + (r + vinfo.yoffset) * finfo.line_length;
+}
+
+void fb_scroll(int n)
+{
+	int s = 0, e = fb_rows();
+	int r;
+	if (n < 0)
+		s = -n;
+	else
+		e -= n;
+	for (r = s; r < e; r++) {
+		memcpy(rowaddr(r + n), rowaddr(r), finfo.line_length);
+	}
+}
