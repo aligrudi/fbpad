@@ -5,7 +5,7 @@ LDFLAGS = -lutil `pkg-config --libs freetype2`
 all: fbpterm
 .c.o:
 	$(CC) -c $(CFLAGS) $<
-fbpterm: fbpterm.o pad.o draw.o util.o
+fbpterm: fbpterm.o pad.o draw.o util.o font.o
 	$(CC) $(LDFLAGS) -o $@ $^
 clean:
 	rm -f *.o fbpterm

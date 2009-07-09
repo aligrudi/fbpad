@@ -1,23 +1,16 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <ft2build.h>
-#include FT_FREETYPE_H
-#include FT_BITMAP_H
+#include <string.h>
 #include "draw.h"
+#include "font.h"
 #include "util.h"
 
-#define FONTFACE	"/home/ali/.fonts/monaco.ttf"
-#define FONTSIZE	10
-#define DPI		192
 #define MAXSQUARES	1 << 15
 #define SQRADDR(r, c)		(&screen[(r) * cols + (c)])
 
-static FT_Library library;
-static FT_Face face;
 static int rows, cols;
 static int row, col;
-static int char_height, char_width;
 static int fg, bg;
 
 static struct square {
@@ -32,21 +25,12 @@ static unsigned int cd[] = {
 	0x71a3b7, 0xc08888, 0x779977, 0xcccc99,
 	0x8899bc, 0xcd99af, 0xa199cd, 0xdedede};
 
-static void init_size(void)
-{
-	char_height = face->size->metrics.height >> 6;
-	char_width = face->size->metrics.max_advance >> 6;
-	rows = fb_rows() / char_height;
-	cols = fb_cols() / char_width;
-}
-
 void pad_init(void)
 {
-	FT_Init_FreeType(&library);
-	FT_New_Face(library, FONTFACE, 0, &face);
-	FT_Set_Char_Size(face, 0, FONTSIZE << 6, DPI, DPI);
 	fb_init();
-	init_size();
+	font_init();
+	rows = fb_rows() / font_rows();
+	cols = fb_cols() / font_cols();
 }
 
 void pad_free(void)
@@ -73,18 +57,6 @@ static u16_t color2fb(int c)
 	return mixed_color(fg, c, 0);
 }
 
-static void draw_bitmap(FT_Bitmap *bitmap, int r, int c, int fg, int bg)
-{
-	int i, j;
-	for (i = 0; i < bitmap->rows; i++) {
-		for (j = 0; j < bitmap->width; j++) {
-			u8_t val = bitmap->buffer[i * bitmap->width + j];
-			if (val)
-				fb_put(r + i, c + j, mixed_color(fg, bg, val));
-		}
-	}
-}
-
 void pad_fg(int c)
 {
 	fg = c;
@@ -97,28 +69,28 @@ void pad_bg(int c)
 
 static void pad_show(int r, int c, int reverse)
 {
-	int sr = char_height * r;
-	int sc = char_width * c;
+	int sr = font_rows() * r;
+	int sc = font_cols() * c;
 	struct square *sqr = SQRADDR(r, c);
 	int fgcolor = sqr->c ? sqr->fg : fg;
 	int bgcolor = sqr->c ? sqr->bg : bg;
+	int i, j;
+	char *bits;
 	if (reverse) {
 		int t = bgcolor;
 		bgcolor = fgcolor;
 		fgcolor = t;
 	}
-	fb_box(sr, sc, sr + char_height, sc + char_width, color2fb(bgcolor));
-	if (isprint(sqr->c)) {
-		FT_Load_Char(face, sqr->c, FT_LOAD_RENDER);
-		if (fg >= 8) {
-			int FT_GlyphSlot_Own_Bitmap(FT_GlyphSlot);
-			FT_GlyphSlot_Own_Bitmap(face->glyph);
-			FT_Bitmap_Embolden(library, &face->glyph->bitmap, 32, 32);
+	fb_box(sr, sc, sr + font_rows(), sc + font_cols(), color2fb(bgcolor));
+	if (!isprint(sqr->c))
+		return;
+	bits = font_bitmap(sqr->c, 0);
+	for (i = 0; i < font_rows(); i++) {
+		for (j = 0; j < font_cols(); j++) {
+			unsigned char val = bits[i * font_cols() + j];
+			if (val)
+				fb_put(sr + i, sc + j, mixed_color(fg, bg, val));
 		}
-		sr += char_height + (face->size->metrics.descender >> 6) -
-			(face->glyph->metrics.horiBearingY >> 6);
-		sc += face->glyph->metrics.horiBearingX >> 6;
-		draw_bitmap(&face->glyph->bitmap, sr, sc, fgcolor, bgcolor);
 	}
 }
 
@@ -141,8 +113,8 @@ static void pad_empty(int sr, int er)
 static void pad_scroll(int sr, int nr, int n)
 {
 	int r;
-	fb_scroll(sr * char_height, nr * char_height,
-		  n * char_height, color2fb(bg));
+	fb_scroll(sr * font_rows(), nr * font_rows(),
+		  n * font_rows(), color2fb(bg));
 	row = rows + n;
 	for (r = sr; r < sr + nr; r++)
 		memcpy(SQRADDR(r + n, 0), SQRADDR(r, 0),
