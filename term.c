@@ -1,16 +1,13 @@
+#include <ctype.h>
+#include <pty.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <poll.h>
 #include <unistd.h>
-#include <ctype.h>
-#include <pty.h>
 #include "pad.h"
 #include "util.h"
 #include "term.h"
 
-#define SHELL		"/bin/bash"
-#define ESC		27
 #define MAXESCARGS	32
 #define FGCOLOR		0
 #define BGCOLOR		7
@@ -18,8 +15,6 @@
 static pid_t pid;
 static int fd;
 static int row, col;
-static struct term_state terms[2];
-static int cterm;
 
 static void setsize(void)
 {
@@ -35,14 +30,6 @@ static int readpty(void)
 {
 	char b;
 	if (read(fd, &b, 1) > 0)
-		return (int) b;
-	return -1;
-}
-
-static int readchar(void)
-{
-	char b;
-	if (read(STDIN_FILENO, &b, 1) > 0)
 		return (int) b;
 	return -1;
 }
@@ -101,10 +88,11 @@ static void advance(int ch)
 	move_cursor(r, c);
 }
 
-static void writechar(int c)
+void term_send(int c)
 {
 	unsigned char b = (unsigned char) c;
-	write(fd, &b, 1);
+	if (fd)
+		write(fd, &b, 1);
 }
 
 static void writepty(int c)
@@ -236,7 +224,7 @@ static void escape(void)
 	}
 }
 
-static void shcmds(void)
+void term_read(void)
 {
 	int c = readpty();
 	if (c == ESC)
@@ -245,13 +233,13 @@ static void shcmds(void)
 		writepty(c);
 }
 
-static void execshell(void)
+void term_exec(char *cmd)
 {
 	if ((pid = forkpty(&fd, NULL, NULL, NULL)) == -1)
 		xerror("failed to create a pty");
 	if (!pid) {
 		setenv("TERM", "linux", 1);
-		execl(SHELL, SHELL, NULL);
+		execl(cmd, cmd, NULL);
 		exit(1);
 	}
 	setsize();
@@ -259,7 +247,7 @@ static void execshell(void)
 	pad_blank();
 }
 
-static void term_save(struct term_state *state)
+void term_save(struct term_state *state)
 {
 	state->row = row;
 	state->col = col;
@@ -268,7 +256,7 @@ static void term_save(struct term_state *state)
 	pad_save(&state->pad);
 }
 
-static void term_load(struct term_state *state)
+void term_load(struct term_state *state)
 {
 	row = state->row;
 	col = state->col;
@@ -278,57 +266,16 @@ static void term_load(struct term_state *state)
 	move_cursor(row, col);
 }
 
-static void directkey(void)
+int term_fd(void)
 {
-	int c = readchar();
-	if (c == ESC) {
-		switch ((c = readchar())) {
-		case 'c':
-			if (!fd)
-				execshell();
-			return;
-		case 'j':
-			term_save(&terms[cterm]);
-			cterm = (cterm + 1) % ARRAY_SIZE(terms);
-			term_load(&terms[cterm]);
-		default:
-			writechar(ESC);
-		}
-	}
-	writechar(c);
+	return fd;
 }
 
-static void mainloop(void)
+void term_end(void)
 {
-	struct pollfd ufds[2];
-	int rv;
-	struct termios oldtermios, termios;
-	tcgetattr(STDIN_FILENO, &termios);
-	oldtermios = termios;
-	cfmakeraw(&termios);
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &termios);
-	ufds[0].fd = STDIN_FILENO;
-	ufds[0].events = POLLIN;
-	ufds[1].fd = fd;
-	ufds[1].events = POLLIN;
-	while ((rv = poll(ufds, fd ? 2 : 1, 1000)) != -1) {
-		if ((ufds[0].revents | ufds[1].revents) &
-			(POLLHUP | POLLERR | POLLNVAL))
-			break;
-		if (ufds[0].revents & POLLIN)
-			directkey();
-		if (fd && ufds[1].revents & POLLIN)
-			shcmds();
-		ufds[1].fd = fd;
-	}
-	tcsetattr(STDIN_FILENO, 0, &oldtermios);
-}
-
-int main(void)
-{
-	pad_init();
+	fd = 0;
+	row = col = 0;
+	pad_fg(0);
+	pad_bg(0);
 	pad_blank();
-	mainloop();
-	pad_free();
-	return 0;
 }
