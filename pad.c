@@ -121,49 +121,6 @@ void pad_scroll(int sr, int nr, int n)
 	pad_show(row, col, 1);
 }
 
-static void advance(int c)
-{
-	switch (c) {
-	case '\n':
-		row++;
-		col = 0;
-		break;
-	case '\t':
-		col = (col / 8 + 1) * 8;
-		break;
-	case '\b':
-		if (col)
-			col--;
-		break;
-	case '\r':
-		col = 0;
-		break;
-	case '\a':
-	case '\f':
-	case '\v':
-		break;
-	default:
-		col++;
-	}
-	if (col >= cols) {
-		row++;
-		col = 0;
-	}
-	if (row >= rows) {
-		int n = rows - row - 1;
-		int nr = rows + n;
-		row = rows - 1;
-		pad_scroll(-n, nr, n);
-	}
-}
-
-void pad_add(int c)
-{
-	pad_put(c, row, col);
-	advance(c);
-	pad_show(row, col, 1);
-}
-
 void pad_blank(void)
 {
 	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(bg));

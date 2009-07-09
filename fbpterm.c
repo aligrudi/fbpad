@@ -54,6 +54,45 @@ static int readchar(void)
 	return -1;
 }
 
+static void advance(int ch)
+{
+	int r = pad_row();
+	int c = pad_col();
+	switch (ch) {
+	case '\n':
+		r++;
+		c = 0;
+		break;
+	case '\t':
+		c = (c / 8 + 1) * 8;
+		break;
+	case '\b':
+		if (c)
+			c--;
+		break;
+	case '\r':
+		c = 0;
+		break;
+	case '\a':
+	case '\f':
+	case '\v':
+		break;
+	default:
+		c++;
+	}
+	if (c >= pad_cols()) {
+		r++;
+		c = 0;
+	}
+	if (r >= pad_rows()) {
+		int n = pad_rows() - r - 1;
+		int nr = r + n;
+		r = pad_rows() - 1;
+		pad_scroll(-n, nr, n);
+	}
+	pad_move(r, c);
+}
+
 static void writechar(int c)
 {
 	unsigned char b = (unsigned char) c;
@@ -62,7 +101,8 @@ static void writechar(int c)
 
 static void writepty(int c)
 {
-	pad_add(c);
+	pad_put(c, pad_row(), pad_col());
+	advance(c);
 }
 
 static void setmode(int m)
