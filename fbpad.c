@@ -19,6 +19,13 @@ static int readchar(void)
 	return -1;
 }
 
+static void showterm(int n)
+{
+	term_save(&terms[cterm]);
+	cterm = n;
+	term_load(&terms[cterm]);
+}
+
 static void directkey(void)
 {
 	int c = readchar();
@@ -29,9 +36,10 @@ static void directkey(void)
 				term_exec(SHELL);
 			return;
 		case 'j':
-			term_save(&terms[cterm]);
-			cterm = (cterm + 1) % ARRAY_SIZE(terms);
-			term_load(&terms[cterm]);
+			showterm((cterm + 1) % ARRAY_SIZE(terms));
+			return;
+		case 'k':
+			showterm((cterm - 1) % ARRAY_SIZE(terms));
 			return;
 		default:
 			term_send(ESC);
