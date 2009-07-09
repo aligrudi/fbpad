@@ -88,9 +88,16 @@ static void mainloop(void)
 
 int main(void)
 {
+	char *hide = "\x1b[?25l";
+	char *clear = "\x1b[2J\x1b[H";
+	char *show = "\x1b[?25h";
+	write(STDOUT_FILENO, hide, strlen(hide));
+	write(STDOUT_FILENO, clear, strlen(clear));
 	pad_init();
 	pad_blank();
 	mainloop();
 	pad_free();
+	write(STDOUT_FILENO, clear, strlen(clear));
+	write(STDOUT_FILENO, show, strlen(show));
 	return 0;
 }
