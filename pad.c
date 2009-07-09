@@ -74,7 +74,7 @@ static void pad_show(int r, int c, int reverse)
 	struct square *sqr = SQRADDR(r, c);
 	int fgcolor = sqr->c ? sqr->fg : fg;
 	int bgcolor = sqr->c ? sqr->bg : bg;
-	int i, j;
+	int i;
 	char *bits;
 	if (reverse) {
 		int t = bgcolor;
@@ -85,13 +85,10 @@ static void pad_show(int r, int c, int reverse)
 	if (!isprint(sqr->c))
 		return;
 	bits = font_bitmap(sqr->c, 0);
-	for (i = 0; i < font_rows(); i++) {
-		for (j = 0; j < font_cols(); j++) {
-			unsigned char val = bits[i * font_cols() + j];
-			if (val)
-				fb_put(sr + i, sc + j, mixed_color(fg, bg, val));
-		}
-	}
+	for (i = 0; i < font_rows() * font_cols(); i++)
+		if (bits[i])
+			fb_put(sr + i / font_cols(), sc + i % font_cols(),
+				mixed_color(fgcolor, bgcolor, bits[i]));
 }
 
 void pad_put(int ch, int r, int c)
