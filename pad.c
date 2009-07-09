@@ -5,18 +5,14 @@
 #include "draw.h"
 #include "font.h"
 #include "util.h"
+#include "pad.h"
 
-#define MAXSQUARES	1 << 15
 #define SQRADDR(r, c)		(&screen[(r) * cols + (c)])
 
 static int rows, cols;
 static int fg, bg;
 
-static struct square {
-	int c;
-	int fg;
-	int bg;
-} screen[MAXSQUARES];
+static struct square screen[MAXCHARS];
 
 static unsigned int cd[] = {
 	0x0a0a0a, 0xc04444, 0x339933, 0xcccc66,
@@ -132,4 +128,21 @@ int pad_rows(void)
 int pad_cols(void)
 {
 	return cols;
+}
+
+void pad_save(struct pad_state *state)
+{
+	state->fg = fg;
+	state->bg = bg;
+	memcpy(state->screen, screen, rows * cols);
+}
+
+void pad_load(struct pad_state *state)
+{
+	int i;
+	fg = state->fg;
+	bg = state->bg;
+	memcpy(screen, state->screen, rows * cols);
+	for (i = 0; i < rows * cols; i++)
+		pad_show(i / cols, i % cols, 0);
 }

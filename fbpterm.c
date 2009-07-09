@@ -7,6 +7,7 @@
 #include <pty.h>
 #include "pad.h"
 #include "util.h"
+#include "term.h"
 
 #define SHELL		"/bin/bash"
 #define ESC		27
@@ -17,17 +18,8 @@
 static pid_t pid;
 static int fd;
 static int row, col;
-
-static void execshell(void)
-{
-	if ((pid = forkpty(&fd, NULL, NULL, NULL)) == -1)
-		xerror("failed to create a pty");
-	if (!pid) {
-		setenv("TERM", "linux", 1);
-		execl(SHELL, SHELL, NULL);
-		exit(1);
-	}
-}
+static struct term_state terms[2];
+static int cterm;
 
 static void setsize(void)
 {
@@ -253,9 +245,56 @@ static void shcmds(void)
 		writepty(c);
 }
 
+static void execshell(void)
+{
+	if ((pid = forkpty(&fd, NULL, NULL, NULL)) == -1)
+		xerror("failed to create a pty");
+	if (!pid) {
+		setenv("TERM", "linux", 1);
+		execl(SHELL, SHELL, NULL);
+		exit(1);
+	}
+	setsize();
+	setmode(0);
+	pad_blank();
+}
+
+static void term_save(struct term_state *state)
+{
+	state->row = row;
+	state->col = col;
+	state->fd = fd;
+	state->pid = pid;
+	pad_save(&state->pad);
+}
+
+static void term_load(struct term_state *state)
+{
+	row = state->row;
+	col = state->col;
+	fd = state->fd;
+	pid = state->pid;
+	pad_load(&state->pad);
+	move_cursor(row, col);
+}
+
 static void directkey(void)
 {
 	int c = readchar();
+	if (c == ESC) {
+		switch ((c = readchar())) {
+		case 'c':
+			if (!fd)
+				execshell();
+			return;
+		case 'j':
+			term_save(&terms[cterm]);
+			cterm = (cterm + 1) % ARRAY_SIZE(terms);
+			term_load(&terms[cterm]);
+		default:
+			writechar(ESC);
+		}
+	}
 	writechar(c);
 }
 
@@ -272,24 +311,22 @@ static void mainloop(void)
 	ufds[0].events = POLLIN;
 	ufds[1].fd = fd;
 	ufds[1].events = POLLIN;
-	while ((rv = poll(ufds, 2, 1000)) != -1) {
+	while ((rv = poll(ufds, fd ? 2 : 1, 1000)) != -1) {
 		if ((ufds[0].revents | ufds[1].revents) &
 			(POLLHUP | POLLERR | POLLNVAL))
 			break;
 		if (ufds[0].revents & POLLIN)
 			directkey();
-		if (ufds[1].revents & POLLIN)
+		if (fd && ufds[1].revents & POLLIN)
 			shcmds();
+		ufds[1].fd = fd;
 	}
 	tcsetattr(STDIN_FILENO, 0, &oldtermios);
 }
 
 int main(void)
 {
-	execshell();
 	pad_init();
-	setsize();
-	setmode(0);
 	pad_blank();
 	mainloop();
 	pad_free();
