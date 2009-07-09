@@ -107,12 +107,11 @@ static void pad_empty(int sr, int er)
 	memset(SQRADDR(sr, 0), 0, (er - sr) * sizeof(screen[0]) * cols);
 }
 
-static void pad_scroll(int sr, int nr, int n)
+void pad_scroll(int sr, int nr, int n)
 {
 	int r;
 	fb_scroll(sr * font_rows(), nr * font_rows(),
 		  n * font_rows(), color2fb(bg));
-	row = rows + n;
 	for (r = sr; r < sr + nr; r++)
 		memcpy(SQRADDR(r + n, 0), SQRADDR(r, 0),
 			cols * sizeof(screen[0]));
@@ -154,6 +153,7 @@ static void advance(int c)
 		int n = rows - row - 1;
 		int nr = rows + n;
 		pad_scroll(-n, nr, n);
+		row = rows - 1;
 	}
 }
 

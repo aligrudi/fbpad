@@ -10,3 +10,4 @@ int pad_row(void);
 int pad_col(void);
 int pad_rows(void);
 int pad_cols(void);
+void pad_scroll(int sr, int nr, int n);

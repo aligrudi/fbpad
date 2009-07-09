@@ -85,6 +85,19 @@ static void kill_line(void)
 	pad_move(pad_row(), pad_col());
 }
 
+static void delete_lines(int n)
+{
+	int sr = pad_row() + n;
+	int nr = pad_rows() - pad_row() - n;
+	pad_scroll(sr, nr, -n);
+}
+
+static void insert_lines(int n)
+{
+	int nr = pad_rows() - pad_row() - n;
+	pad_scroll(pad_row(), nr, n);
+}
+
 static void escape_bracket(void)
 {
 	int args[MAXESCARGS] = {0};
@@ -120,6 +133,12 @@ static void escape_bracket(void)
 		break;
 	case 'K':
 		kill_line();
+		break;
+	case 'L':
+		insert_lines(MAX(1, args[0]));
+		break;
+	case 'M':
+		delete_lines(MAX(1, args[0]));
 		break;
 	case 'c':
 		break;
