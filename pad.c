@@ -134,7 +134,7 @@ void pad_save(struct pad_state *state)
 {
 	state->fg = fg;
 	state->bg = bg;
-	memcpy(state->screen, screen, rows * cols);
+	memcpy(state->screen, screen, rows * cols * sizeof(screen[0]));
 }
 
 void pad_load(struct pad_state *state)
@@ -142,7 +142,7 @@ void pad_load(struct pad_state *state)
 	int i;
 	fg = state->fg;
 	bg = state->bg;
-	memcpy(screen, state->screen, rows * cols);
+	memcpy(screen, state->screen, rows * cols * sizeof(screen[0]));
 	for (i = 0; i < rows * cols; i++)
 		pad_show(i / cols, i % cols, 0);
 }
