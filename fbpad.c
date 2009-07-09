@@ -7,10 +7,12 @@
 #include "util.h"
 
 #define SHELL		"/bin/bash"
+#define TAGS		8
 #define CTRLKEY(x)	((x) - 96)
 
-static struct term_state terms[2];
-static int cterm;
+static struct term_state terms[TAGS * 2];
+static int cterm;	/* current tag */
+static int lterm;	/* last tag */
 static int exitit;
 
 static int readchar(void)
@@ -23,6 +25,8 @@ static int readchar(void)
 
 static void showterm(int n)
 {
+	if (lterm % TAGS != cterm % TAGS)
+		lterm = cterm;
 	term_save(&terms[cterm]);
 	cterm = n;
 	term_load(&terms[cterm]);
@@ -38,10 +42,11 @@ static void directkey(void)
 				term_exec(SHELL);
 			return;
 		case 'j':
-			showterm((cterm + 1) % ARRAY_SIZE(terms));
-			return;
 		case 'k':
-			showterm((cterm - 1) % ARRAY_SIZE(terms));
+			showterm((cterm + TAGS) % ARRAY_SIZE(terms));
+			return;
+		case 'o':
+			showterm(lterm);
 			return;
 		case CTRLKEY('q'):
 			exitit = 1;
