@@ -109,16 +109,16 @@ static void pad_empty(int sr, int er)
 
 void pad_scroll(int sr, int nr, int n)
 {
-	int r;
+	pad_show(row, col, 0);
 	fb_scroll(sr * font_rows(), nr * font_rows(),
 		  n * font_rows(), color2fb(bg));
-	for (r = sr; r < sr + nr; r++)
-		memcpy(SQRADDR(r + n, 0), SQRADDR(r, 0),
-			cols * sizeof(screen[0]));
+	memmove(SQRADDR(sr + n, 0), SQRADDR(sr, 0),
+		nr * cols * sizeof(screen[0]));
 	if (n > 0)
 		pad_empty(sr, sr + n);
 	else
 		pad_empty(sr + nr + n, sr + nr);
+	pad_show(row, col, 1);
 }
 
 static void advance(int c)
@@ -152,8 +152,8 @@ static void advance(int c)
 	if (row >= rows) {
 		int n = rows - row - 1;
 		int nr = rows + n;
-		pad_scroll(-n, nr, n);
 		row = rows - 1;
+		pad_scroll(-n, nr, n);
 	}
 }
 
