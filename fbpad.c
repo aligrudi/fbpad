@@ -7,9 +7,11 @@
 #include "util.h"
 
 #define SHELL		"/bin/bash"
+#define CTRLKEY(x)	((x) - 96)
 
 static struct term_state terms[2];
 static int cterm;
+static int exitit;
 
 static int readchar(void)
 {
@@ -41,6 +43,9 @@ static void directkey(void)
 		case 'k':
 			showterm((cterm - 1) % ARRAY_SIZE(terms));
 			return;
+		case CTRLKEY('q'):
+			exitit = 1;
+			return;
 		default:
 			term_send(ESC);
 		}
@@ -62,7 +67,7 @@ static void mainloop(void)
 	ufds[0].events = POLLIN;
 	ufds[1].fd = term_fd();
 	ufds[1].events = POLLIN;
-	while ((rv = poll(ufds, term_fd() ? 2 : 1, 1000)) != -1) {
+	while (!exitit && (rv = poll(ufds, term_fd() ? 2 : 1, 1000)) != -1) {
 		if (ufds[0].revents & (POLLHUP | POLLERR | POLLNVAL))
 			break;
 		if (term_fd() && ufds[1].revents & (POLLHUP | POLLERR | POLLNVAL))
