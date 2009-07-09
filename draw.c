@@ -87,7 +87,6 @@ static char *rowaddr(int r)
 
 void fb_scroll(int sr, int nr, int n, u16_t val)
 {
-	int r;
 	memmove(rowaddr(sr + n), rowaddr(sr), nr * finfo.line_length);
 	if (n > 0)
 		fb_box(sr, 0, n, sr + n, val);
