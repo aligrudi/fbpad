@@ -16,6 +16,7 @@
 
 static pid_t pid;
 static int fd;
+static int row, col;
 
 static void execshell(void)
 {
@@ -54,10 +55,25 @@ static int readchar(void)
 	return -1;
 }
 
+static void move_cursor(int r, int c)
+{
+	pad_show(row, col, 0);
+	row = MIN(r, pad_rows() - 1);
+	col = MIN(c, pad_cols() - 1);
+	pad_show(row, col, 1);
+}
+
+static void scroll_screen(int sr, int nr, int n)
+{
+	pad_show(row, col, 0);
+	pad_scroll(sr, nr, n);
+	pad_show(row, col, 1);
+}
+
 static void advance(int ch)
 {
-	int r = pad_row();
-	int c = pad_col();
+	int r = row;
+	int c = col;
 	switch (ch) {
 	case '\n':
 		r++;
@@ -88,9 +104,9 @@ static void advance(int ch)
 		int n = pad_rows() - r - 1;
 		int nr = r + n;
 		r = pad_rows() - 1;
-		pad_scroll(-n, nr, n);
+		scroll_screen(-n, nr, n);
 	}
-	pad_move(r, c);
+	move_cursor(r, c);
 }
 
 static void writechar(int c)
@@ -101,7 +117,7 @@ static void writechar(int c)
 
 static void writepty(int c)
 {
-	pad_put(c, pad_row(), pad_col());
+	pad_put(c, row, col);
 	advance(c);
 }
 
@@ -120,22 +136,22 @@ static void setmode(int m)
 static void kill_line(void)
 {
 	int i;
-	for (i = pad_col(); i < pad_cols(); i++)
-		pad_put('\0', pad_row(), i);
-	pad_move(pad_row(), pad_col());
+	for (i = col; i < pad_cols(); i++)
+		pad_put('\0', row, i);
+	move_cursor(row, col);
 }
 
 static void delete_lines(int n)
 {
-	int sr = pad_row() + n;
-	int nr = pad_rows() - pad_row() - n;
-	pad_scroll(sr, nr, -n);
+	int sr = row + n;
+	int nr = pad_rows() - row - n;
+	scroll_screen(sr, nr, -n);
 }
 
 static void insert_lines(int n)
 {
-	int nr = pad_rows() - pad_row() - n;
-	pad_scroll(pad_row(), nr, n);
+	int nr = pad_rows() - row - n;
+	scroll_screen(row, nr, n);
 }
 
 static void escape_bracket(void)
@@ -153,23 +169,23 @@ static void escape_bracket(void)
 	switch (c) {
 	case 'H':
 	case 'f':
-		pad_move(MAX(0, args[0] - 1), MAX(0, args[1] - 1));
+		move_cursor(MAX(0, args[0] - 1), MAX(0, args[1] - 1));
 		break;
 	case 'J':
 		pad_blank();
-		pad_move(0, 0);
+		move_cursor(0, 0);
 		break;
 	case 'A':
-		pad_move(pad_row() - MAX(1, args[0]), pad_col());
+		move_cursor(row - MAX(1, args[0]), col);
 		break;
 	case 'B':
-		pad_move(pad_row() + MAX(1, args[0]), pad_col());
+		move_cursor(row + MAX(1, args[0]), col);
 		break;
 	case 'C':
-		pad_move(pad_row(), pad_col() + MAX(1, args[0]));
+		move_cursor(row, col + MAX(1, args[0]));
 		break;
 	case 'D':
-		pad_move(pad_row(), pad_col() - MAX(1, args[0]));
+		move_cursor(row, col - MAX(1, args[0]));
 		break;
 	case 'K':
 		kill_line();
@@ -201,7 +217,7 @@ static void escape_bracket(void)
 
 static void reverse_index()
 {
-	pad_scroll(0, pad_rows() - 1, 1);
+	scroll_screen(0, pad_rows() - 1, 1);
 }
 
 static int escape_alone(int c)

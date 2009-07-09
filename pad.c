@@ -10,7 +10,6 @@
 #define SQRADDR(r, c)		(&screen[(r) * cols + (c)])
 
 static int rows, cols;
-static int row, col;
 static int fg, bg;
 
 static struct square {
@@ -67,7 +66,7 @@ void pad_bg(int c)
 	bg = c;
 }
 
-static void pad_show(int r, int c, int reverse)
+void pad_show(int r, int c, int reverse)
 {
 	int sr = font_rows() * r;
 	int sc = font_cols() * c;
@@ -109,7 +108,6 @@ static void pad_empty(int sr, int er)
 
 void pad_scroll(int sr, int nr, int n)
 {
-	pad_show(row, col, 0);
 	fb_scroll(sr * font_rows(), nr * font_rows(),
 		  n * font_rows(), color2fb(bg));
 	memmove(SQRADDR(sr + n, 0), SQRADDR(sr, 0),
@@ -118,31 +116,12 @@ void pad_scroll(int sr, int nr, int n)
 		pad_empty(sr, sr + n);
 	else
 		pad_empty(sr + nr + n, sr + nr);
-	pad_show(row, col, 1);
 }
 
 void pad_blank(void)
 {
 	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(bg));
 	memset(screen, 0, sizeof(screen));
-}
-
-void pad_move(int r, int c)
-{
-	pad_show(row, col, 0);
-	row = MIN(r, rows - 1);
-	col = MIN(c, cols - 1);
-	pad_show(row, col, 1);
-}
-
-int pad_row(void)
-{
-	return row;
-}
-
-int pad_col(void)
-{
-	return col;
 }
 
 int pad_rows(void)
