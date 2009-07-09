@@ -159,13 +159,29 @@ static void escape_bracket(void)
 	}
 }
 
+static void reverse_index()
+{
+	pad_scroll(0, pad_rows() - 1, 1);
+}
+
+static int escape_alone(int c)
+{
+	switch (c) {
+	case 'M':
+		reverse_index();
+		return 0;
+	default:
+		printf("unknown escape char <%c>\n", c);
+	}
+	return 1;
+}
+
 static void escape(void)
 {
 	int c = readpty();
 	if (c == '[') {
 		escape_bracket();
-	} else {
-		printf("unknown escape char <%c>\n", c);
+	} else if (escape_alone(c)) {
 		writepty(ESC);
 		writepty(c);
 		return;
