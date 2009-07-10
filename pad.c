@@ -62,6 +62,16 @@ void pad_bg(int c)
 	bg = c;
 }
 
+int pad_getfg(void)
+{
+	return fg;
+}
+
+int pad_getbg(void)
+{
+	return bg;
+}
+
 void pad_show(int r, int c, int reverse)
 {
 	int sr = font_rows() * r;
@@ -79,7 +89,7 @@ void pad_show(int r, int c, int reverse)
 	fb_box(sr, sc, sr + font_rows(), sc + font_cols(), color2fb(bgcolor));
 	if (!isprint(sqr->c))
 		return;
-	bits = font_bitmap(sqr->c, 0);
+	bits = font_bitmap(sqr->c, fgcolor >= 8);
 	for (i = 0; i < font_rows() * font_cols(); i++)
 		if (bits[i])
 			fb_put(sr + i / font_cols(), sc + i % font_cols(),

@@ -107,6 +107,12 @@ static void setmode(int m)
 		pad_fg(FGCOLOR);
 		pad_bg(BGCOLOR);
 	}
+	if (m == 1)
+		pad_fg(pad_getfg() + 8);
+	if (m == 7) {
+		pad_fg(pad_getbg());
+		pad_bg(pad_getfg());
+	}
 	if (m >= 30 && m <= 37)
 		pad_fg(m - 30);
 	if (m >= 40 && m <= 47)
@@ -183,10 +189,9 @@ static void escape_bracket(void)
 	case 'l':
 		break;
 	case 'm':
+		setmode(0);
 		for (i = 0; i < n; i++)
 			setmode(args[i]);
-		if (!n)
-			setmode(0);
 		break;
 	case 'r':
 		break;

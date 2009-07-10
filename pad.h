@@ -4,6 +4,8 @@ void pad_init(void);
 void pad_free(void);
 void pad_fg(int fg);
 void pad_bg(int bg);
+int pad_getfg(void);
+int pad_getbg(void);
 void pad_put(int ch, int r, int c);
 int pad_row(void);
 int pad_col(void);
