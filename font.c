@@ -53,6 +53,8 @@ unsigned char *font_bitmap(int c, int bold)
 
 void font_free(void)
 {
+	FT_Done_Face(face);
+	FT_Done_FreeType(library);
 }
 
 int font_rows(void)
