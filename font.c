@@ -1,8 +1,9 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_BITMAP_H
+#include "util.h"
 
-#define FONTFACE	"/home/ali/.fonts/monaco.ttf"
+#define FONTFACE	"/usr/lib/X11/fonts/TTF/DejaVuSansMono.ttf"
 #define FONTSIZE	10
 #define DPI		192
 #define MAXDOTS		(1 << 10)
@@ -35,8 +36,8 @@ unsigned char *font_bitmap(int c, int bold)
 	sr = rows + (face->size->metrics.descender >> 6) -
 		(face->glyph->metrics.horiBearingY >> 6);
 	sc = face->glyph->metrics.horiBearingX >> 6;
-	er = sr + face->glyph->bitmap.rows;
-	ec = sc + face->glyph->bitmap.width;
+	er = MIN(rows, sr + face->glyph->bitmap.rows);
+	ec = MIN(cols, sc + face->glyph->bitmap.width);
 	memset(bits, 0, sr * cols);
 	for (i = sr; i < er; i++) {
 		unsigned char *rowaddr = face->glyph->bitmap.buffer +
