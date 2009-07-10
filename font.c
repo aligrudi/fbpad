@@ -7,6 +7,7 @@
 #define FONTSIZE	10
 #define DPI		192
 #define MAXDOTS		(1 << 10)
+#define WIDTHDIFF	1
 
 static FT_Library library;
 static FT_Face face;
@@ -18,7 +19,7 @@ void font_init(void)
 	FT_New_Face(library, FONTFACE, 0, &face);
 	FT_Set_Char_Size(face, 0, FONTSIZE << 6, DPI, DPI);
 	rows = face->size->metrics.height >> 6;
-	cols = face->size->metrics.max_advance >> 6;
+	cols = (face->size->metrics.max_advance >> 6) + WIDTHDIFF;
 }
 
 unsigned char *font_bitmap(int c, int bold)
