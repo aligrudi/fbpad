@@ -1,19 +1,12 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "draw.h"
 #include "font.h"
 #include "util.h"
 #include "pad.h"
 
-#define SQRADDR(r, c)		(&screen[(r) * cols + (c)])
-
 static int rows, cols;
-static int fg, bg;
-
-static struct square screen[MAXCHARS];
-
 static unsigned int cd[] = {
 	0x0a0a0a, 0xc04444, 0x339933, 0xcccc66,
 	0x5566bc, 0xcd66af, 0xa166cd, 0xeeeeee,
@@ -49,85 +42,34 @@ static fbval_t mixed_color(int fg, int bg, unsigned char val)
 
 static fbval_t color2fb(int c)
 {
-	return mixed_color(fg, c, 0);
+	return fb_color(CR(cd[c]), CG(cd[c]), CB(cd[c]));
 }
 
-void pad_fg(int c)
-{
-	fg = c;
-}
-
-void pad_bg(int c)
-{
-	bg = c;
-}
-
-int pad_getfg(void)
-{
-	return fg;
-}
-
-int pad_getbg(void)
-{
-	return bg;
-}
-
-void pad_show(int r, int c, int reverse)
+void pad_put(int ch, int r, int c, int fg, int bg)
 {
 	int sr = font_rows() * r;
 	int sc = font_cols() * c;
-	struct square *sqr = SQRADDR(r, c);
-	int fgcolor = sqr->c ? sqr->fg : fg;
-	int bgcolor = sqr->c ? sqr->bg : bg;
 	int i;
 	char *bits;
-	if (reverse) {
-		int t = bgcolor;
-		bgcolor = fgcolor;
-		fgcolor = t;
-	}
-	fb_box(sr, sc, sr + font_rows(), sc + font_cols(), color2fb(bgcolor));
-	if (!isprint(sqr->c))
+	fb_box(sr, sc, sr + font_rows(), sc + font_cols(), color2fb(bg));
+	if (!isprint(ch))
 		return;
-	bits = font_bitmap(sqr->c, fgcolor >= 8);
+	bits = font_bitmap(ch, fg >= 8);
 	for (i = 0; i < font_rows() * font_cols(); i++)
 		if (bits[i])
 			fb_put(sr + i / font_cols(), sc + i % font_cols(),
-				mixed_color(fgcolor, bgcolor, bits[i]));
+				mixed_color(fg, bg, bits[i]));
 }
 
-void pad_put(int ch, int r, int c)
-{
-	struct square *sqr = SQRADDR(r, c);
-	if (!ch || !strchr("\a\b\f\n\r\v", ch)) {
-		sqr->c = ch;
-		sqr->fg = fg;
-		sqr->bg = bg;
-	}
-	pad_show(r, c, 0);
-}
-
-static void pad_empty(int sr, int er)
-{
-	memset(SQRADDR(sr, 0), 0, (er - sr) * sizeof(screen[0]) * cols);
-}
-
-void pad_scroll(int sr, int nr, int n)
+void pad_scroll(int sr, int nr, int n, int c)
 {
 	fb_scroll(sr * font_rows(), nr * font_rows(),
-		  n * font_rows(), color2fb(bg));
-	memmove(SQRADDR(sr + n, 0), SQRADDR(sr, 0),
-		nr * cols * sizeof(screen[0]));
-	if (n > 0)
-		pad_empty(sr, sr + n);
-	else
-		pad_empty(sr + nr + n, sr + nr);
+		  n * font_rows(), color2fb(c));
 }
 
-void pad_blank(void)
+void pad_blank(int c)
 {
-	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(bg));
-	memset(screen, 0, sizeof(screen));
+	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(c));
 }
 
 int pad_rows(void)
@@ -138,23 +80,6 @@ int pad_rows(void)
 int pad_cols(void)
 {
 	return cols;
-}
-
-void pad_save(struct pad_state *state)
-{
-	state->fg = fg;
-	state->bg = bg;
-	memcpy(state->screen, screen, rows * cols * sizeof(screen[0]));
-}
-
-void pad_load(struct pad_state *state)
-{
-	int i;
-	fg = state->fg;
-	bg = state->bg;
-	memcpy(screen, state->screen, rows * cols * sizeof(screen[0]));
-	for (i = 0; i < rows * cols; i++)
-		pad_show(i / cols, i % cols, 0);
 }
 
 void pad_shown(void)

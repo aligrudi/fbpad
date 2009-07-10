@@ -129,11 +129,11 @@ int main(void)
 	char *show = "\x1b[?25h";
 	write(STDOUT_FILENO, hide, strlen(hide));
 	write(STDOUT_FILENO, clear, strlen(clear));
-	pad_init();
-	pad_blank();
+	term_init();
+	term_blank();
 	setupsignals();
 	mainloop();
-	pad_free();
+	term_free();
 	write(STDOUT_FILENO, hide, strlen(hide));
 	write(STDOUT_FILENO, show, strlen(show));
 	return 0;

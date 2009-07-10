@@ -2,6 +2,7 @@
 #include <pty.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "pad.h"
@@ -11,10 +12,13 @@
 #define MAXESCARGS	32
 #define FGCOLOR		0
 #define BGCOLOR		7
+#define SQRADDR(r, c)		(&screen[(r) * pad_cols() + (c)])
 
 static pid_t pid;
 static int fd;
 static int row, col;
+static int fg, bg;
+static struct square screen[MAXCHARS];
 
 static void setsize(void)
 {
@@ -34,19 +38,54 @@ static int readpty(void)
 	return -1;
 }
 
+static void term_show(int r, int c, int cursor)
+{
+	struct square *sqr = SQRADDR(r, c);
+	int fgcolor = sqr->c ? sqr->fg : fg;
+	int bgcolor = sqr->c ? sqr->bg : bg;
+	if (cursor) {
+		int t = fgcolor;
+		fgcolor = bgcolor;
+		bgcolor = t;
+	}
+	pad_put(sqr->c, r, c, fgcolor, bgcolor);
+}
+
+void term_put(int ch, int r, int c)
+{
+	struct square *sqr = SQRADDR(r, c);
+	if (!ch || !strchr("\a\b\f\n\r\v", ch)) {
+		sqr->c = ch;
+		sqr->fg = fg;
+		sqr->bg = bg;
+	}
+	term_show(r, c, 0);
+}
+
 static void move_cursor(int r, int c)
 {
-	pad_show(row, col, 0);
-	row = MIN(r, pad_rows() - 1);
-	col = MIN(c, pad_cols() - 1);
-	pad_show(row, col, 1);
+	term_show(row, col, 0);
+	row = MAX(0, MIN(r, pad_rows() - 1));
+	col = MAX(0, MIN(c, pad_cols() - 1));
+	term_show(row, col, 1);
+}
+
+static void empty_rows(int sr, int er)
+{
+	memset(SQRADDR(sr, 0), 0, (er - sr) * sizeof(screen[0]) * pad_cols());
 }
 
 static void scroll_screen(int sr, int nr, int n)
 {
-	pad_show(row, col, 0);
-	pad_scroll(sr, nr, n);
-	pad_show(row, col, 1);
+	term_show(row, col, 0);
+	memmove(SQRADDR(sr + n, 0), SQRADDR(sr, 0),
+		nr * pad_cols() * sizeof(screen[0]));
+	if (n > 0)
+		empty_rows(sr, sr + n);
+	else
+		empty_rows(sr + nr + n, sr + nr);
+	pad_scroll(sr, nr, n, bg);
+	term_show(row, col, 1);
 }
 
 static void advance(int ch)
@@ -97,33 +136,34 @@ void term_send(int c)
 
 static void writepty(int c)
 {
-	pad_put(c, row, col);
+	term_put(c, row, col);
 	advance(c);
 }
 
 static void setmode(int m)
 {
 	if (m == 0) {
-		pad_fg(FGCOLOR);
-		pad_bg(BGCOLOR);
+		fg = FGCOLOR;
+		bg = BGCOLOR;
 	}
 	if (m == 1)
-		pad_fg(pad_getfg() + 8);
+		fg = fg | 0x08;
 	if (m == 7) {
-		pad_fg(pad_getbg());
-		pad_bg(pad_getfg());
+		int t = fg;
+		fg = bg;
+		bg = t;
 	}
 	if (m >= 30 && m <= 37)
-		pad_fg(m - 30);
+		fg = m - 30;
 	if (m >= 40 && m <= 47)
-		pad_bg(m - 40);
+		bg = m - 40;
 }
 
 static void kill_line(void)
 {
 	int i;
 	for (i = col; i < pad_cols(); i++)
-		pad_put('\0', row, i);
+		term_put('\0', row, i);
 	move_cursor(row, col);
 }
 
@@ -132,6 +172,12 @@ static void delete_lines(int n)
 	int sr = row + n;
 	int nr = pad_rows() - row - n;
 	scroll_screen(sr, nr, -n);
+}
+
+void term_blank(void)
+{
+	pad_blank(bg);
+	memset(screen, 0, sizeof(screen));
 }
 
 static void insert_lines(int n)
@@ -158,7 +204,7 @@ static void escape_bracket(void)
 		move_cursor(MAX(0, args[0] - 1), MAX(0, args[1] - 1));
 		break;
 	case 'J':
-		pad_blank();
+		term_blank();
 		move_cursor(0, 0);
 		break;
 	case 'A':
@@ -249,7 +295,7 @@ void term_exec(char *cmd)
 	}
 	setsize();
 	setmode(0);
-	pad_blank();
+	term_blank();
 }
 
 void term_save(struct term_state *state)
@@ -258,17 +304,26 @@ void term_save(struct term_state *state)
 	state->col = col;
 	state->fd = fd;
 	state->pid = pid;
-	pad_save(&state->pad);
+	state->fg = fg;
+	state->bg = bg;
+	memcpy(state->screen, screen,
+		pad_rows() * pad_cols() * sizeof(screen[0]));
 }
 
 void term_load(struct term_state *state)
 {
+	int i;
 	row = state->row;
 	col = state->col;
 	fd = state->fd;
 	pid = state->pid;
-	pad_load(&state->pad);
-	move_cursor(row, col);
+	fg = state->fg;
+	bg = state->bg;
+	memcpy(screen, state->screen,
+		pad_rows() * pad_cols() * sizeof(screen[0]));
+	for (i = 0; i < pad_rows() * pad_cols(); i++)
+		term_show(i / pad_cols(), i % pad_cols(), 0);
+	term_show(row, col, 1);
 }
 
 int term_fd(void)
@@ -276,11 +331,22 @@ int term_fd(void)
 	return fd;
 }
 
+void term_init(void)
+{
+	pad_init();
+	term_blank();
+}
+
+void term_free(void)
+{
+	pad_free();
+}
+
 void term_end(void)
 {
 	fd = 0;
 	row = col = 0;
-	pad_fg(0);
-	pad_bg(0);
-	pad_blank();
+	fg = 0;
+	bg = 0;
+	term_blank();
 }
