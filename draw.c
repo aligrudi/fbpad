@@ -10,10 +10,10 @@
 #include "util.h"
 
 #define FBDEV_PATH	"/dev/fb0"
-#define BPP		2
+#define BPP		sizeof(fbval_t)
 
 static int fd;
-static char *fb;
+static unsigned char *fb;
 static struct fb_var_screeninfo vinfo;
 static struct fb_fix_screeninfo finfo;
 
@@ -36,7 +36,7 @@ void fb_init(void)
 		xerror("can't map the framebuffer");
 }
 
-void fb_put(int r, int c, u16_t val)
+void fb_put(int r, int c, fbval_t val)
 {
 	long loc = (c + vinfo.xoffset) * BPP +
 		(r + vinfo.yoffset) * finfo.line_length;
@@ -49,13 +49,13 @@ void fb_free()
 	close(fd);
 }
 
-static u16_t color_bits(struct fb_bitfield *bf, unsigned char v)
+static fbval_t color_bits(struct fb_bitfield *bf, fbval_t v)
 {
-	unsigned char moved = v >> (8 - bf->length);
+	fbval_t moved = v >> (8 - bf->length);
 	return moved << bf->offset;
 }
 
-u16_t fb_color(u8_t r, u8_t g, u8_t b)
+fbval_t fb_color(unsigned char r, unsigned char g, unsigned char b)
 {
 	return color_bits(&vinfo.red, r) |
 		color_bits(&vinfo.green, g) |
@@ -72,7 +72,7 @@ int fb_cols(void)
 	return vinfo.xres_virtual;
 }
 
-void fb_box(int sr, int sc, int er, int ec, u16_t val)
+void fb_box(int sr, int sc, int er, int ec, fbval_t val)
 {
 	int r, c;
 	for (r = sr; r < er; r++)
@@ -80,12 +80,12 @@ void fb_box(int sr, int sc, int er, int ec, u16_t val)
 			fb_put(r, c, val);
 }
 
-static char *rowaddr(int r)
+static unsigned char *rowaddr(int r)
 {
 	return fb + (r + vinfo.yoffset) * finfo.line_length;
 }
 
-void fb_scroll(int sr, int nr, int n, u16_t val)
+void fb_scroll(int sr, int nr, int n, fbval_t val)
 {
 	memmove(rowaddr(sr + n), rowaddr(sr), nr * finfo.line_length);
 	if (n > 0)

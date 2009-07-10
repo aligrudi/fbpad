@@ -38,16 +38,16 @@ void pad_free(void)
 #define CB(a)		((a) & 0x0000ff)
 #define COLORMERGE(f, b, c)		((b) + (((f) - (b)) * (c) >> 8u))
 
-static u16_t mixed_color(int fg, int bg, u8_t val)
+static fbval_t mixed_color(int fg, int bg, unsigned char val)
 {
 	unsigned int fore = cd[fg], back = cd[bg];
-	u8_t r = COLORMERGE(CR(fore), CR(back), val);
-	u8_t g = COLORMERGE(CG(fore), CG(back), val);
-	u8_t b = COLORMERGE(CB(fore), CB(back), val);
+	unsigned char r = COLORMERGE(CR(fore), CR(back), val);
+	unsigned char g = COLORMERGE(CG(fore), CG(back), val);
+	unsigned char b = COLORMERGE(CB(fore), CB(back), val);
 	return fb_color(r, g, b);
 }
 
-static u16_t color2fb(int c)
+static fbval_t color2fb(int c)
 {
 	return mixed_color(fg, c, 0);
 }

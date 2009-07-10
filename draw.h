@@ -1,11 +1,10 @@
-typedef unsigned short u16_t;
-typedef unsigned char u8_t;
+typedef unsigned short fbval_t;
 
 void fb_init(void);
 void fb_free(void);
-u16_t fb_color(u8_t r, u8_t g, u8_t b);
-void fb_put(int r, int c, u16_t val);
+fbval_t fb_color(unsigned char r, unsigned char g, unsigned char b);
+void fb_put(int r, int c, fbval_t val);
 int fb_rows(void);
 int fb_cols(void);
-void fb_box(int sr, int sc, int er, int ec, u16_t val);
-void fb_scroll(int sr, int nr, int n, u16_t val);
+void fb_box(int sr, int sc, int er, int ec, fbval_t val);
+void fb_scroll(int sr, int nr, int n, fbval_t val);
