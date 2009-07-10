@@ -23,3 +23,4 @@ struct pad_state {
 };
 void pad_save(struct pad_state *state);
 void pad_load(struct pad_state *state);
+void pad_shown(void);

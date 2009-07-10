@@ -146,3 +146,8 @@ void pad_load(struct pad_state *state)
 	for (i = 0; i < rows * cols; i++)
 		pad_show(i / cols, i % cols, 0);
 }
+
+void pad_shown(void)
+{
+	fb_cmap();
+}

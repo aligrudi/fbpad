@@ -1,7 +1,10 @@
+#include <errno.h>
 #include <poll.h>
 #include <pty.h>
+#include <signal.h>
 #include <string.h>
 #include <unistd.h>
+#include <linux/vt.h>
 #include "pad.h"
 #include "term.h"
 #include "util.h"
@@ -72,7 +75,10 @@ static void mainloop(void)
 	ufds[0].events = POLLIN;
 	ufds[1].fd = term_fd();
 	ufds[1].events = POLLIN;
-	while (!exitit && (rv = poll(ufds, term_fd() ? 2 : 1, 1000)) != -1) {
+	while (!exitit) {
+		rv = poll(ufds, term_fd() ? 2 : 1, 1000);
+		if (rv == -1 && errno != EINTR)
+			break;
 		if (ufds[0].revents & (POLLHUP | POLLERR | POLLNVAL))
 			break;
 		if (term_fd() && ufds[1].revents & (POLLHUP | POLLERR | POLLNVAL))
@@ -86,6 +92,36 @@ static void mainloop(void)
 	tcsetattr(STDIN_FILENO, 0, &oldtermios);
 }
 
+static void signalreceived(int n)
+{
+	if (exitit)
+		return;
+	switch (n) {
+	case SIGUSR1:
+		term_save(&terms[cterm]);
+		ioctl(STDIN_FILENO, VT_RELDISP, 1);
+		break;
+	case SIGUSR2:
+		pad_shown();
+		term_load(&terms[cterm]);
+		break;
+	}
+}
+
+static void setupsignals(void)
+{
+	struct vt_mode vtm;
+	vtm.mode = VT_PROCESS;
+	vtm.waitv = 0;
+	vtm.relsig = SIGUSR1;
+	vtm.acqsig = SIGUSR2;
+	vtm.frsig = 0;
+	ioctl(STDIN_FILENO, VT_SETMODE, &vtm);
+
+	signal(SIGUSR1, signalreceived);
+	signal(SIGUSR2, signalreceived);
+}
+
 int main(void)
 {
 	char *hide = "\x1b[?25l";
@@ -95,9 +131,10 @@ int main(void)
 	write(STDOUT_FILENO, clear, strlen(clear));
 	pad_init();
 	pad_blank();
+	setupsignals();
 	mainloop();
 	pad_free();
-	write(STDOUT_FILENO, clear, strlen(clear));
+	write(STDOUT_FILENO, hide, strlen(hide));
 	write(STDOUT_FILENO, show, strlen(show));
 	return 0;
 }

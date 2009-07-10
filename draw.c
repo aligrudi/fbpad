@@ -23,7 +23,7 @@ static int fb_len()
 }
 
 #define NLEVELS	1 << 8
-static void pad_cmap(void)
+void fb_cmap(void)
 {
 	unsigned short red[NLEVELS], green[NLEVELS], blue[NLEVELS];
 	struct fb_cmap cmap;
@@ -63,7 +63,7 @@ void fb_init(void)
 	fb = mmap(NULL, fb_len(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (fb == MAP_FAILED)
 		xerror("can't map the framebuffer");
-	pad_cmap();
+	fb_cmap();
 }
 
 void fb_put(int r, int c, fbval_t val)
