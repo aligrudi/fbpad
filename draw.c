@@ -22,6 +22,35 @@ static int fb_len()
 	return vinfo.xres_virtual * vinfo.yres_virtual * BPP;
 }
 
+#define NLEVELS	1 << 8
+static void pad_cmap(void)
+{
+	unsigned short red[NLEVELS], green[NLEVELS], blue[NLEVELS];
+	struct fb_cmap cmap;
+	int mr = 1 << vinfo.red.length;
+	int mg = 1 << vinfo.green.length;
+	int mb = 1 << vinfo.blue.length;
+	int i;
+	if (finfo.visual == FB_VISUAL_TRUECOLOR)
+		return;
+
+	for (i = 0; i < mr; i++)
+		red[i] = (i << 16) / (mr - 1);
+	for (i = 0; i < mg; i++)
+		green[i] = (i << 16) / (mg - 1);
+	for (i = 0; i < mb; i++)
+		blue[i] = (i << 16) / (mb - 1);
+
+	cmap.start = 0;
+	cmap.len = MAX(mr, MAX(mg, mb));
+	cmap.red = red;
+	cmap.green = green;
+	cmap.blue = blue;
+	cmap.transp = 0;
+
+	ioctl(fd, FBIOPUTCMAP, &cmap);
+}
+
 void fb_init(void)
 {
 	fd = open(FBDEV_PATH, O_RDWR);
@@ -34,6 +63,7 @@ void fb_init(void)
 	fb = mmap(NULL, fb_len(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (fb == MAP_FAILED)
 		xerror("can't map the framebuffer");
+	pad_cmap();
 }
 
 void fb_put(int r, int c, fbval_t val)
