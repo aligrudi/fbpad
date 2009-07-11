@@ -35,11 +35,11 @@ void fb_cmap(void)
 		return;
 
 	for (i = 0; i < mr; i++)
-		red[i] = (i << 16) / (mr - 1);
+		red[i] = (65535 / (mr - 1)) * i;
 	for (i = 0; i < mg; i++)
-		green[i] = (i << 16) / (mg - 1);
+		green[i] = (65535 / (mg - 1)) * i;
 	for (i = 0; i < mb; i++)
-		blue[i] = (i << 16) / (mb - 1);
+		blue[i] = (65535 / (mb - 1)) * i;
 
 	cmap.start = 0;
 	cmap.len = MAX(mr, MAX(mg, mb));
