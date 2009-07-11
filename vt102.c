@@ -20,7 +20,7 @@ static void ctlseq(void)
 	case 0x0a:	/* LF		line feed */
 	case 0x0b:	/* VT		line feed */
 	case 0x0c:	/* FF		line feed */
-		advance(1, noautocr ? 0 : -col, 1);
+		advance(1, (mode & MODE_NOAUTOCR) ? 0 : -col, 1);
 		break;
 	case 0x08:	/* BS		backspace one column */
 		advance(0, -1, 0);
@@ -81,16 +81,10 @@ static void escseq(void)
 		escseq_g3();
 		break;
 	case '7':	/* DECSC	save state (position, charset, attributes) */
-		saved_row = row;
-		saved_col = col;
-		saved_fg = fg;
-		saved_bg = bg;
+		misc_save(&saved);
 		break;
 	case '8':	/* DECRC	restore most recently saved state */
-		row = saved_row;
-		col = saved_col;
-		fg = saved_fg;
-		bg = saved_bg;
+		misc_load(&saved);
 		break;
 	case 'M':	/* RI		reverse line feed */
 		advance(-1, 0, 1);
@@ -200,7 +194,7 @@ static void escseq_g3(void)
 
 static int absrow(int r)
 {
-	return origin ? top + r : r;
+	return origin() ? top + r : r;
 }
 
 #define CSIP(c)			(((c) & 0xf0) == 0x30)
@@ -364,7 +358,7 @@ static void csiseq_dsr(int c)
 		break;
 	case 0x06:
 		snprintf(status, sizeof(status), "\x1b[%d;%dR",
-			 (origin ? row - top : row) + 1, col + 1);
+			 (origin() ? row - top : row) + 1, col + 1);
 		term_sendstr(status);
 		break;
 	default:
@@ -378,16 +372,16 @@ static void modeseq(int c, int set)
 {
 	switch(c) {
 	case 0x87:	/* DECAWM	Auto Wrap */
-		nowrap = !set;
+		mode = BIT_SET(mode, MODE_NOWRAP, !set);
 		break;
 	case 0x99:	/* DECTCEM	Cursor on (set); Cursor off (reset) */
-		nocursor = !set;
+		mode = BIT_SET(mode, MODE_NOCURSOR, !set);
 		break;
 	case 0x86:	/* DECOM	Sets relative coordinates (set); Sets absolute coordinates (reset) */
-		origin = set;
+		mode = BIT_SET(mode, MODE_ORIGIN, set);
 		break;
 	case 0x14:	/* LNM		Line Feed / New Line Mode */
-		noautocr = !set;
+		mode = BIT_SET(mode, MODE_NOAUTOCR, !set);
 		break;
 	case 0x00:	/* IGN		Error (Ignored) */
 	case 0x01:	/* GATM		guarded-area transfer mode (ignored) */

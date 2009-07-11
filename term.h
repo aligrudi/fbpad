@@ -1,15 +1,21 @@
 #define ESC		27
 
-struct term_state {
+struct miscterm_state {
 	int row, col;
+	int fg, bg;
+	int top, bot;
+	unsigned long mode;
+};
+
+struct term_state {
 	int fd;
 	int pid;
-	int fg, bg;
 	struct square {
 		int c;
 		int fg;
 		int bg;
 	} screen[MAXCHARS];
+	struct miscterm_state cur, sav;
 };
 
 void term_save(struct term_state *state);

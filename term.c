@@ -13,14 +13,25 @@
 #define BGCOLOR		7
 #define SQRADDR(r, c)		(&screen[(r) * pad_cols() + (c)])
 
+#define MODE_NOCURSOR		0x01
+#define MODE_NOWRAP		0x02
+#define MODE_ORIGIN		0x04
+#define MODE_NOAUTOCR		0x08
+#define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
+
 static pid_t pid;
 static int fd;
 static int row, col;
 static int fg, bg;
 static struct square screen[MAXCHARS];
 static int top, bot;
-static int nocursor, nowrap, origin, noautocr;
-static int saved_row, saved_col, saved_fg, saved_bg;
+static int mode;
+static struct miscterm_state saved;
+
+static int origin(void)
+{
+	return mode & MODE_ORIGIN;
+}
 
 static void setsize(void)
 {
@@ -45,7 +56,7 @@ static void term_show(int r, int c, int cursor)
 	struct square *sqr = SQRADDR(r, c);
 	int fgcolor = sqr->c ? sqr->fg : fg;
 	int bgcolor = sqr->c ? sqr->bg : bg;
-	if (cursor && !nocursor) {
+	if (cursor && !(mode & MODE_NOCURSOR)) {
 		int t = fgcolor;
 		fgcolor = bgcolor;
 		bgcolor = t;
@@ -109,7 +120,7 @@ static void delete_lines(int n)
 static void move_cursor(int r, int c)
 {
 	term_show(row, col, 0);
-	row = MAX(origin ? top : 0, MIN(r, (origin ? bot : pad_rows()) - 1));
+	row = MAX(origin() ? top : 0, MIN(r, (origin() ? bot : pad_rows()) - 1));
 	col = MAX(0, MIN(c, pad_cols() - 1));
 	term_show(row, col, 1);
 }
@@ -118,10 +129,10 @@ static void advance(int dr, int dc, int scrl)
 {
 	int r = row + dr;
 	int c = col + dc;
-	int t = origin ? top : 0;
-	int b = origin ? bot : pad_rows();
+	int t = origin() ? top : 0;
+	int b = origin() ? bot : pad_rows();
 	if (c >= pad_cols()) {
-		if (!scrl || nowrap) {
+		if (!scrl || (mode & MODE_NOWRAP)) {
 			c = pad_cols() - 1;
 		} else {
 			r++;
@@ -235,27 +246,45 @@ void term_exec(char *cmd)
 	term_blank();
 }
 
-void term_save(struct term_state *state)
+static void misc_save(struct miscterm_state *state)
 {
 	state->row = row;
 	state->col = col;
-	state->fd = fd;
-	state->pid = pid;
 	state->fg = fg;
 	state->bg = bg;
+	state->top = top;
+	state->bot = bot;
+	state->mode = mode;
+}
+
+static void misc_load(struct miscterm_state *state)
+{
+	row = state->row;
+	col = state->col;
+	fg = state->fg;
+	bg = state->bg;
+	top = state->top;
+	bot = state->bot;
+	mode = state->mode;
+}
+
+void term_save(struct term_state *state)
+{
+	state->fd = fd;
+	state->pid = pid;
 	memcpy(state->screen, screen,
 		pad_rows() * pad_cols() * sizeof(screen[0]));
+	state->sav = saved;
+	misc_save(&state->cur);
 }
 
 void term_load(struct term_state *state)
 {
 	int i;
-	row = state->row;
-	col = state->col;
 	fd = state->fd;
 	pid = state->pid;
-	fg = state->fg;
-	bg = state->bg;
+	misc_load(&state->cur);
+	saved = state->sav;
 	memcpy(screen, state->screen,
 		pad_rows() * pad_cols() * sizeof(screen[0]));
 	for (i = 0; i < pad_rows() * pad_cols(); i++)
@@ -293,7 +322,7 @@ void set_region(int t, int b)
 {
 	top = MIN(pad_rows(), MAX(0, t - 1));
 	bot = MIN(pad_rows(), MAX(0, b ? b : pad_rows()));
-	if (origin)
+	if (origin())
 		move_cursor(top, 0);
 }
 
