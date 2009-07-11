@@ -194,9 +194,10 @@ static void escseq_g3(void)
 	}
 }
 
-#define CSIP(c)		(((c) & 0xf0) == 0x30)
-#define CSII(c)		(((c) & 0xf0) == 0x20)
-#define CSIF(c)		((c) >= 0x40 && (c) < 0x80)
+#define CSIP(c)			(((c) & 0xf0) == 0x30)
+#define CSII(c)			(((c) & 0xf0) == 0x20)
+#define CSIF(c)			((c) >= 0x40 && (c) < 0x80)
+
 #define MAXCSIARGS	32
 /* ECMA-48 CSI sequences */
 static void csiseq(void)
@@ -204,12 +205,30 @@ static void csiseq(void)
 	int args[MAXCSIARGS] = {0};
 	int i;
 	int n = 0;
-	int c = 0;
-	for (i = 0; i < ARRAY_SIZE(args) && !CSIF(c); i++) {
+	int c = readpty();
+	int inter = 0;
+	int priv = 0;
+
+	if (strchr("<=>?", c)) {
+		priv = c;
+		c = readpty();
+	}
+	while (CSIP(c)) {
 		int arg = 0;
-		while (isdigit((c = readpty())))
-			arg = arg * 10 + (c - '0');
-		args[n++] = arg;
+		if (isdigit(c)) {
+			while (isdigit(c)) {
+				arg = arg * 10 + (c - '0');
+				c = readpty();
+			}
+		} else {
+			c = readpty();
+		}
+		args[n] = arg;
+		n = n < ARRAY_SIZE(args) ? n + 1 : 0;
+	}
+	while (CSII(c)) {
+		inter = c;
+		c = readpty();
 	}
 	switch(c) {
 	case 'H':	/* CUP		move cursor to row, column */
@@ -273,10 +292,12 @@ static void csiseq(void)
 			setmode(args[i]);
 		break;
 	case 'h':	/* SM		set mode */
-		modeseq(n <= 1 ? args[0] : 0x80 | args[1], 1);
+		for (i = 0; i < n; i++)
+			modeseq(priv == '?' ? args[i] | 0x80 : args[i], 1);
 		break;
 	case 'l':	/* RM		reset mode */
-		modeseq(n <= 1 ? args[0] : 0x80 | args[1], 0);
+		for (i = 0; i < n; i++)
+			modeseq(priv == '?' ? args[i] | 0x80 : args[i], 0);
 		break;
 	case 'r':	/* DECSTBM	set scrolling region to (top, bottom) rows */
 		top = MIN(pad_rows(), MAX(0, args[0] - 1));
