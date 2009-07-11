@@ -235,7 +235,17 @@ static void csiseq(void)
 		move_cursor(0, -MAX(1, args[0]));
 		break;
 	case 'K':	/* EL		erase line */
-		kill_chars(col, pad_cols());
+		switch (args[0]) {
+		case 0:
+			kill_chars(col, pad_cols());
+			break;
+		case 1:
+			kill_chars(0, col + 1);
+			break;
+		case 2:
+			kill_chars(0, pad_cols());
+			break;
+		}
 		break;
 	case 'L':	/* IL		insert blank lines */
 		insert_lines(MAX(1, args[0]));

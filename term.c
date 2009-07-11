@@ -170,11 +170,8 @@ static void setmode(int m)
 static void kill_chars(int sc, int ec)
 {
 	int i;
-	memmove(SQRADDR(row, sc), SQRADDR(row, ec),
-		(pad_cols() - ec) * sizeof(screen[0]));
-	memset(SQRADDR(row, sc + pad_cols() - ec), 0,
-		(ec - sc) * sizeof(screen[0]));
-	for (i = col; i < pad_cols(); i++)
+	memset(SQRADDR(row, sc), 0, (ec - sc) * sizeof(screen[0]));
+	for (i = sc; i < ec; i++)
 		term_show(row, i, 0);
 	move_cursor(row, col);
 }
