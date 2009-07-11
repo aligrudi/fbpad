@@ -6,6 +6,7 @@ static void escseq_g2(void);
 static void escseq_g3(void);
 static void csiseq(void);
 static void csiseq_da(int c);
+static void csiseq_dsr(int c);
 static void modeseq(int c, int set);
 
 /* control sequences */
@@ -51,10 +52,15 @@ static void ctlseq(void)
 	}
 }
 
+#define ESCM(c)		(((c) & 0xf0) == 0x20)
+#define ESCF(c)		((c) > 0x30 && (c) < 0x7f)
+
 /* escape sequences */
 static void escseq(void)
 {
 	int c = readpty();
+	while (ESCM(c))
+		c = readpty();
 	switch(c) {
 	case 'M':	/* RI		reverse line feed */
 		scroll_screen(top, bot - top - 1, 1);
@@ -188,6 +194,9 @@ static void escseq_g3(void)
 	}
 }
 
+#define CSIP(c)		(((c) & 0xf0) == 0x30)
+#define CSII(c)		(((c) & 0xf0) == 0x20)
+#define CSIF(c)		((c) > 0x40 && (c) < 0x7f)
 #define MAXCSIARGS	32
 /* ECMA-48 CSI sequences */
 static void csiseq(void)
@@ -196,7 +205,7 @@ static void csiseq(void)
 	int i;
 	int n = 0;
 	int c = 0;
-	for (i = 0; i < ARRAY_SIZE(args) && !isalpha(c); i++) {
+	for (i = 0; i < ARRAY_SIZE(args) && !CSIF(c); i++) {
 		int arg = 0;
 		while (isdigit((c = readpty())))
 			arg = arg * 10 + (c - '0');
@@ -225,9 +234,11 @@ static void csiseq(void)
 	case 'A':	/* CUU		move cursor up */
 		advance(MAX(1, args[0]), 0);
 		break;
+	case 'e':	/* VPR		move cursor down */
 	case 'B':	/* CUD		move cursor down */
 		advance(MAX(1, args[0]), 0);
 		break;
+	case 'a':	/* HPR		move cursor right */
 	case 'C':	/* CUF		move cursor right */
 		advance(0, MAX(1, args[0]));
 		break;
@@ -274,17 +285,19 @@ static void csiseq(void)
 	case 'c':	/* DA		return ESC [ ? 6 c (VT102) */
 		csiseq_da(n <= 1 ? args[0] : 0x80 | args[1]);
 		break;
+	case 'P':	/* DCH		delete characters on current line */
+		delete_chars(MAX(1, args[0]));
+		break;
+	case 'n':	/* DSR		device status report */
+		csiseq_dsr(args[0]);
+		break;
 	case '[':	/* IGN		ignored control sequence */
 	case '@':	/* ICH		insert blank characters */
 	case 'E':	/* CNL		move cursor down and to column 1 */
 	case 'F':	/* CPL		move cursor up and to column 1 */
 	case 'G':	/* CHA		move cursor to column in current row */
-	case 'P':	/* DCH		delete characters on current line */
 	case 'X':	/* ECH		erase characters on current line */
-	case 'a':	/* HPR		move cursor right */
-	case 'e':	/* VPR		move cursor down */
 	case 'g':	/* TBC		clear tab stop (CSI 3 g = clear all stops) */
-	case 'n':	/* DSR		device status report */
 	case 'q':	/* DECLL	set keyboard LEDs */
 	case 's':	/* CUPSV	save cursor position */
 	case 'u':	/* CUPRS	restore cursor position */
@@ -306,6 +319,24 @@ static void csiseq_da(int c)
 		break;
 	default:
 		printf("csiseq_da <0x%x>\n", c);
+		break;
+	}
+}
+
+static void csiseq_dsr(int c)
+{
+	char status[1 << 5];
+	switch(c) {
+	case 0x05:
+		term_sendstr("\x1b[0n");
+		break;
+	case 0x06:
+		snprintf(status, sizeof(status), "\x1b[%d;%dR",
+			 row + 1, col + 1);
+		term_sendstr(status);
+		break;
+	default:
+		printf("csiseq_dsr <0x%x>\n", c);
 		break;
 	}
 }

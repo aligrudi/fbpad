@@ -176,6 +176,26 @@ static void kill_chars(int sc, int ec)
 	move_cursor(row, col);
 }
 
+static void move_chars(int sc, int nc, int n)
+{
+	int i;
+	term_show(row, col, 0);
+	memmove(SQRADDR(row, sc + n), SQRADDR(row, sc),
+		nc * sizeof(screen[0]));
+	if (n > 0)
+		memset(SQRADDR(row, sc), 0, n * sizeof(screen[0]));
+	else
+		memset(SQRADDR(row, pad_rows() + n), 0, -n * sizeof(screen[0]));
+	for (i = MIN(sc, sc + n); i < pad_cols(); i++)
+		term_show(row, i, 0);
+	term_show(row, col, 1);
+}
+
+static void delete_chars(int n)
+{
+	move_chars(col + n, pad_cols(), -n);
+}
+
 void term_blank(void)
 {
 	pad_blank(bg);
