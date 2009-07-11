@@ -279,6 +279,9 @@ static void csiseq(void)
 static void modeseq(int c, int set)
 {
 	switch(c) {
+	case 0x99:	/* DECTCEM	Cursor on (set); Cursor off (reset) */
+		nocursor = !set;
+		break;
 	case 0x00:	/* IGN		Error (Ignored) */
 	case 0x01:	/* GATM		guarded-area transfer mode (ignored) */
 	case 0x02:	/* KAM		keyboard action mode (always reset) */
@@ -311,7 +314,6 @@ static void modeseq(int c, int set)
 	case 0x89:	/* DECINLM	Interlace */
 	case 0x92:	/* DECPFF	Send FF to printer after print screen (set); No char after PS (reset) */
 	case 0x93:	/* DECPEX	Print screen: prints full screen (set); prints scroll region (reset) */
-	case 0x99:	/* DECTCEM	Cursor on (set); Cursor off (reset) */
 	default:
 		printf("modeseq: <0x%x>\n", c);
 		break;

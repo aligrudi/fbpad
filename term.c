@@ -19,6 +19,7 @@ static int row, col;
 static int fg, bg;
 static struct square screen[MAXCHARS];
 static int top, bot;
+static int nocursor;
 
 static void setsize(void)
 {
@@ -43,7 +44,7 @@ static void term_show(int r, int c, int cursor)
 	struct square *sqr = SQRADDR(r, c);
 	int fgcolor = sqr->c ? sqr->fg : fg;
 	int bgcolor = sqr->c ? sqr->bg : bg;
-	if (cursor) {
+	if (cursor && !nocursor) {
 		int t = fgcolor;
 		fgcolor = bgcolor;
 		bgcolor = t;
