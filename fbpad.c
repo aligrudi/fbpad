@@ -129,8 +129,8 @@ int main(void)
 	char *hide = "\x1b[?25l";
 	char *clear = "\x1b[2J\x1b[H";
 	char *show = "\x1b[?25h";
-	write(STDOUT_FILENO, hide, strlen(hide));
-	write(STDOUT_FILENO, clear, strlen(clear));
+	write(STDIN_FILENO, clear, strlen(clear));
+	write(STDIN_FILENO, hide, strlen(hide));
 	term_init();
 	term_blank();
 	setupsignals();
@@ -138,7 +138,6 @@ int main(void)
 		fcntl(STDIN_FILENO, F_GETFL) | O_NONBLOCK);
 	mainloop();
 	term_free();
-	write(STDOUT_FILENO, hide, strlen(hide));
-	write(STDOUT_FILENO, show, strlen(show));
+	write(STDIN_FILENO, show, strlen(show));
 	return 0;
 }
