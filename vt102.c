@@ -279,6 +279,9 @@ static void csiseq(void)
 static void modeseq(int c, int set)
 {
 	switch(c) {
+	case 0x87:	/* DECAWM	Auto Wrap */
+		nowrap = !set;
+		break;
 	case 0x99:	/* DECTCEM	Cursor on (set); Cursor off (reset) */
 		nocursor = !set;
 		break;
@@ -309,13 +312,12 @@ static void modeseq(int c, int set)
 	case 0x84:	/* DECSCLM	Jump scroll (set); Smooth scroll (reset) */
 	case 0x85:	/* DECSCNM	Reverse screen (set); Normal screen (reset) */
 	case 0x86:	/* DECOM	Sets relative coordinates (set); Sets absolute coordinates (reset) */
-	case 0x87:	/* DECAWM	Auto Wrap */
 	case 0x88:	/* DECARM	Auto Repeat */
 	case 0x89:	/* DECINLM	Interlace */
 	case 0x92:	/* DECPFF	Send FF to printer after print screen (set); No char after PS (reset) */
 	case 0x93:	/* DECPEX	Print screen: prints full screen (set); prints scroll region (reset) */
 	default:
-		printf("modeseq: <0x%x>\n", c);
+		printf("modeseq <0x%x>: %d\n", c, set);
 		break;
 	}
 }

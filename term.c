@@ -19,7 +19,7 @@ static int row, col;
 static int fg, bg;
 static struct square screen[MAXCHARS];
 static int top, bot;
-static int nocursor;
+static int nocursor, nowrap;
 
 static void setsize(void)
 {
@@ -109,8 +109,12 @@ static void move_cursor(int r, int c)
 {
 	term_show(row, col, 0);
 	if (c >= pad_cols()) {
-		r++;
-		c = 0;
+		if (nowrap) {
+			c = pad_cols() - 1;
+		} else {
+			r++;
+			c = 0;
+		}
 	}
 	if (r >= bot) {
 		int n = bot - r - 1;
