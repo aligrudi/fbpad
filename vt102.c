@@ -5,7 +5,7 @@ static void escseq_g1(void);
 static void escseq_g2(void);
 static void escseq_g3(void);
 static void csiseq(void);
-static void modeseq(int set);
+static void modeseq(int c, int set);
 
 /* control sequences */
 static void ctlseq(void)
@@ -56,7 +56,7 @@ static void escseq(void)
 	int c = readpty();
 	switch(c) {
 	case 'M':	/* RI		reverse line feed */
-		scroll_screen(0, pad_rows() - 1, 1);
+		scroll_screen(top, bot - top - 1, 1);
 		break;
 	case '[':	/* CSI		control sequence introducer */
 		csiseq();
@@ -100,6 +100,7 @@ static void escseq(void)
 	case '~':	/* LS1R		invoke G1 charset as GR */
 	case ']':	/* OSC		operating system command */
 	case 'g':	/* BEL		alternate BEL */
+	default:
 		printf("escseq: <%d:%c>\n", c, c);
 		break;
 	}
@@ -112,6 +113,7 @@ static void escseq_cs(void)
 	case '@':	/* CSDFL	select default charset (ISO646/8859-1) */
 	case 'G':	/* CSUTF8	select UTF-8 */
 	case '8':	/* CSUTF8	select UTF-8 (obsolete) */
+	default:
 		printf("escseq_cs: <%d:%c>\n", c, c);
 		break;
 	}
@@ -126,6 +128,7 @@ static void escseq_g0(void)
 	case 'U':	/* G0ROM	G0 charset = null mapping (straight to ROM) */
 	case 'K':	/* G0USR	G0 charset = user defined mapping */
 	case 'B':	/* G0TXT	G0 charset = ASCII mapping */
+	default:
 		printf("escseq_g0: <%d:%c>\n", c, c);
 		break;
 	}
@@ -140,6 +143,7 @@ static void escseq_g1(void)
 	case 'U':	/* G1ROM	G1 charset = null mapping (straight to ROM) */
 	case 'K':	/* G1USR	G1 charset = user defined mapping */
 	case 'B':	/* G1TXT	G1 charset = ASCII mapping */
+	default:
 		printf("escseq_g1: <%d:%c>\n", c, c);
 		break;
 	}
@@ -153,6 +157,7 @@ static void escseq_g2(void)
 	case '0':	/* G2GFX	G2 charset = VT100 graphics mapping */
 	case 'U':	/* G2ROM	G2 charset = null mapping (straight to ROM) */
 	case 'K':	/* G2USR	G2 charset = user defined mapping */
+	default:
 		printf("escseq_g2: <%d:%c>\n", c, c);
 		break;
 	}
@@ -166,15 +171,17 @@ static void escseq_g3(void)
 	case '0':	/* G3GFX	G3 charset = VT100 graphics mapping */
 	case 'U':	/* G3ROM	G3 charset = null mapping (straight to ROM) */
 	case 'K':	/* G3USR	G3 charset = user defined mapping */
+	default:
 		printf("escseq_g3: <%d:%c>\n", c, c);
 		break;
 	}
 }
 
+#define MAXCSIARGS	32
 /* ECMA-48 CSI sequences */
 static void csiseq(void)
 {
-	int args[MAXESCARGS] = {0};
+	int args[MAXCSIARGS] = {0};
 	int i;
 	int n = 0;
 	int c = 0;
@@ -234,10 +241,14 @@ static void csiseq(void)
 			setmode(args[i]);
 		break;
 	case 'h':	/* SM		set mode */
-		modeseq(1);
+		modeseq(n <= 1 ? args[0] : 0x80 | args[1], 1);
 		break;
 	case 'l':	/* RM		reset mode */
-		modeseq(0);
+		modeseq(n <= 1 ? args[0] : 0x80 | args[1], 0);
+		break;
+	case 'r':	/* DECSTBM	set scrolling region to (top, bottom) rows */
+		top = MIN(pad_rows(), MAX(0, args[0] - 1));
+		bot = MIN(pad_rows(), MAX(0, args[1] ? args[1] : pad_rows()));
 		break;
 	case '[':	/* IGN		ignored control sequence */
 	case '@':	/* ICH		insert blank characters */
@@ -252,19 +263,21 @@ static void csiseq(void)
 	case 'g':	/* TBC		clear tab stop (CSI 3 g = clear all stops) */
 	case 'n':	/* DSR		device status report */
 	case 'q':	/* DECLL	set keyboard LEDs */
-	case 'r':	/* DECSTBM	set scrolling region to (top, bottom) rows */
 	case 's':	/* CUPSV	save cursor position */
 	case 'u':	/* CUPRS	restore cursor position */
 	case '`':	/* HPA		move cursor to column in current row */
-		printf("csiseq: <%d:%c>\n", c, c);
+	default:
+		printf("csiseq: <%d:%c>:", c, c);
+		for (i = 0; i < n; i++)
+			printf(" %d", args[i]);
+		printf("\n");
 		break;
 	}
 }
 
 /* ANSI/DEC specified modes for SM/RM ANSI Specified Modes */
-static void modeseq(int set)
+static void modeseq(int c, int set)
 {
-	int c = readpty();
 	switch(c) {
 	case 0x00:	/* IGN		Error (Ignored) */
 	case 0x01:	/* GATM		guarded-area transfer mode (ignored) */
@@ -299,7 +312,8 @@ static void modeseq(int set)
 	case 0x92:	/* DECPFF	Send FF to printer after print screen (set); No char after PS (reset) */
 	case 0x93:	/* DECPEX	Print screen: prints full screen (set); prints scroll region (reset) */
 	case 0x99:	/* DECTCEM	Cursor on (set); Cursor off (reset) */
-		printf("modeseq: <%d:%c>\n", c, c);
+	default:
+		printf("modeseq: <0x%x>\n", c);
 		break;
 	}
 }

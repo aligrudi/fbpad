@@ -9,7 +9,6 @@
 #include "util.h"
 #include "term.h"
 
-#define MAXESCARGS	32
 #define FGCOLOR		0
 #define BGCOLOR		7
 #define SQRADDR(r, c)		(&screen[(r) * pad_cols() + (c)])
@@ -19,6 +18,7 @@ static int fd;
 static int row, col;
 static int fg, bg;
 static struct square screen[MAXCHARS];
+static int top, bot;
 
 static void setsize(void)
 {
@@ -89,12 +89,19 @@ static void scroll_screen(int sr, int nr, int n)
 
 static void insert_lines(int n)
 {
-	scroll_screen(row, pad_rows() - row - n, n);
+	int sr = MAX(top, row);
+	int nr = bot - row - n;
+	if (nr > 0)
+		scroll_screen(sr, nr, n);
 }
 
 static void delete_lines(int n)
 {
-	scroll_screen(row + n, pad_rows() - row - n, -n);
+	int r = MAX(top, row);
+	int sr = r + n;
+	int nr = bot - r - n;
+	if (nr > 0)
+		scroll_screen(sr, nr, -n);
 }
 
 static void move_cursor(int r, int c)
@@ -104,11 +111,11 @@ static void move_cursor(int r, int c)
 		r++;
 		c = 0;
 	}
-	if (r >= pad_rows()) {
-		int n = pad_rows() - r - 1;
-		int nr = pad_rows() + n;
+	if (r >= bot) {
+		int n = bot - r - 1;
+		int nr = (bot - top) + n;
 		scroll_screen(-n, nr, n);
-		r = pad_rows() - 1;
+		r = bot - 1;
 	}
 	row = MAX(0, MIN(r, pad_rows() - 1));
 	col = MAX(0, MIN(c, pad_cols() - 1));
@@ -222,6 +229,7 @@ int term_fd(void)
 void term_init(void)
 {
 	pad_init();
+	bot = pad_rows();
 	term_blank();
 }
 
