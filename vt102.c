@@ -196,7 +196,7 @@ static void escseq_g3(void)
 
 #define CSIP(c)		(((c) & 0xf0) == 0x30)
 #define CSII(c)		(((c) & 0xf0) == 0x20)
-#define CSIF(c)		((c) > 0x40 && (c) < 0x7f)
+#define CSIF(c)		((c) >= 0x40 && (c) < 0x80)
 #define MAXCSIARGS	32
 /* ECMA-48 CSI sequences */
 static void csiseq(void)
@@ -288,11 +288,13 @@ static void csiseq(void)
 	case 'P':	/* DCH		delete characters on current line */
 		delete_chars(MAX(1, args[0]));
 		break;
+	case '@':	/* ICH		insert blank characters */
+		insert_chars(MAX(1, args[0]));
+		break;
 	case 'n':	/* DSR		device status report */
 		csiseq_dsr(args[0]);
 		break;
 	case '[':	/* IGN		ignored control sequence */
-	case '@':	/* ICH		insert blank characters */
 	case 'E':	/* CNL		move cursor down and to column 1 */
 	case 'F':	/* CPL		move cursor up and to column 1 */
 	case 'G':	/* CHA		move cursor to column in current row */

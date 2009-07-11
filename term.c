@@ -196,6 +196,12 @@ static void delete_chars(int n)
 	move_chars(col + n, pad_cols(), -n);
 }
 
+static void insert_chars(int n)
+{
+	int nc = pad_cols() - col - n;
+	move_chars(col, nc, n);
+}
+
 void term_blank(void)
 {
 	pad_blank(bg);
