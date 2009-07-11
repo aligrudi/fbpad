@@ -19,7 +19,7 @@ static int row, col;
 static int fg, bg;
 static struct square screen[MAXCHARS];
 static int top, bot;
-static int nocursor, nowrap;
+static int nocursor, nowrap, origin, noautocr;
 static int saved_row, saved_col, saved_fg, saved_bg;
 
 static void setsize(void)
@@ -109,30 +109,37 @@ static void delete_lines(int n)
 static void move_cursor(int r, int c)
 {
 	term_show(row, col, 0);
+	row = MAX(origin ? top : 0, MIN(r, (origin ? bot : pad_rows()) - 1));
+	col = MAX(0, MIN(c, pad_cols() - 1));
+	term_show(row, col, 1);
+}
+
+static void advance(int dr, int dc, int scrl)
+{
+	int r = row + dr;
+	int c = col + dc;
+	int t = origin ? top : 0;
+	int b = origin ? bot : pad_rows();
 	if (c >= pad_cols()) {
-		if (nowrap) {
+		if (!scrl || nowrap) {
 			c = pad_cols() - 1;
 		} else {
 			r++;
 			c = 0;
 		}
 	}
-	if (r >= bot) {
-		int n = bot - r - 1;
-		int nr = (bot - top) + n;
+	if (r >= b && scrl) {
+		int n = b - r - 1;
+		int nr = (b - t) + n;
 		scroll_screen(-n, nr, n);
-		r = bot - 1;
 	}
-	row = MAX(0, MIN(r, pad_rows() - 1));
-	col = MAX(0, MIN(c, pad_cols() - 1));
-	term_show(row, col, 1);
-}
-
-static void advance(int dr, int dc)
-{
-	int r = row + dr;
-	int c = col + dc;
-	move_cursor(MAX(0, r), MAX(0, c));
+	if (r < t && scrl) {
+		int n = t - r;
+		int nr = (b - t) - n;
+		scroll_screen(t, nr, n);
+	}
+	r = MIN(b - 1, MAX(t, r));
+	move_cursor(r, MAX(0, c));
 }
 
 void term_send(int c)
@@ -280,6 +287,14 @@ void term_end(void)
 	fg = 0;
 	bg = 0;
 	term_blank();
+}
+
+void set_region(int t, int b)
+{
+	top = MIN(pad_rows(), MAX(0, t - 1));
+	bot = MIN(pad_rows(), MAX(0, b ? b : pad_rows()));
+	if (origin)
+		move_cursor(top, 0);
 }
 
 #include "vt102.c"

@@ -15,21 +15,21 @@ static void ctlseq(void)
 	int c = readpty();
 	switch (c) {
 	case 0x09:	/* HT		horizontal tab to next tab stop */
-		move_cursor(row, (col / 8 + 1) * 8);
+		advance(0, 8 - col % 8, 0);
 		break;
 	case 0x0a:	/* LF		line feed */
 	case 0x0b:	/* VT		line feed */
 	case 0x0c:	/* FF		line feed */
-		move_cursor(row + 1, 0);
+		advance(1, noautocr ? 0 : -col, 1);
 		break;
 	case 0x08:	/* BS		backspace one column */
-		move_cursor(row, col - 1);
+		advance(0, -1, 0);
 		break;
 	case 0x1b:	/* ESC		start escape sequence */
 		escseq();
 		break;
 	case 0x0d:	/* CR		carriage return */
-		move_cursor(row, 0);
+		advance(0, -col, 0);
 		break;
 	case 0x00:	/* NUL		ignored */
 	case 0x07:	/* BEL		beep */
@@ -47,7 +47,7 @@ static void ctlseq(void)
 		break;
 	default:
 		term_put(c, row, col);
-		advance(0, 1);
+		advance(0, 1, 1);
 		break;
 	}
 }
@@ -62,9 +62,6 @@ static void escseq(void)
 	while (ESCM(c))
 		c = readpty();
 	switch(c) {
-	case 'M':	/* RI		reverse line feed */
-		scroll_screen(top, bot - top - 1, 1);
-		break;
 	case '[':	/* CSI		control sequence introducer */
 		csiseq();
 		break;
@@ -95,9 +92,16 @@ static void escseq(void)
 		fg = saved_fg;
 		bg = saved_bg;
 		break;
-	case 'c':	/* RIS		reset */
+	case 'M':	/* RI		reverse line feed */
+		advance(-1, 0, 1);
+		break;
 	case 'D':	/* IND		line feed */
+		advance(1, 0, 1);
+		break;
 	case 'E':	/* NEL		newline */
+		advance(1, -col, 1);
+		break;
+	case 'c':	/* RIS		reset */
 	case 'H':	/* HTS		set tab stop at current column */
 	case 'Z':	/* DECID	DEC private ID; return ESC [ ? 6 c (VT102) */
 	case '#':	/* DECALN	("#8") DEC alignment test - fill screen with E's */
@@ -194,6 +198,11 @@ static void escseq_g3(void)
 	}
 }
 
+static int absrow(int r)
+{
+	return origin ? top + r : r;
+}
+
 #define CSIP(c)			(((c) & 0xf0) == 0x30)
 #define CSII(c)			(((c) & 0xf0) == 0x20)
 #define CSIF(c)			((c) >= 0x40 && (c) < 0x80)
@@ -215,14 +224,12 @@ static void csiseq(void)
 	}
 	while (CSIP(c)) {
 		int arg = 0;
-		if (isdigit(c)) {
-			while (isdigit(c)) {
-				arg = arg * 10 + (c - '0');
-				c = readpty();
-			}
-		} else {
+		while (isdigit(c)) {
+			arg = arg * 10 + (c - '0');
 			c = readpty();
 		}
+		if (c == ';')
+			c = readpty();
 		args[n] = arg;
 		n = n < ARRAY_SIZE(args) ? n + 1 : 0;
 	}
@@ -233,7 +240,7 @@ static void csiseq(void)
 	switch(c) {
 	case 'H':	/* CUP		move cursor to row, column */
 	case 'f':	/* HVP		move cursor to row, column */
-		move_cursor(MAX(0, args[0] - 1), MAX(0, args[1] - 1));
+		move_cursor(absrow(MAX(0, args[0] - 1)), MAX(0, args[1] - 1));
 		break;
 	case 'J':	/* ED		erase display */
 		switch(args[0]) {
@@ -251,18 +258,18 @@ static void csiseq(void)
 		}
 		break;
 	case 'A':	/* CUU		move cursor up */
-		advance(MAX(1, args[0]), 0);
+		advance(MAX(1, args[0]), 0, 0);
 		break;
 	case 'e':	/* VPR		move cursor down */
 	case 'B':	/* CUD		move cursor down */
-		advance(MAX(1, args[0]), 0);
+		advance(MAX(1, args[0]), 0, 0);
 		break;
 	case 'a':	/* HPR		move cursor right */
 	case 'C':	/* CUF		move cursor right */
-		advance(0, MAX(1, args[0]));
+		advance(0, MAX(1, args[0]), 0);
 		break;
 	case 'D':	/* CUB		move cursor left */
-		move_cursor(0, -MAX(1, args[0]));
+		advance(0, -MAX(1, args[0]), 0);
 		break;
 	case 'K':	/* EL		erase line */
 		switch (args[0]) {
@@ -278,18 +285,27 @@ static void csiseq(void)
 		}
 		break;
 	case 'L':	/* IL		insert blank lines */
-		insert_lines(MAX(1, args[0]));
+		if (row >= top && row < bot)
+			insert_lines(MAX(1, args[0]));
 		break;
 	case 'M':	/* DL		delete lines */
-		delete_lines(MAX(1, args[0]));
+		if (row >= top && row < bot)
+			delete_lines(MAX(1, args[0]));
 		break;
 	case 'd':	/* VPA		move to row (current column) */
-		move_cursor(MAX(1, args[0]), col);
+		move_cursor(absrow(MAX(1, args[0]) - 1), col);
 		break;
 	case 'm':	/* SGR		set graphic rendition */
 		setmode(0);
 		for (i = 0; i < n; i++)
 			setmode(args[i]);
+		break;
+	case 'r':	/* DECSTBM	set scrolling region to (top, bottom) rows
+ */
+		set_region(args[0], args[1]);
+		break;
+	case 'c':	/* DA		return ESC [ ? 6 c (VT102) */
+		csiseq_da(priv == '?' ? args[0] | 0x80 : args[0]);
 		break;
 	case 'h':	/* SM		set mode */
 		for (i = 0; i < n; i++)
@@ -298,13 +314,6 @@ static void csiseq(void)
 	case 'l':	/* RM		reset mode */
 		for (i = 0; i < n; i++)
 			modeseq(priv == '?' ? args[i] | 0x80 : args[i], 0);
-		break;
-	case 'r':	/* DECSTBM	set scrolling region to (top, bottom) rows */
-		top = MIN(pad_rows(), MAX(0, args[0] - 1));
-		bot = MIN(pad_rows(), MAX(0, args[1] ? args[1] : pad_rows()));
-		break;
-	case 'c':	/* DA		return ESC [ ? 6 c (VT102) */
-		csiseq_da(n <= 1 ? args[0] : 0x80 | args[1]);
 		break;
 	case 'P':	/* DCH		delete characters on current line */
 		delete_chars(MAX(1, args[0]));
@@ -355,7 +364,7 @@ static void csiseq_dsr(int c)
 		break;
 	case 0x06:
 		snprintf(status, sizeof(status), "\x1b[%d;%dR",
-			 row + 1, col + 1);
+			 (origin ? row - top : row) + 1, col + 1);
 		term_sendstr(status);
 		break;
 	default:
@@ -373,6 +382,12 @@ static void modeseq(int c, int set)
 		break;
 	case 0x99:	/* DECTCEM	Cursor on (set); Cursor off (reset) */
 		nocursor = !set;
+		break;
+	case 0x86:	/* DECOM	Sets relative coordinates (set); Sets absolute coordinates (reset) */
+		origin = set;
+		break;
+	case 0x14:	/* LNM		Line Feed / New Line Mode */
+		noautocr = !set;
 		break;
 	case 0x00:	/* IGN		Error (Ignored) */
 	case 0x01:	/* GATM		guarded-area transfer mode (ignored) */
@@ -392,7 +407,6 @@ static void modeseq(int c, int set)
 	case 0x11:	/* SATM		selected area transfer mode */
 	case 0x12:	/* TSM		tabulation stop mode */
 	case 0x13:	/* EBM		editing boundary mode */
-	case 0x14:	/* LNM		Line Feed / New Line Mode */
 /* DEC Private Modes: "?NUM" -> (NUM | 0x80) */
 	case 0x80:	/* IGN		Error (Ignored) */
 	case 0x81:	/* DECCKM	Cursorkeys application (set); Cursorkeys normal (reset) */
@@ -400,7 +414,6 @@ static void modeseq(int c, int set)
 	case 0x83:	/* DECCOLM	132 columns (set); 80 columns (reset) */
 	case 0x84:	/* DECSCLM	Jump scroll (set); Smooth scroll (reset) */
 	case 0x85:	/* DECSCNM	Reverse screen (set); Normal screen (reset) */
-	case 0x86:	/* DECOM	Sets relative coordinates (set); Sets absolute coordinates (reset) */
 	case 0x88:	/* DECARM	Auto Repeat */
 	case 0x89:	/* DECINLM	Interlace */
 	case 0x92:	/* DECPFF	Send FF to printer after print screen (set); No char after PS (reset) */
