@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <linux/vt.h>
+#include <fcntl.h>
 #include "pad.h"
 #include "term.h"
 #include "util.h"
@@ -58,7 +59,8 @@ static void directkey(void)
 			term_send(ESC);
 		}
 	}
-	term_send(c);
+	if (c != -1)
+		term_send(c);
 }
 
 static void mainloop(void)
@@ -132,6 +134,8 @@ int main(void)
 	term_init();
 	term_blank();
 	setupsignals();
+	fcntl(STDIN_FILENO, F_SETFL,
+		fcntl(STDIN_FILENO, F_GETFL) | O_NONBLOCK);
 	mainloop();
 	term_free();
 	write(STDOUT_FILENO, hide, strlen(hide));
