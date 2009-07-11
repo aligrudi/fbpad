@@ -76,13 +76,23 @@ static void escseq(void)
 	case '+':	/* G3...	escseq_g3 table */
 		escseq_g3();
 		break;
+	case '7':	/* DECSC	save state (position, charset, attributes) */
+		saved_row = row;
+		saved_col = col;
+		saved_fg = fg;
+		saved_bg = bg;
+		break;
+	case '8':	/* DECRC	restore most recently saved state */
+		row = saved_row;
+		col = saved_col;
+		fg = saved_fg;
+		bg = saved_bg;
+		break;
 	case 'c':	/* RIS		reset */
 	case 'D':	/* IND		line feed */
 	case 'E':	/* NEL		newline */
 	case 'H':	/* HTS		set tab stop at current column */
 	case 'Z':	/* DECID	DEC private ID; return ESC [ ? 6 c (VT102) */
-	case '7':	/* DECSC	save state (position, charset, attributes) */
-	case '8':	/* DECRC	restore most recently saved state */
 	case '#':	/* DECALN	("#8") DEC alignment test - fill screen with E's */
 	case '>':	/* DECPNM	set numeric keypad mode */
 	case '=':	/* DECPAM	set application keypad mode */

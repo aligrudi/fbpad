@@ -20,6 +20,7 @@ static int fg, bg;
 static struct square screen[MAXCHARS];
 static int top, bot;
 static int nocursor, nowrap;
+static int saved_row, saved_col, saved_fg, saved_bg;
 
 static void setsize(void)
 {
