@@ -54,25 +54,24 @@ static void term_show(int r, int c, int cursor)
 void term_put(int ch, int r, int c)
 {
 	struct square *sqr = SQRADDR(r, c);
-	if (!ch || !strchr("\a\b\f\n\r\v", ch)) {
-		sqr->c = ch;
-		sqr->fg = fg;
-		sqr->bg = bg;
-	}
+	sqr->c = ch;
+	sqr->fg = fg;
+	sqr->bg = bg;
 	term_show(r, c, 0);
-}
-
-static void move_cursor(int r, int c)
-{
-	term_show(row, col, 0);
-	row = MAX(0, MIN(r, pad_rows() - 1));
-	col = MAX(0, MIN(c, pad_cols() - 1));
-	term_show(row, col, 1);
 }
 
 static void empty_rows(int sr, int er)
 {
 	memset(SQRADDR(sr, 0), 0, (er - sr) * sizeof(screen[0]) * pad_cols());
+}
+
+static void blank_rows(int sr, int er)
+{
+	int i;
+	empty_rows(sr, er);
+	for (i = sr * pad_cols(); i < er * pad_cols(); i++)
+		term_show(i / pad_cols(), i % pad_cols(), 0);
+	term_show(row, col, 1);
 }
 
 static void scroll_screen(int sr, int nr, int n)
@@ -88,43 +87,39 @@ static void scroll_screen(int sr, int nr, int n)
 	term_show(row, col, 1);
 }
 
-static void advance(int ch)
+static void insert_lines(int n)
 {
-	int r = row;
-	int c = col;
-	switch (ch) {
-	case '\n':
-		r++;
-		c = 0;
-		break;
-	case '\t':
-		c = (c / 8 + 1) * 8;
-		break;
-	case '\b':
-		if (c)
-			c--;
-		break;
-	case '\r':
-		c = 0;
-		break;
-	case '\a':
-	case '\f':
-	case '\v':
-		break;
-	default:
-		c++;
-	}
+	scroll_screen(row, pad_rows() - row - n, n);
+}
+
+static void delete_lines(int n)
+{
+	scroll_screen(row + n, pad_rows() - row - n, -n);
+}
+
+static void move_cursor(int r, int c)
+{
+	term_show(row, col, 0);
 	if (c >= pad_cols()) {
 		r++;
 		c = 0;
 	}
 	if (r >= pad_rows()) {
 		int n = pad_rows() - r - 1;
-		int nr = r + n;
-		r = pad_rows() - 1;
+		int nr = pad_rows() + n;
 		scroll_screen(-n, nr, n);
+		r = pad_rows() - 1;
 	}
-	move_cursor(r, c);
+	row = MAX(0, MIN(r, pad_rows() - 1));
+	col = MAX(0, MIN(c, pad_cols() - 1));
+	term_show(row, col, 1);
+}
+
+static void advance(int dr, int dc)
+{
+	int r = row + dr;
+	int c = col + dc;
+	move_cursor(MAX(0, r), MAX(0, c));
 }
 
 void term_send(int c)
@@ -132,12 +127,6 @@ void term_send(int c)
 	unsigned char b = (unsigned char) c;
 	if (fd)
 		write(fd, &b, 1);
-}
-
-static void writepty(int c)
-{
-	term_put(c, row, col);
-	advance(c);
 }
 
 static void setmode(int m)
@@ -159,19 +148,16 @@ static void setmode(int m)
 		bg = m - 40;
 }
 
-static void kill_line(void)
+static void kill_chars(int sc, int ec)
 {
 	int i;
+	memmove(SQRADDR(row, sc), SQRADDR(row, ec),
+		(pad_cols() - ec) * sizeof(screen[0]));
+	memset(SQRADDR(row, sc + pad_cols() - ec), 0,
+		(ec - sc) * sizeof(screen[0]));
 	for (i = col; i < pad_cols(); i++)
-		term_put('\0', row, i);
+		term_show(row, i, 0);
 	move_cursor(row, col);
-}
-
-static void delete_lines(int n)
-{
-	int sr = row + n;
-	int nr = pad_rows() - row - n;
-	scroll_screen(sr, nr, -n);
 }
 
 void term_blank(void)
@@ -180,108 +166,10 @@ void term_blank(void)
 	memset(screen, 0, sizeof(screen));
 }
 
-static void insert_lines(int n)
-{
-	int nr = pad_rows() - row - n;
-	scroll_screen(row, nr, n);
-}
-
-static void escape_bracket(void)
-{
-	int args[MAXESCARGS] = {0};
-	int i;
-	int n = 0;
-	int c = 0;
-	for (i = 0; i < ARRAY_SIZE(args) && !isalpha(c); i++) {
-		int arg = 0;
-		while (isdigit((c = readpty())))
-			arg = arg * 10 + (c - '0');
-		args[n++] = arg;
-	}
-	switch (c) {
-	case 'H':
-	case 'f':
-		move_cursor(MAX(0, args[0] - 1), MAX(0, args[1] - 1));
-		break;
-	case 'J':
-		term_blank();
-		move_cursor(0, 0);
-		break;
-	case 'A':
-		move_cursor(row - MAX(1, args[0]), col);
-		break;
-	case 'B':
-		move_cursor(row + MAX(1, args[0]), col);
-		break;
-	case 'C':
-		move_cursor(row, col + MAX(1, args[0]));
-		break;
-	case 'D':
-		move_cursor(row, col - MAX(1, args[0]));
-		break;
-	case 'K':
-		kill_line();
-		break;
-	case 'L':
-		insert_lines(MAX(1, args[0]));
-		break;
-	case 'M':
-		delete_lines(MAX(1, args[0]));
-		break;
-	case 'c':
-		break;
-	case 'h':
-		break;
-	case 'l':
-		break;
-	case 'm':
-		setmode(0);
-		for (i = 0; i < n; i++)
-			setmode(args[i]);
-		break;
-	case 'r':
-		break;
-	default:
-		printf("unknown escape bracket char <%c>\n", c);
-	}
-}
-
-static void reverse_index()
-{
-	scroll_screen(0, pad_rows() - 1, 1);
-}
-
-static int escape_alone(int c)
-{
-	switch (c) {
-	case 'M':
-		reverse_index();
-		return 0;
-	default:
-		printf("unknown escape char <%c>\n", c);
-	}
-	return 1;
-}
-
-static void escape(void)
-{
-	int c = readpty();
-	if (c == '[') {
-		escape_bracket();
-	} else if (escape_alone(c)) {
-		writepty(ESC);
-		writepty(c);
-		return;
-	}
-}
-
+static void ctlseq(void);
 void term_read(void)
 {
-	int c = readpty();
-	if (c == ESC)
-		escape();
-	else
-		writepty(c);
+	ctlseq();
 }
 
 void term_exec(char *cmd)
@@ -350,3 +238,5 @@ void term_end(void)
 	bg = 0;
 	term_blank();
 }
+
+#include "vt102.c"
