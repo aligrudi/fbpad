@@ -29,11 +29,6 @@ unsigned char *font_bitmap(int c, int bold)
 	int i;
 	if (FT_Load_Char(face, c, FT_LOAD_RENDER))
 		return NULL;
-	if (bold) {
-		int FT_GlyphSlot_Own_Bitmap(FT_GlyphSlot);
-		FT_GlyphSlot_Own_Bitmap(face->glyph);
-		FT_Bitmap_Embolden(library, &face->glyph->bitmap, 32, 32);
-	}
 	sr = rows + (face->size->metrics.descender >> 6) -
 		(face->glyph->metrics.horiBearingY >> 6);
 	sc = face->glyph->metrics.horiBearingX >> 6;
