@@ -142,6 +142,12 @@ void term_send(int c)
 		write(fd, &b, 1);
 }
 
+void term_sendstr(char *s)
+{
+	if (fd)
+		write(fd, s, strlen(s));
+}
+
 static void setmode(int m)
 {
 	if (m == 0) {

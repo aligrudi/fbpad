@@ -5,6 +5,7 @@ static void escseq_g1(void);
 static void escseq_g2(void);
 static void escseq_g3(void);
 static void csiseq(void);
+static void csiseq_da(int c);
 static void modeseq(int c, int set);
 
 /* control sequences */
@@ -260,6 +261,9 @@ static void csiseq(void)
 		top = MIN(pad_rows(), MAX(0, args[0] - 1));
 		bot = MIN(pad_rows(), MAX(0, args[1] ? args[1] : pad_rows()));
 		break;
+	case 'c':	/* DA		return ESC [ ? 6 c (VT102) */
+		csiseq_da(n <= 1 ? args[0] : 0x80 | args[1]);
+		break;
 	case '[':	/* IGN		ignored control sequence */
 	case '@':	/* ICH		insert blank characters */
 	case 'E':	/* CNL		move cursor down and to column 1 */
@@ -268,7 +272,6 @@ static void csiseq(void)
 	case 'P':	/* DCH		delete characters on current line */
 	case 'X':	/* ECH		erase characters on current line */
 	case 'a':	/* HPR		move cursor right */
-	case 'c':	/* DA		return ESC [ ? 6 c (VT102) */
 	case 'e':	/* VPR		move cursor down */
 	case 'g':	/* TBC		clear tab stop (CSI 3 g = clear all stops) */
 	case 'n':	/* DSR		device status report */
@@ -281,6 +284,18 @@ static void csiseq(void)
 		for (i = 0; i < n; i++)
 			printf(" %d", args[i]);
 		printf("\n");
+		break;
+	}
+}
+
+static void csiseq_da(int c)
+{
+	switch(c) {
+	case 0x00:
+		term_sendstr("\x1b[?6c");
+		break;
+	default:
+		printf("csiseq_da <0x%x>\n", c);
 		break;
 	}
 }
