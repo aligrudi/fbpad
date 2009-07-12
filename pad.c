@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "draw.h"
 #include "font.h"
 #include "util.h"
@@ -45,24 +46,56 @@ static fbval_t color2fb(int c)
 	return fb_color(CR(cd[c]), CG(cd[c]), CB(cd[c]));
 }
 
+#define NCACHE		((1 << 11) - 1)
+static fbval_t cache[NCACHE * MAXDOTS];
+static struct glyph {
+	int c;
+	short fg, bg;
+} cacheid[NCACHE];
+
+static int glyph_hash(struct glyph *g)
+{
+	return (g->c | (((g->fg + 1) ^ g->bg) << 7)) % NCACHE;
+}
+
+static fbval_t *bitmap(int c, short fg, short bg)
+{
+	unsigned char *bits;
+	fbval_t *fbbits;
+	struct glyph glyph = {0};
+	int hash;
+	int i;
+	if (!isprint(c) || isspace(c))
+		return NULL;
+	bits = font_bitmap(c, fg >= 8);
+	glyph.c = c;
+	glyph.fg = fg;
+	glyph.bg = bg;
+	hash = glyph_hash(&glyph);
+	fbbits = &cache[hash * MAXDOTS];
+	if (!memcmp(&glyph, &cacheid[hash], sizeof(glyph)))
+		return fbbits;
+	cacheid[hash] = glyph;
+	for (i = 0; i < font_rows() * font_cols(); i++) {
+		unsigned char val = bits[i];
+		fbbits[i] = mixed_color(fg, bg, val);
+	}
+	return fbbits;
+}
+
 void pad_put(int ch, int r, int c, int fg, int bg)
 {
 	int sr = font_rows() * r;
 	int sc = font_cols() * c;
-	int i, j;
-	unsigned char *bits;
-	fbval_t line[font_cols()];
-	fb_box(sr, sc, sr + font_rows(), sc + font_cols(), color2fb(bg));
-	if (!isprint(ch))
-		return;
-	bits = font_bitmap(ch, fg >= 8);
-	for (i = 0; i < font_rows(); i++) {
-		for (j = 0; j < font_cols(); j++) {
-			unsigned char val = bits[i * font_cols() + j];
-			line[j] = mixed_color(fg, bg, val);
-		}
-		fb_set(sr + i, sc, line, font_cols());
-	}
+	int i;
+	fbval_t *bits = bitmap(ch, fg, bg);
+	if (!bits)
+		fb_box(sr, sc, sr + font_rows(),
+			sc + font_cols(), color2fb(bg));
+	else
+		for (i = 0; i < font_rows(); i++)
+			fb_set(sr + i, sc, bits + (i * font_cols()),
+				font_cols());
 }
 
 void pad_scroll(int sr, int nr, int n, int c)
