@@ -130,6 +130,10 @@ void fb_scroll(int sr, int nr, int n, fbval_t val)
 	copyarea.width = fb_cols();
 	if (ioctl(fd, FBIOCOPYAREA, &copyarea) == -1)
 		xerror("copyarea failed");
+	if (n > 0)
+		fb_box(sr, 0, sr + n, fb_cols(), val);
+	else
+		fb_box(sr + nr + n, 0, sr + nr, fb_cols(), val);
 }
 
 /*
