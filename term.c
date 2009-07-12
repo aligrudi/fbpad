@@ -78,12 +78,17 @@ static void empty_rows(int sr, int er)
 	memset(SQRADDR(sr, 0), 0, (er - sr) * sizeof(screen[0]) * pad_cols());
 }
 
-static void blank_rows(int sr, int er)
+static void draw_rows(int sr, int er)
 {
-	int i;
-	empty_rows(sr, er);
+	int i = 0;
 	for (i = sr * pad_cols(); i < er * pad_cols(); i++)
 		term_show(i / pad_cols(), i % pad_cols(), 0);
+}
+
+static void blank_rows(int sr, int er)
+{
+	empty_rows(sr, er);
+	draw_rows(sr, er);
 	term_show(row, col, 1);
 }
 
@@ -280,15 +285,13 @@ void term_save(struct term_state *state)
 
 void term_load(struct term_state *state)
 {
-	int i;
 	fd = state->fd;
 	pid = state->pid;
 	misc_load(&state->cur);
 	saved = state->sav;
 	memcpy(screen, state->screen,
 		pad_rows() * pad_cols() * sizeof(screen[0]));
-	for (i = 0; i < pad_rows() * pad_cols(); i++)
-		term_show(i / pad_cols(), i % pad_cols(), 0);
+	draw_rows(0, pad_rows());
 	term_show(row, col, 1);
 }
 
