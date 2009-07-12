@@ -49,16 +49,20 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 {
 	int sr = font_rows() * r;
 	int sc = font_cols() * c;
-	int i;
-	char *bits;
+	int i, j;
+	unsigned char *bits;
+	fbval_t line[font_cols()];
 	fb_box(sr, sc, sr + font_rows(), sc + font_cols(), color2fb(bg));
 	if (!isprint(ch))
 		return;
 	bits = font_bitmap(ch, fg >= 8);
-	for (i = 0; i < font_rows() * font_cols(); i++)
-		if (bits[i])
-			fb_put(sr + i / font_cols(), sc + i % font_cols(),
-				mixed_color(fg, bg, bits[i]));
+	for (i = 0; i < font_rows(); i++) {
+		for (j = 0; j < font_cols(); j++) {
+			unsigned char val = bits[i * font_cols() + j];
+			line[j] = mixed_color(fg, bg, val);
+		}
+		fb_set(sr + i, sc, line, font_cols());
+	}
 }
 
 void pad_scroll(int sr, int nr, int n, int c)

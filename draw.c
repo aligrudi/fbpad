@@ -66,11 +66,11 @@ void fb_init(void)
 	fb_cmap();
 }
 
-void fb_put(int r, int c, fbval_t val)
+void fb_set(int r, int c, fbval_t *mem, int len)
 {
 	long loc = (c + vinfo.xoffset) * BPP +
 		(r + vinfo.yoffset) * finfo.line_length;
-	memcpy(fb + loc, &val, BPP);
+	memcpy(fb + loc, mem, len * BPP);
 }
 
 void fb_free()
@@ -102,17 +102,19 @@ int fb_cols(void)
 	return vinfo.xres_virtual;
 }
 
-void fb_box(int sr, int sc, int er, int ec, fbval_t val)
-{
-	int r, c;
-	for (r = sr; r < er; r++)
-		for (c = sc; c < ec; c++)
-			fb_put(r, c, val);
-}
-
 static unsigned char *rowaddr(int r)
 {
 	return fb + (r + vinfo.yoffset) * finfo.line_length;
+}
+
+void fb_box(int sr, int sc, int er, int ec, fbval_t val)
+{
+	int r, c;
+	fbval_t cache[ec - sc];
+	for (c = sc; c < ec; c++)
+		cache[c - sc] = val;
+	for (r = sr; r < er; r++)
+		memcpy(rowaddr(r) + sc * BPP, cache, sizeof(cache));
 }
 
 void fb_scroll(int sr, int nr, int n, fbval_t val)
