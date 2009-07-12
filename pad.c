@@ -65,6 +65,7 @@ static fbval_t *bitmap(int c, short fg, short bg)
 	struct glyph glyph = {0};
 	int hash;
 	int i;
+	int nbits = font_rows() * font_cols();
 	if (!isprint(c) || isspace(c))
 		return NULL;
 	bits = font_bitmap(c, fg >= 8);
@@ -76,7 +77,7 @@ static fbval_t *bitmap(int c, short fg, short bg)
 	if (!memcmp(&glyph, &cacheid[hash], sizeof(glyph)))
 		return fbbits;
 	cacheid[hash] = glyph;
-	for (i = 0; i < font_rows() * font_cols(); i++) {
+	for (i = 0; i < nbits; i++) {
 		unsigned char val = bits[i];
 		fbbits[i] = mixed_color(fg, bg, val);
 	}
@@ -87,15 +88,14 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 {
 	int sr = font_rows() * r;
 	int sc = font_cols() * c;
+	int frows = font_rows(), fcols = font_cols();
 	int i;
 	fbval_t *bits = bitmap(ch, fg, bg);
 	if (!bits)
-		fb_box(sr, sc, sr + font_rows(),
-			sc + font_cols(), color2fb(bg));
+		fb_box(sr, sc, sr + frows, sc + fcols, color2fb(bg));
 	else
-		for (i = 0; i < font_rows(); i++)
-			fb_set(sr + i, sc, bits + (i * font_cols()),
-				font_cols());
+		for (i = 0; i < frows; i++)
+			fb_set(sr + i, sc, bits + (i * fcols), fcols);
 }
 
 void pad_scroll(int sr, int nr, int n, int c)
