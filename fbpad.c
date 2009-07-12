@@ -39,6 +39,14 @@ static void showterm(int n)
 static void directkey(void)
 {
 	int c = readchar();
+	static int pending = 0;
+	if (pending) {
+		char *tags = "xnlhtrv-";
+		if (strchr(tags, c))
+			showterm(strchr(tags, c) - tags);
+		pending = 0;
+		return;
+	}
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
@@ -51,6 +59,9 @@ static void directkey(void)
 			return;
 		case 'o':
 			showterm(lterm);
+			return;
+		case ';':
+			pending = 1;
 			return;
 		case CTRLKEY('q'):
 			exitit = 1;
