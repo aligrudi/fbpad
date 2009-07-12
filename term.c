@@ -101,8 +101,8 @@ static void scroll_screen(int sr, int nr, int n)
 		empty_rows(sr, sr + n);
 	else
 		empty_rows(sr + nr + n, sr + nr);
-	draw_rows(MIN(sr, sr + n), MAX(sr + nr, sr + nr +n));
-	/* pad_scroll(sr, nr, n, bg); */
+	/* draw_rows(MIN(sr, sr + n), MAX(sr + nr, sr + nr +n)); */
+	pad_scroll(sr, nr, n, bg);
 	term_show(row, col, 1);
 }
 
