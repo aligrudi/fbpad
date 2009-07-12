@@ -12,8 +12,8 @@ struct term_state {
 	int pid;
 	struct square {
 		int c;
-		int fg;
-		int bg;
+		short fg;
+		short bg;
 	} screen[MAXCHARS];
 	struct miscterm_state cur, sav;
 };
