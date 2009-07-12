@@ -81,10 +81,10 @@ static void escseq(void)
 		escseq_g3();
 		break;
 	case '7':	/* DECSC	save state (position, charset, attributes) */
-		misc_save(&saved);
+		misc_save(&term->sav);
 		break;
 	case '8':	/* DECRC	restore most recently saved state */
-		misc_load(&saved);
+		misc_load(&term->sav);
 		break;
 	case 'M':	/* RI		reverse line feed */
 		advance(-1, 0, 1);

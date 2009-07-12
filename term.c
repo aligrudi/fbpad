@@ -19,14 +19,12 @@
 #define MODE_NOAUTOCR		0x08
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
 
-static pid_t pid;
-static int fd;
+static struct term *term;
+static struct square *screen;
 static int row, col;
 static int fg, bg;
-static struct square screen[MAXCHARS];
 static int top, bot;
 static int mode;
-static struct term_state saved;
 
 static int origin(void)
 {
@@ -40,13 +38,13 @@ static void setsize(void)
 	size.ws_row = pad_rows();
 	size.ws_xpixel = 0;
 	size.ws_ypixel = 0;
-	ioctl(fd, TIOCSWINSZ, &size);
+	ioctl(term->fd, TIOCSWINSZ, &size);
 }
 
 static int readpty(void)
 {
 	char b;
-	if (read(fd, &b, 1) > 0)
+	if (read(term->fd, &b, 1) > 0)
 		return (int) b;
 	return -1;
 }
@@ -75,7 +73,7 @@ void term_put(int ch, int r, int c)
 
 static void empty_rows(int sr, int er)
 {
-	memset(SQRADDR(sr, 0), 0, (er - sr) * sizeof(screen[0]) * pad_cols());
+	memset(SQRADDR(sr, 0), 0, (er - sr) * sizeof(*screen) * pad_cols());
 }
 
 static void draw_rows(int sr, int er)
@@ -96,7 +94,7 @@ static void scroll_screen(int sr, int nr, int n)
 {
 	term_show(row, col, 0);
 	memmove(SQRADDR(sr + n, 0), SQRADDR(sr, 0),
-		nr * pad_cols() * sizeof(screen[0]));
+		nr * pad_cols() * sizeof(*screen));
 	if (n > 0)
 		empty_rows(sr, sr + n);
 	else
@@ -162,14 +160,14 @@ static void advance(int dr, int dc, int scrl)
 void term_send(int c)
 {
 	unsigned char b = (unsigned char) c;
-	if (fd)
-		write(fd, &b, 1);
+	if (term->fd)
+		write(term->fd, &b, 1);
 }
 
 void term_sendstr(char *s)
 {
-	if (fd)
-		write(fd, s, strlen(s));
+	if (term->fd)
+		write(term->fd, s, strlen(s));
 }
 
 static void setmode(int m)
@@ -194,7 +192,7 @@ static void setmode(int m)
 static void kill_chars(int sc, int ec)
 {
 	int i;
-	memset(SQRADDR(row, sc), 0, (ec - sc) * sizeof(screen[0]));
+	memset(SQRADDR(row, sc), 0, (ec - sc) * sizeof(*screen));
 	for (i = sc; i < ec; i++)
 		term_show(row, i, 0);
 	move_cursor(row, col);
@@ -205,11 +203,11 @@ static void move_chars(int sc, int nc, int n)
 	int i;
 	term_show(row, col, 0);
 	memmove(SQRADDR(row, sc + n), SQRADDR(row, sc),
-		nc * sizeof(screen[0]));
+		nc * sizeof(*screen));
 	if (n > 0)
-		memset(SQRADDR(row, sc), 0, n * sizeof(screen[0]));
+		memset(SQRADDR(row, sc), 0, n * sizeof(*screen));
 	else
-		memset(SQRADDR(row, pad_rows() + n), 0, -n * sizeof(screen[0]));
+		memset(SQRADDR(row, pad_rows() + n), 0, -n * sizeof(*screen));
 	for (i = MIN(sc, sc + n); i < pad_cols(); i++)
 		term_show(row, i, 0);
 	term_show(row, col, 1);
@@ -226,10 +224,10 @@ static void insert_chars(int n)
 	move_chars(col, nc, n);
 }
 
-void term_blank(void)
+static void term_blank(void)
 {
-	pad_blank(bg);
 	memset(screen, 0, sizeof(screen));
+	pad_blank(bg);
 }
 
 static void ctlseq(void);
@@ -240,9 +238,10 @@ void term_read(void)
 
 void term_exec(char *cmd)
 {
-	if ((pid = forkpty(&fd, NULL, NULL, NULL)) == -1)
+	bot = pad_rows();
+	if ((term->pid = forkpty(&term->fd, NULL, NULL, NULL)) == -1)
 		xerror("failed to create a pty");
-	if (!pid) {
+	if (!term->pid) {
 		setenv("TERM", "linux", 1);
 		execl(cmd, cmd, NULL);
 		exit(1);
@@ -276,46 +275,21 @@ static void misc_load(struct term_state *state)
 
 void term_save(struct term *term)
 {
-	term->fd = fd;
-	term->pid = pid;
-	memcpy(term->screen, screen,
-		pad_rows() * pad_cols() * sizeof(screen[0]));
-	term->sav = saved;
 	misc_save(&term->cur);
 }
 
-void term_load(struct term *term)
+void term_load(struct term *t)
 {
-	fd = term->fd;
-	pid = term->pid;
+	term = t;
 	misc_load(&term->cur);
-	saved = term->sav;
-	memcpy(screen, term->screen,
-		pad_rows() * pad_cols() * sizeof(screen[0]));
+	screen = term->screen;
 	draw_rows(0, pad_rows());
 	term_show(row, col, 1);
 }
 
-int term_fd(void)
-{
-	return fd;
-}
-
-void term_init(void)
-{
-	pad_init();
-	bot = pad_rows();
-	term_blank();
-}
-
-void term_free(void)
-{
-	pad_free();
-}
-
 void term_end(void)
 {
-	fd = 0;
+	term->fd = 0;
 	row = col = 0;
 	fg = 0;
 	bg = 0;

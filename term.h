@@ -21,11 +21,7 @@ struct term {
 void term_load(struct term *term);
 void term_save(struct term *term);
 
-int term_fd(void);
 void term_read(void);
 void term_send(int c);
 void term_exec(char *cmd);
 void term_end(void);
-void term_blank(void);
-void term_init(void);
-void term_free(void);

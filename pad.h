@@ -1,4 +1,4 @@
-#define MAXCHARS	1 << 15
+#define MAXCHARS	(1 << 15)
 
 void pad_init(void);
 void pad_free(void);

@@ -36,6 +36,13 @@ static void showterm(int n)
 	term_load(&terms[cterm]);
 }
 
+static struct term *mainterm(void)
+{
+	if (terms[cterm].fd)
+		return &terms[cterm];
+	return NULL;
+}
+
 static void directkey(void)
 {
 	int c = readchar();
@@ -50,7 +57,7 @@ static void directkey(void)
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
-			if (!term_fd())
+			if (!mainterm())
 				term_exec(SHELL);
 			return;
 		case 'j':
@@ -67,11 +74,13 @@ static void directkey(void)
 			exitit = 1;
 			return;
 		default:
-			term_send(ESC);
+			if (mainterm())
+				term_send(ESC);
 		}
 	}
 	if (c != -1)
-		term_send(c);
+		if (mainterm())
+			term_send(c);
 }
 
 static void mainloop(void)
@@ -79,28 +88,30 @@ static void mainloop(void)
 	struct pollfd ufds[2];
 	int rv;
 	struct termios oldtermios, termios;
+	long badflags = POLLHUP | POLLERR | POLLNVAL;
 	tcgetattr(STDIN_FILENO, &termios);
 	oldtermios = termios;
 	cfmakeraw(&termios);
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &termios);
 	memset(ufds, 0, sizeof(ufds));
+	term_load(&terms[cterm]);
 	ufds[0].fd = STDIN_FILENO;
 	ufds[0].events = POLLIN;
-	ufds[1].fd = term_fd();
+	ufds[1].fd = terms[cterm].fd;
 	ufds[1].events = POLLIN;
 	while (!exitit) {
-		rv = poll(ufds, term_fd() ? 2 : 1, 1000);
+		rv = poll(ufds, mainterm() ? 2 : 1, 1000);
 		if (rv == -1 && errno != EINTR)
 			break;
-		if (ufds[0].revents & (POLLHUP | POLLERR | POLLNVAL))
+		if (ufds[0].revents & badflags)
 			break;
-		if (term_fd() && ufds[1].revents & (POLLHUP | POLLERR | POLLNVAL))
+		if (mainterm() && ufds[1].revents & badflags)
 			term_end();
-		if (term_fd() && ufds[1].revents & POLLIN)
+		if (mainterm() && ufds[1].revents & POLLIN)
 			term_read();
 		if (ufds[0].revents & POLLIN)
 			directkey();
-		ufds[1].fd = term_fd();
+		ufds[1].fd = terms[cterm].fd;
 	}
 	tcsetattr(STDIN_FILENO, 0, &oldtermios);
 }
@@ -142,13 +153,13 @@ int main(void)
 	char *show = "\x1b[?25h";
 	write(STDIN_FILENO, clear, strlen(clear));
 	write(STDIN_FILENO, hide, strlen(hide));
-	term_init();
-	term_blank();
+	pad_init();
+	pad_blank(0);
 	setupsignals();
 	fcntl(STDIN_FILENO, F_SETFL,
 		fcntl(STDIN_FILENO, F_GETFL) | O_NONBLOCK);
 	mainloop();
-	term_free();
+	pad_free();
 	write(STDIN_FILENO, show, strlen(show));
 	return 0;
 }
