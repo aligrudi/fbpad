@@ -14,7 +14,7 @@
 #define TAGS		8
 #define CTRLKEY(x)	((x) - 96)
 
-static struct term_state terms[TAGS * 2];
+static struct term terms[TAGS * 2];
 static int cterm;	/* current tag */
 static int lterm;	/* last tag */
 static int exitit;

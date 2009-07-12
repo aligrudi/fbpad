@@ -26,7 +26,7 @@ static int fg, bg;
 static struct square screen[MAXCHARS];
 static int top, bot;
 static int mode;
-static struct miscterm_state saved;
+static struct term_state saved;
 
 static int origin(void)
 {
@@ -252,7 +252,7 @@ void term_exec(char *cmd)
 	term_blank();
 }
 
-static void misc_save(struct miscterm_state *state)
+static void misc_save(struct term_state *state)
 {
 	state->row = row;
 	state->col = col;
@@ -263,7 +263,7 @@ static void misc_save(struct miscterm_state *state)
 	state->mode = mode;
 }
 
-static void misc_load(struct miscterm_state *state)
+static void misc_load(struct term_state *state)
 {
 	row = state->row;
 	col = state->col;
@@ -274,23 +274,23 @@ static void misc_load(struct miscterm_state *state)
 	mode = state->mode;
 }
 
-void term_save(struct term_state *state)
+void term_save(struct term *term)
 {
-	state->fd = fd;
-	state->pid = pid;
-	memcpy(state->screen, screen,
+	term->fd = fd;
+	term->pid = pid;
+	memcpy(term->screen, screen,
 		pad_rows() * pad_cols() * sizeof(screen[0]));
-	state->sav = saved;
-	misc_save(&state->cur);
+	term->sav = saved;
+	misc_save(&term->cur);
 }
 
-void term_load(struct term_state *state)
+void term_load(struct term *term)
 {
-	fd = state->fd;
-	pid = state->pid;
-	misc_load(&state->cur);
-	saved = state->sav;
-	memcpy(screen, state->screen,
+	fd = term->fd;
+	pid = term->pid;
+	misc_load(&term->cur);
+	saved = term->sav;
+	memcpy(screen, term->screen,
 		pad_rows() * pad_cols() * sizeof(screen[0]));
 	draw_rows(0, pad_rows());
 	term_show(row, col, 1);
