@@ -10,6 +10,7 @@
 #include "util.h"
 
 #define FBDEV_PATH	"/dev/fb0"
+#define MAXWIDTH	(1 << 12)
 #define BPP		sizeof(fbval_t)
 
 static int fd;
@@ -107,14 +108,19 @@ static unsigned char *rowaddr(int r)
 	return fb + (r + vinfo.yoffset) * finfo.line_length;
 }
 
+unsigned long cache[MAXWIDTH];
 void fb_box(int sr, int sc, int er, int ec, fbval_t val)
 {
-	int r, c;
-	fbval_t cache[ec - sc];
-	for (c = sc; c < ec; c++)
-		cache[c - sc] = val;
-	for (r = sr; r < er; r++)
-		memcpy(rowaddr(r) + sc * BPP, cache, sizeof(cache));
+	int i;
+	int pc = sizeof(cache[0]) / sizeof(val);
+	int cn = MIN((ec - sc) / pc + 1, ARRAY_SIZE(cache));
+	unsigned long nv = val;
+	for (i = 1; i < pc; i++)
+		nv = (nv << (sizeof(val) * 8)) | val;
+	for (i = 0; i < cn; i++)
+		cache[i] = nv;
+	for (i = sr; i < er; i++)
+		memcpy(rowaddr(i) + sc * BPP, cache, (ec - sc) * BPP);
 }
 
 void fb_scroll(int sr, int nr, int n, fbval_t val)
