@@ -387,11 +387,12 @@ static void modeseq(int c, int set)
 	case 0x14:	/* LNM		Line Feed / New Line Mode */
 		mode = BIT_SET(mode, MODE_NOAUTOCR, !set);
 		break;
+	case 0x04:	/* IRM		insertion/replacement mode (always reset) */
+		break;
 	case 0x00:	/* IGN		Error (Ignored) */
 	case 0x01:	/* GATM		guarded-area transfer mode (ignored) */
 	case 0x02:	/* KAM		keyboard action mode (always reset) */
 	case 0x03:	/* CRM		control representation mode (always reset) */
-	case 0x04:	/* IRM		insertion/replacement mode (always reset) */
 	case 0x05:	/* SRTM		status-reporting transfer mode */
 	case 0x06:	/* ERM		erasure mode (always set) */
 	case 0x07:	/* VEM		vertical editing mode (ignored) */
