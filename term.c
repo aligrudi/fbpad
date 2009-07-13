@@ -139,8 +139,6 @@ static void advance(int dr, int dc, int scrl)
 {
 	int r = row + dr;
 	int c = col + dc;
-	int t = origin() ? top : 0;
-	int b = origin() ? bot : pad_rows();
 	if (c >= pad_cols()) {
 		if (!scrl || (mode & MODE_NOWRAP)) {
 			c = pad_cols() - 1;
@@ -149,17 +147,17 @@ static void advance(int dr, int dc, int scrl)
 			c = 0;
 		}
 	}
-	if (r >= b && scrl) {
-		int n = b - r - 1;
-		int nr = (b - t) + n;
-		scroll_screen(-n, nr, n);
+	if (r >= bot && scrl) {
+		int n = bot - r - 1;
+		int nr = (bot - top) + n;
+		scroll_screen(top + -n, nr, n);
 	}
-	if (r < t && scrl) {
-		int n = t - r;
-		int nr = (b - t) - n;
-		scroll_screen(t, nr, n);
+	if (r < top && scrl) {
+		int n = top - r;
+		int nr = (bot - top) - n;
+		scroll_screen(top, nr, n);
 	}
-	r = MIN(b - 1, MAX(t, r));
+	r = MIN(bot - 1, MAX(top, r));
 	move_cursor(r, MAX(0, c));
 }
 
