@@ -252,7 +252,7 @@ static void csiseq(void)
 		}
 		break;
 	case 'A':	/* CUU		move cursor up */
-		advance(MAX(1, args[0]), 0, 0);
+		advance(-MAX(1, args[0]), 0, 0);
 		break;
 	case 'e':	/* VPR		move cursor down */
 	case 'B':	/* CUD		move cursor down */
