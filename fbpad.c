@@ -13,6 +13,8 @@
 #define SHELL		"/bin/bash"
 #define TAGS		8
 #define CTRLKEY(x)	((x) - 96)
+#define BADPOLLFLAGS	(POLLHUP | POLLERR | POLLNVAL)
+
 
 static struct term terms[TAGS * 2];
 static int cterm;	/* current tag */
@@ -33,7 +35,7 @@ static void showterm(int n)
 		lterm = cterm;
 	term_save(&terms[cterm]);
 	cterm = n;
-	term_load(&terms[cterm]);
+	term_load(&terms[cterm], TERM_REDRAW);
 }
 
 static struct term *mainterm(void)
@@ -83,35 +85,88 @@ static void directkey(void)
 			term_send(c);
 }
 
+static int find_by_fd(int fd)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(terms); i++)
+		if (terms[i].fd == fd)
+			return i;
+	return -1;
+}
+
+static int fill_ufds(struct pollfd *ufds)
+{
+	int n = 1;
+	int i;
+	ufds[0].fd = STDIN_FILENO;
+	ufds[0].events = POLLIN;
+	for (i = 0; i < ARRAY_SIZE(terms); i++) {
+		if (terms[i].fd) {
+			ufds[n].fd = terms[i].fd;
+			ufds[n].events = POLLIN;
+			n++;
+		}
+	}
+	return n;
+}
+
+static void temp_switch(int termid)
+{
+	if (termid != cterm) {
+		term_save(&terms[cterm]);
+		term_load(&terms[termid], TERM_HIDDEN);
+	}
+}
+
+static void switch_back(int termid)
+{
+	if (termid != cterm) {
+		term_save(&terms[termid]);
+		term_load(&terms[cterm], TERM_VISIBLE);
+	}
+}
+
+static void check_ufds(struct pollfd *ufds, int n)
+{
+	int i;
+	for (i = 1; i < n; i++) {
+		int idx = find_by_fd(ufds[i].fd);
+		if (ufds[i].revents & BADPOLLFLAGS) {
+			temp_switch(idx);
+			term_end();
+			switch_back(idx);
+		}
+		if (ufds[i].revents & POLLIN) {
+			temp_switch(idx);
+			term_read();
+			switch_back(idx);
+		}
+	}
+}
+
 static void mainloop(void)
 {
-	struct pollfd ufds[2];
-	int rv;
+	struct pollfd ufds[ARRAY_SIZE(terms) + 1];
 	struct termios oldtermios, termios;
-	long badflags = POLLHUP | POLLERR | POLLNVAL;
+	int rv;
+	int n;
 	tcgetattr(STDIN_FILENO, &termios);
 	oldtermios = termios;
 	cfmakeraw(&termios);
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &termios);
 	memset(ufds, 0, sizeof(ufds));
-	term_load(&terms[cterm]);
-	ufds[0].fd = STDIN_FILENO;
-	ufds[0].events = POLLIN;
-	ufds[1].fd = terms[cterm].fd;
-	ufds[1].events = POLLIN;
+	term_load(&terms[cterm], TERM_REDRAW);
+	n = fill_ufds(ufds);
 	while (!exitit) {
-		rv = poll(ufds, mainterm() ? 2 : 1, 1000);
+		rv = poll(ufds, n, 1000);
 		if (rv == -1 && errno != EINTR)
 			break;
-		if (ufds[0].revents & badflags)
+		if (ufds[0].revents & BADPOLLFLAGS)
 			break;
-		if (mainterm() && ufds[1].revents & badflags)
-			term_end();
-		if (mainterm() && ufds[1].revents & POLLIN)
-			term_read();
 		if (ufds[0].revents & POLLIN)
 			directkey();
-		ufds[1].fd = terms[cterm].fd;
+		check_ufds(ufds, n);
+		n = fill_ufds(ufds);
 	}
 	tcsetattr(STDIN_FILENO, 0, &oldtermios);
 }
@@ -127,7 +182,7 @@ static void signalreceived(int n)
 		break;
 	case SIGUSR2:
 		pad_shown();
-		term_load(&terms[cterm]);
+		term_load(&terms[cterm], TERM_REDRAW);
 		break;
 	}
 }

@@ -25,6 +25,7 @@ static int row, col;
 static int fg, bg;
 static int top, bot;
 static int mode;
+static int visible;
 
 static int origin(void)
 {
@@ -59,7 +60,8 @@ static void term_show(int r, int c, int cursor)
 		fgcolor = bgcolor;
 		bgcolor = t;
 	}
-	pad_put(sqr->c, r, c, fgcolor, bgcolor);
+	if (visible)
+		pad_put(sqr->c, r, c, fgcolor, bgcolor);
 }
 
 void term_put(int ch, int r, int c)
@@ -100,7 +102,8 @@ static void scroll_screen(int sr, int nr, int n)
 	else
 		empty_rows(sr + nr + n, sr + nr);
 	/* draw_rows(MIN(sr, sr + n), MAX(sr + nr, sr + nr +n)); */
-	pad_scroll(sr, nr, n, bg);
+	if (visible)
+		pad_scroll(sr, nr, n, bg);
 	term_show(row, col, 1);
 }
 
@@ -123,8 +126,11 @@ static void delete_lines(int n)
 
 static void move_cursor(int r, int c)
 {
+	int t, b;
 	term_show(row, col, 0);
-	row = MAX(origin() ? top : 0, MIN(r, (origin() ? bot : pad_rows()) - 1));
+	t = origin() ? top : 0;
+	b = origin() ? bot : pad_rows();
+	row = MAX(t, MIN(r, b - 1));
 	col = MAX(0, MIN(c, pad_cols() - 1));
 	term_show(row, col, 1);
 }
@@ -207,7 +213,7 @@ static void move_chars(int sc, int nc, int n)
 	if (n > 0)
 		memset(SQRADDR(row, sc), 0, n * sizeof(*screen));
 	else
-		memset(SQRADDR(row, pad_rows() + n), 0, -n * sizeof(*screen));
+	memset(SQRADDR(row, pad_rows() + n), 0, -n * sizeof(*screen));
 	for (i = MIN(sc, sc + n); i < pad_cols(); i++)
 		term_show(row, i, 0);
 	term_show(row, col, 1);
@@ -227,7 +233,8 @@ static void insert_chars(int n)
 static void term_blank(void)
 {
 	memset(screen, 0, sizeof(screen));
-	pad_blank(bg);
+	if (visible)
+		pad_blank(bg);
 }
 
 static void ctlseq(void);
@@ -278,13 +285,16 @@ void term_save(struct term *term)
 	misc_save(&term->cur);
 }
 
-void term_load(struct term *t)
+void term_load(struct term *t, int flags)
 {
 	term = t;
 	misc_load(&term->cur);
 	screen = term->screen;
-	draw_rows(0, pad_rows());
-	term_show(row, col, 1);
+	visible = flags;
+	if (flags == TERM_REDRAW) {
+		draw_rows(0, pad_rows());
+		term_show(row, col, 1);
+	}
 }
 
 void term_end(void)

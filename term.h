@@ -18,7 +18,11 @@ struct term {
 	struct term_state cur, sav;
 };
 
-void term_load(struct term *term);
+#define TERM_HIDDEN		0
+#define TERM_VISIBLE		1
+#define TERM_REDRAW		2
+
+void term_load(struct term *term, int visible);
 void term_save(struct term *term);
 
 void term_read(void);
