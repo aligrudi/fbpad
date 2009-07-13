@@ -318,11 +318,15 @@ static void csiseq(void)
 	case 'n':	/* DSR		device status report */
 		csiseq_dsr(args[0]);
 		break;
+	case 'G':	/* CHA		move cursor to column in current row */
+		advance(0, MAX(0, args[0] - 1) - col, 0);
+		break;
+	case 'X':	/* ECH		erase characters on current line */
+		kill_chars(col, MAX(col + MAX(1, args[0]), pad_cols()));
+		break;
 	case '[':	/* IGN		ignored control sequence */
 	case 'E':	/* CNL		move cursor down and to column 1 */
 	case 'F':	/* CPL		move cursor up and to column 1 */
-	case 'G':	/* CHA		move cursor to column in current row */
-	case 'X':	/* ECH		erase characters on current line */
 	case 'g':	/* TBC		clear tab stop (CSI 3 g = clear all stops) */
 	case 'q':	/* DECLL	set keyboard LEDs */
 	case 's':	/* CUPSV	save cursor position */
