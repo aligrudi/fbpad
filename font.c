@@ -22,7 +22,7 @@ void font_init(void)
 	cols = (face->size->metrics.max_advance >> 6) + WIDTHDIFF;
 }
 
-unsigned char *font_bitmap(int c, int bold)
+unsigned char *font_bitmap(int c)
 {
 	static unsigned char bits[MAXDOTS];
 	int sr, sc, er, ec;

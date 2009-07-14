@@ -76,7 +76,7 @@ static fbval_t *bitmap(int c, short fg, short bg)
 	if (!memcmp(&glyph, &cacheid[hash], sizeof(glyph)))
 		return fbbits;
 	cacheid[hash] = glyph;
-	bits = font_bitmap(c, fg >= 8);
+	bits = font_bitmap(c);
 	if (!bits)
 		return NULL;
 	for (i = 0; i < nbits; i++)
