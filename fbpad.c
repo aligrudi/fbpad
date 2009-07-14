@@ -31,7 +31,7 @@ static int readchar(void)
 
 static void showterm(int n)
 {
-	if (lterm % TAGS != cterm % TAGS)
+	if (cterm % TAGS != n % TAGS)
 		lterm = cterm;
 	term_save(&terms[cterm]);
 	cterm = n;
@@ -64,7 +64,7 @@ static void directkey(void)
 			return;
 		case 'j':
 		case 'k':
-			showterm((cterm + TAGS) % ARRAY_SIZE(terms));
+			showterm(cterm < TAGS ? cterm + TAGS : cterm - TAGS);
 			return;
 		case 'o':
 			showterm(lterm);
