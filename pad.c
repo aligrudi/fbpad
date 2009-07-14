@@ -68,7 +68,6 @@ static fbval_t *bitmap(int c, short fg, short bg)
 	int nbits = font_rows() * font_cols();
 	if (!isprint(c) || isspace(c))
 		return NULL;
-	bits = font_bitmap(c, fg >= 8);
 	glyph.c = c;
 	glyph.fg = fg;
 	glyph.bg = bg;
@@ -77,6 +76,7 @@ static fbval_t *bitmap(int c, short fg, short bg)
 	if (!memcmp(&glyph, &cacheid[hash], sizeof(glyph)))
 		return fbbits;
 	cacheid[hash] = glyph;
+	bits = font_bitmap(c, fg >= 8);
 	for (i = 0; i < nbits; i++)
 		fbbits[i] = mixed_color(fg, bg, bits[i]);
 	return fbbits;
