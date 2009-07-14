@@ -28,6 +28,96 @@ static int top, bot;
 static int mode;
 static int visible;
 
+#define MAXLINES		(1 << 13)
+static int dirty[MAXLINES];
+static int lazy;
+
+static void _term_show(int r, int c, int cursor)
+{
+	struct square *sqr = SQRADDR(r, c);
+	int fgcolor = sqr->c ? sqr->fg : fg;
+	int bgcolor = sqr->c ? sqr->bg : bg;
+	if (cursor && !(mode & MODE_NOCURSOR)) {
+		int t = fgcolor;
+		fgcolor = bgcolor;
+		bgcolor = t;
+	}
+	if (visible)
+		pad_put(sqr->c, r, c, fgcolor, bgcolor);
+}
+
+static void _draw_row(int r)
+{
+	int i;
+	for (i = 0; i < pad_cols(); i++)
+		_term_show(r, i, 0);
+}
+
+static void lazy_draw(int sr, int er)
+{
+	int i;
+	if (!visible)
+		return;
+	for (i = sr; i < er; i++) {
+		if (lazy)
+			dirty[i] = 1;
+		else
+			_draw_row(i);
+	}
+}
+
+static void lazy_drawcols(int r, int sc, int ec)
+{
+	int i;
+	if (!visible)
+		return;
+	if (lazy) {
+		dirty[r] = 1;
+	} else {
+		for (i = sc; i < ec; i++)
+			_term_show(r, i, 0);
+	}
+}
+
+static void lazy_put(int r, int c)
+{
+	if (!visible)
+		return;
+	if (lazy)
+		dirty[r] = 1;
+	else
+		_term_show(r, c, 0);
+}
+
+static void lazy_cursor(int put)
+{
+	if (!visible)
+		return;
+	if (lazy)
+		dirty[row] = 1;
+	else
+		_term_show(row, col, put);
+}
+
+static void lazy_clean()
+{
+	if (visible)
+		memset(dirty, 0, sizeof(*dirty) * MAXLINES);
+}
+
+static void lazy_flush()
+{
+	int i;
+	if (!visible)
+		return;
+	_term_show(row, col, 0);
+	for (i = 0; i < pad_rows(); i++)
+		if (dirty[i])
+			_draw_row(i);
+	lazy_clean();
+	_term_show(row, col, 1);
+}
+
 static int origin(void)
 {
 	return mode & MODE_ORIGIN;
@@ -58,27 +148,13 @@ static int readpty(void)
 	return -1;
 }
 
-static void term_show(int r, int c, int cursor)
-{
-	struct square *sqr = SQRADDR(r, c);
-	int fgcolor = sqr->c ? sqr->fg : fg;
-	int bgcolor = sqr->c ? sqr->bg : bg;
-	if (cursor && !(mode & MODE_NOCURSOR)) {
-		int t = fgcolor;
-		fgcolor = bgcolor;
-		bgcolor = t;
-	}
-	if (visible)
-		pad_put(sqr->c, r, c, fgcolor, bgcolor);
-}
-
 void term_put(int ch, int r, int c)
 {
 	struct square *sqr = SQRADDR(r, c);
 	sqr->c = ch;
 	sqr->fg = fg;
 	sqr->bg = bg;
-	term_show(r, c, 0);
+	lazy_put(r, c);
 }
 
 static void empty_rows(int sr, int er)
@@ -86,33 +162,24 @@ static void empty_rows(int sr, int er)
 	memset(SQRADDR(sr, 0), 0, (er - sr) * sizeof(*screen) * pad_cols());
 }
 
-static void draw_rows(int sr, int er)
-{
-	int i = 0;
-	for (i = sr * pad_cols(); i < er * pad_cols(); i++)
-		term_show(i / pad_cols(), i % pad_cols(), 0);
-}
-
 static void blank_rows(int sr, int er)
 {
 	empty_rows(sr, er);
-	draw_rows(sr, er);
-	term_show(row, col, 1);
+	lazy_draw(sr, er);
+	lazy_cursor(1);
 }
 
 static void scroll_screen(int sr, int nr, int n)
 {
-	term_show(row, col, 0);
+	lazy_cursor(0);
 	memmove(SQRADDR(sr + n, 0), SQRADDR(sr, 0),
 		nr * pad_cols() * sizeof(*screen));
 	if (n > 0)
 		empty_rows(sr, sr + n);
 	else
 		empty_rows(sr + nr + n, sr + nr);
-	/* draw_rows(MIN(sr, sr + n), MAX(sr + nr, sr + nr +n)); */
-	if (visible)
-		pad_scroll(sr, nr, n, bg);
-	term_show(row, col, 1);
+	lazy_draw(MIN(sr, sr + n), MAX(sr + nr, sr + nr + n));
+	lazy_cursor(1);
 }
 
 static void insert_lines(int n)
@@ -135,12 +202,12 @@ static void delete_lines(int n)
 static void move_cursor(int r, int c)
 {
 	int t, b;
-	term_show(row, col, 0);
+	lazy_cursor(0);
 	t = origin() ? top : 0;
 	b = origin() ? bot : pad_rows();
 	row = MAX(t, MIN(r, b - 1));
 	col = MAX(0, MIN(c, pad_cols() - 1));
-	term_show(row, col, 1);
+	lazy_cursor(1);
 }
 
 static void advance(int dr, int dc, int scrl)
@@ -203,26 +270,22 @@ static void setmode(int m)
 
 static void kill_chars(int sc, int ec)
 {
-	int i;
 	memset(SQRADDR(row, sc), 0, (ec - sc) * sizeof(*screen));
-	for (i = sc; i < ec; i++)
-		term_show(row, i, 0);
-	move_cursor(row, col);
+	lazy_drawcols(row, sc, ec);
+	lazy_cursor(1);
 }
 
 static void move_chars(int sc, int nc, int n)
 {
-	int i;
-	term_show(row, col, 0);
+	lazy_cursor(0);
 	memmove(SQRADDR(row, sc + n), SQRADDR(row, sc),
 		nc * sizeof(*screen));
 	if (n > 0)
 		memset(SQRADDR(row, sc), 0, n * sizeof(*screen));
 	else
-	memset(SQRADDR(row, pad_rows() + n), 0, -n * sizeof(*screen));
-	for (i = MIN(sc, sc + n); i < pad_cols(); i++)
-		term_show(row, i, 0);
-	term_show(row, col, 1);
+		memset(SQRADDR(row, pad_rows() + n), 0, -n * sizeof(*screen));
+	lazy_drawcols(row, MIN(sc, sc + n), pad_cols());
+	lazy_cursor(1);
 }
 
 static void delete_chars(int n)
@@ -239,23 +302,21 @@ static void insert_chars(int n)
 static void term_blank(void)
 {
 	memset(screen, 0, MAXCHARS * sizeof(*screen));
-	if (visible)
+	if (visible) {
 		pad_blank(bg);
+		lazy_clean();
+	}
 }
 
 static void ctlseq(void);
 void term_read(void)
 {
-	int oldvis = visible;
-	visible = 0;
 	ctlseq();
+	lazy = 1;
 	while (ptycur < ptylen)
 		ctlseq();
-	visible = oldvis;
-	if (visible) {
-		draw_rows(0, pad_rows());
-		term_show(row, col, 1);
-	}
+	lazy_flush();
+	lazy = 0;
 }
 
 void term_exec(char *cmd)
@@ -310,8 +371,8 @@ void term_load(struct term *t, int flags)
 	screen = term->screen;
 	visible = flags;
 	if (term->fd && flags == TERM_REDRAW) {
-		draw_rows(0, pad_rows());
-		term_show(row, col, 1);
+		lazy_draw(0, pad_rows());
+		lazy_cursor(1);
 	}
 	if (!term->fd && flags)
 		pad_blank(0);
