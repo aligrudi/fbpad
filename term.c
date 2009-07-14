@@ -230,7 +230,7 @@ static void insert_chars(int n)
 
 static void term_blank(void)
 {
-	memset(screen, 0, sizeof(screen));
+	memset(screen, 0, MAXCHARS * sizeof(*screen));
 	if (visible)
 		pad_blank(bg);
 }
@@ -289,10 +289,12 @@ void term_load(struct term *t, int flags)
 	misc_load(&term->cur);
 	screen = term->screen;
 	visible = flags;
-	if (flags == TERM_REDRAW) {
+	if (term->fd && flags == TERM_REDRAW) {
 		draw_rows(0, pad_rows());
 		term_show(row, col, 1);
 	}
+	if (!term->fd && flags)
+		pad_blank(0);
 }
 
 void term_end(void)

@@ -209,7 +209,6 @@ int main(void)
 	write(STDIN_FILENO, clear, strlen(clear));
 	write(STDIN_FILENO, hide, strlen(hide));
 	pad_init();
-	pad_blank(0);
 	setupsignals();
 	fcntl(STDIN_FILENO, F_SETFL,
 		fcntl(STDIN_FILENO, F_GETFL) | O_NONBLOCK);
