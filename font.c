@@ -29,9 +29,9 @@ unsigned char *font_bitmap(int c, int bold)
 	int i;
 	if (FT_Load_Char(face, c, FT_LOAD_RENDER))
 		return NULL;
-	sr = rows + (face->size->metrics.descender >> 6) -
-		(face->glyph->metrics.horiBearingY >> 6);
-	sc = face->glyph->metrics.horiBearingX >> 6;
+	sr = MAX(0, rows + (face->size->metrics.descender >> 6) -
+		 (face->glyph->metrics.horiBearingY >> 6));
+	sc = MAX(0, face->glyph->metrics.horiBearingX >> 6);
 	er = MIN(rows, sr + face->glyph->bitmap.rows);
 	ec = MIN(cols, sc + face->glyph->bitmap.width);
 	memset(bits, 0, sr * cols);
