@@ -103,40 +103,6 @@ int fb_cols(void)
 	return vinfo.xres;
 }
 
-#define FBIOFILLRECT            0x4619
-#define FBIOCOPYAREA            0x461A
-
-void fb_box(int sr, int sc, int er, int ec, fbval_t val)
-{
-	struct fb_fillrect fillrect;
-	fillrect.dy = sr;
-	fillrect.dx = sc;
-	fillrect.height = er - sr;
-	fillrect.width = ec - sc;
-	fillrect.color = val;
-	fillrect.rop = ROP_COPY;
-	if (ioctl(fd, FBIOFILLRECT, &fillrect) == -1)
-		xerror("fillrect failed");
-}
-
-void fb_scroll(int sr, int nr, int n, fbval_t val)
-{
-	struct fb_copyarea copyarea;
-	copyarea.dy = sr + n;
-	copyarea.dx = 0;
-	copyarea.sy = sr;
-	copyarea.sx = 0;
-	copyarea.height = nr;
-	copyarea.width = fb_cols();
-	if (ioctl(fd, FBIOCOPYAREA, &copyarea) == -1)
-		xerror("copyarea failed");
-	if (n > 0)
-		fb_box(sr, 0, sr + n, fb_cols(), val);
-	else
-		fb_box(sr + nr + n, 0, sr + nr, fb_cols(), val);
-}
-
-/*
 static unsigned char *rowaddr(int r)
 {
 	return fb + (r + vinfo.yoffset) * finfo.line_length;
@@ -165,4 +131,3 @@ void fb_scroll(int sr, int nr, int n, fbval_t val)
 	else
 		fb_box(sr + nr + n, 0, sr + nr, fb_cols(), val);
 }
-*/
