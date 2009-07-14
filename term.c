@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <fcntl.h>
 #include <pty.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -42,11 +43,18 @@ static void setsize(void)
 	ioctl(term->fd, TIOCSWINSZ, &size);
 }
 
+#define PTYBUFSIZE		(1 << 13)
+static char ptybuf[PTYBUFSIZE];
+static int ptylen;
+static int ptycur;
 static int readpty(void)
 {
-	char b;
-	if (read(term->fd, &b, 1) > 0)
-		return (int) b;
+	if (ptycur < ptylen)
+		return ptybuf[ptycur++];
+	if ((ptylen = read(term->fd, ptybuf, PTYBUFSIZE)) > 0) {
+		ptycur = 1;
+		return ptybuf[0];
+	}
 	return -1;
 }
 
@@ -238,7 +246,16 @@ static void term_blank(void)
 static void ctlseq(void);
 void term_read(void)
 {
+	int oldvis = visible;
+	visible = 0;
 	ctlseq();
+	while (ptycur < ptylen)
+		ctlseq();
+	visible = oldvis;
+	if (visible) {
+		draw_rows(0, pad_rows());
+		term_show(row, col, 1);
+	}
 }
 
 void term_exec(char *cmd)
@@ -251,6 +268,8 @@ void term_exec(char *cmd)
 		execl(cmd, cmd, NULL);
 		exit(1);
 	}
+	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);
+	fcntl(term->fd, F_SETFL, fcntl(term->fd, F_GETFL) | O_NONBLOCK);
 	setsize();
 	setmode(0);
 	term_blank();
@@ -280,6 +299,7 @@ static void misc_load(struct term_state *state)
 
 void term_save(struct term *term)
 {
+	visible = 0;
 	misc_save(&term->cur);
 }
 
