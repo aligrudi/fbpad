@@ -326,7 +326,7 @@ void term_exec(char *cmd)
 		xerror("failed to create a pty");
 	if (!term->pid) {
 		setenv("TERM", "linux", 1);
-		execl(cmd, cmd, NULL);
+		execlp(cmd, cmd, NULL);
 		exit(1);
 	}
 	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);

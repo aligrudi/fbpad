@@ -11,6 +11,8 @@
 #include "util.h"
 
 #define SHELL		"/bin/bash"
+#define MAIL		"mutt"
+#define EDITOR		"vim"
 #define TAGS		8
 #define CTRLKEY(x)	((x) - 96)
 #define BADPOLLFLAGS	(POLLHUP | POLLERR | POLLNVAL)
@@ -45,22 +47,26 @@ static struct term *mainterm(void)
 	return NULL;
 }
 
+static void exec_cmd(char *file)
+{
+	if (!mainterm())
+		term_exec(file);
+}
+
 static void directkey(void)
 {
 	int c = readchar();
-	static int pending = 0;
-	if (pending) {
-		char *tags = "xnlhtrv-";
-		if (strchr(tags, c))
-			showterm(strchr(tags, c) - tags);
-		pending = 0;
-		return;
-	}
+	char *tags = "xnlhtrv-";
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
-			if (!mainterm())
-				term_exec(SHELL);
+			exec_cmd(SHELL);
+			return;
+		case 'm':
+			exec_cmd(MAIL);
+			return;
+		case 'e':
+			exec_cmd(EDITOR);
 			return;
 		case 'j':
 		case 'k':
@@ -69,20 +75,20 @@ static void directkey(void)
 		case 'o':
 			showterm(lterm);
 			return;
-		case ';':
-			pending = 1;
-			return;
 		case CTRLKEY('q'):
 			exitit = 1;
 			return;
 		default:
+			if (strchr(tags, c)) {
+				showterm(strchr(tags, c) - tags);
+				return;
+			}
 			if (mainterm())
 				term_send(ESC);
 		}
 	}
-	if (c != -1)
-		if (mainterm())
-			term_send(c);
+	if (c != -1 && mainterm())
+		term_send(c);
 }
 
 static int find_by_fd(int fd)
