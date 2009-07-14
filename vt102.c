@@ -348,7 +348,8 @@ static void csiseq_da(int c)
 		term_sendstr("\x1b[?6c");
 		break;
 	default:
-		printf("csiseq_da <0x%x>\n", c);
+		/* we don't care much about cursor shape */
+		/* printf("csiseq_da <0x%x>\n", c); */
 		break;
 	}
 }
