@@ -33,7 +33,7 @@ static void ctlseq(void)
 		break;
 	case 0x00:	/* NUL		ignored */
 	case 0x07:	/* BEL		beep */
-	case 0x3f:	/* DEL		ignored */
+	case 0x7f:	/* DEL		ignored */
 		break;
 	case 0x05:	/* ENQ		trigger answerback message */
 	case 0x0e:	/* SO		activate G1 character set & newline */
