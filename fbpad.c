@@ -14,6 +14,7 @@
 #include <pty.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <linux/vt.h>
 #include <locale.h>
@@ -246,6 +247,9 @@ static void signalreceived(int n)
 		pad_shown();
 		term_load(&terms[cterm], TERM_REDRAW);
 		break;
+	case SIGCHLD:
+		waitpid(-1, 0, WNOHANG);
+		break;
 	}
 }
 
@@ -261,6 +265,7 @@ static void setupsignals(void)
 
 	signal(SIGUSR1, signalreceived);
 	signal(SIGUSR2, signalreceived);
+	signal(SIGCHLD, signalreceived);
 }
 
 int main(void)
