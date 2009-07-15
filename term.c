@@ -6,19 +6,17 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "config.h"
 #include "pad.h"
 #include "util.h"
 #include "term.h"
-
-#define FGCOLOR		0
-#define BGCOLOR		7
-#define SQRADDR(r, c)		(&screen[(r) * pad_cols() + (c)])
 
 #define MODE_NOCURSOR		0x01
 #define MODE_NOWRAP		0x02
 #define MODE_ORIGIN		0x04
 #define MODE_NOAUTOCR		0x08
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
+#define SQRADDR(r, c)		(&screen[(r) * pad_cols() + (c)])
 
 static struct term *term;
 static struct square *screen;

@@ -7,20 +7,17 @@
 #include <string.h>
 #include <unistd.h>
 #include <linux/vt.h>
+#include "config.h"
 #include "pad.h"
 #include "term.h"
 #include "util.h"
 
-#define SHELL		"/bin/bash"
-#define MAIL		"mutt"
-#define EDITOR		"vim"
 #define CTRLKEY(x)	((x) - 96)
 #define BADPOLLFLAGS	(POLLHUP | POLLERR | POLLNVAL)
+#define NTAGS		sizeof(tags)
 
-
-static char tags[] = "xnlhtrv-";
-#define TAGS		sizeof(tags)
-static struct term terms[TAGS * 2];
+static char tags[] = TAGS;
+static struct term terms[NTAGS * 2];
 static int cterm;	/* current tag */
 static int lterm;	/* last tag */
 static int exitit;
@@ -35,7 +32,7 @@ static int readchar(void)
 
 static void showterm(int n)
 {
-	if (cterm % TAGS != n % TAGS)
+	if (cterm % NTAGS != n % NTAGS)
 		lterm = cterm;
 	term_save(&terms[cterm]);
 	cterm = n;
@@ -57,31 +54,31 @@ static void exec_cmd(char *file)
 
 static int altterm(int n)
 {
-	return n < TAGS ? n + TAGS : n - TAGS;
+	return n < NTAGS ? n + NTAGS : n - NTAGS;
 }
 
 static void showterms(void)
 {
-	int colors[] = {0, 4, 5};
+	int colors[] = {FGCOLOR, 4, 2, 5};
 	int c = 0;
 	int r = pad_rows() - 1;
 	int i;
-	pad_put('T', r, c++, colors[0], 7);
-	pad_put('A', r, c++, colors[0], 7);
-	pad_put('G', r, c++, colors[0], 7);
-	pad_put('S', r, c++, colors[0], 7);
-	pad_put(':', r, c++, colors[0], 7);
-	pad_put(' ', r, c++, colors[0], 7);
-	for (i = 0; i < TAGS; i++) {
+	pad_put('T', r, c++, FGCOLOR, BGCOLOR);
+	pad_put('A', r, c++, FGCOLOR, BGCOLOR);
+	pad_put('G', r, c++, FGCOLOR, BGCOLOR);
+	pad_put('S', r, c++, FGCOLOR, BGCOLOR);
+	pad_put(':', r, c++, FGCOLOR, BGCOLOR);
+	pad_put(' ', r, c++, FGCOLOR, BGCOLOR);
+	for (i = 0; i < NTAGS; i++) {
 		int nt = 0;
 		int shown = i == cterm || altterm(i) == cterm;
 		if (terms[i].fd)
-			nt++;
+			nt = 1;
 		if (terms[altterm(i)].fd)
-			nt++;
-		pad_put(shown ? '(' : ' ', r, c++, colors[nt], colors[0]);
+			nt = nt ? 2 : 3;
+		pad_put(shown ? '(' : ' ', r, c++, FGCOLOR, BGCOLOR);
 		pad_put(tags[i], r, c++, colors[nt], 7);
-		pad_put(shown ? ')' : ' ', r, c++, colors[nt], colors[0]);
+		pad_put(shown ? ')' : ' ', r, c++, FGCOLOR, BGCOLOR);
 	}
 }
 

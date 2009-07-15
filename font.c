@@ -1,13 +1,9 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_BITMAP_H
+#include "config.h"
 #include "font.h"
 #include "util.h"
-
-#define FONTFACE	"/usr/lib/X11/fonts/TTF/DejaVuSansMono.ttf"
-#define FONTSIZE	10
-#define DPI		192
-#define WIDTHDIFF	1
 
 static FT_Library library;
 static FT_Face face;

@@ -2,17 +2,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "config.h"
 #include "draw.h"
 #include "font.h"
 #include "util.h"
 #include "pad.h"
 
-static int rows, cols;
 static unsigned int cd[] = {
-	0x0a0a0a, 0xc04444, 0x339933, 0xcccc66,
-	0x5566bc, 0xcd66af, 0xa166cd, 0xeeeeee,
-	0x71a3b7, 0xc08888, 0x779977, 0xcccc99,
-	0x8899bc, 0xcd99af, 0xa199cd, 0xdedede};
+	COLOR0, COLOR1, COLOR2, COLOR3,
+	COLOR4, COLOR5, COLOR6, COLOR7,
+	COLOR8, COLOR9, COLOR10, COLOR11,
+	COLOR12, COLOR13, COLOR14, COLOR15};
+static int rows, cols;
 
 void pad_init(void)
 {
