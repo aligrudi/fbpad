@@ -16,6 +16,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <linux/vt.h>
+#include <locale.h>
 #include "config.h"
 #include "pad.h"
 #include "term.h"
@@ -267,6 +268,7 @@ int main(void)
 	char *hide = "\x1b[?25l";
 	char *clear = "\x1b[2J\x1b[H";
 	char *show = "\x1b[?25h";
+	setlocale(LC_ALL, "");
 	write(STDIN_FILENO, clear, strlen(clear));
 	write(STDIN_FILENO, hide, strlen(hide));
 	pad_init();

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wctype.h>
 #include "config.h"
 #include "draw.h"
 #include "font.h"
@@ -67,7 +68,7 @@ static fbval_t *bitmap(int c, short fg, short bg)
 	int hash;
 	int i;
 	int nbits = font_rows() * font_cols();
-	if ((!isprint(c) && c < 128) || isspace(c))
+	if (c < 0 || !iswprint(c) || iswspace(c))
 		return NULL;
 	glyph.c = c;
 	glyph.fg = fg;
