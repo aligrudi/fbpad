@@ -9,6 +9,8 @@ static void csiseq_da(int c);
 static void csiseq_dsr(int c);
 static void modeseq(int c, int set);
 
+/* comments taken from: http://www.ivarch.com/programs/termvt102.shtml */
+
 static int readutf8(int c)
 {
 	int result;
