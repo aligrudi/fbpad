@@ -320,8 +320,11 @@ void term_read(void)
 void term_exec(char *cmd)
 {
 	bot = pad_rows();
-	if ((term->pid = forkpty(&term->fd, NULL, NULL, NULL)) == -1)
-		xerror("failed to create a pty");
+	if ((term->pid = forkpty(&term->fd, NULL, NULL, NULL)) == -1) {
+		perror("failed to fork");
+		term->fd = 0;
+		return;
+	}
 	if (!term->pid) {
 		setenv("TERM", "linux", 1);
 		execlp(cmd, cmd, NULL);
