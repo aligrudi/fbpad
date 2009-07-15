@@ -1,0 +1,26 @@
+FBPAD
+=====
+
+Fbpad is a small and simple linux framebuffer virtual terminal.
+It manages many terminals through tags; each tag can have at most two
+terminals.  Tags are represented with a single letter.
+
+==============  =======================================
+key		command
+==============  =======================================
+m-c		execute a shell
+m-m		execute mail program
+m-e		execute editor program
+m-x 		switch to tag 'x'
+m-j		switch to alt terminal in this tag
+m-k		like m-j
+m-p		show tag summary
+m-o		jump to last tag
+m-.		show next terminal
+c-m-q		quit fbpad
+==============  =======================================
+
+INSTALLATION
+============
+
+Change config.h file to customize the settings.  Then run make.
