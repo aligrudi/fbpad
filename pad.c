@@ -76,10 +76,10 @@ static fbval_t *bitmap(int c, short fg, short bg)
 	fbbits = &cache[hash * MAXDOTS];
 	if (!memcmp(&glyph, &cacheid[hash], sizeof(glyph)))
 		return fbbits;
-	cacheid[hash] = glyph;
 	bits = font_bitmap(c);
 	if (!bits)
 		return NULL;
+	cacheid[hash] = glyph;
 	for (i = 0; i < nbits; i++)
 		fbbits[i] = mixed_color(fg, bg, bits[i]);
 	return fbbits;
