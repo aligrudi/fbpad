@@ -12,7 +12,8 @@ static int rows, cols;
 void font_init(void)
 {
 	FT_Init_FreeType(&library);
-	FT_New_Face(library, FONTFACE, 0, &face);
+	if (FT_New_Face(library, FONTFACE, 0, &face))
+		xerror("failed to load font");
 	FT_Set_Char_Size(face, 0, FONTSIZE << 6, DPI, DPI);
 	rows = face->size->metrics.height >> 6;
 	cols = (face->size->metrics.max_advance >> 6) + WIDTHDIFF;
