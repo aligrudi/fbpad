@@ -57,6 +57,18 @@ static int altterm(int n)
 	return n < NTAGS ? n + NTAGS : n - NTAGS;
 }
 
+static void nextterm(void)
+{
+	int n = (cterm + 1) % ARRAY_SIZE(terms);
+	while (n != cterm) {
+		if (terms[n].fd) {
+			showterm(n);
+			break;
+		}
+		n = (n + 1) % ARRAY_SIZE(terms);
+	}
+}
+
 static void showterms(void)
 {
 	int colors[] = {FGCOLOR, 4, 2, 5};
@@ -105,6 +117,9 @@ static void directkey(void)
 			return;
 		case 'p':
 			showterms();
+			return;
+		case '.':
+			nextterm();
 			return;
 		case CTRLKEY('q'):
 			exitit = 1;
