@@ -66,7 +66,7 @@ static void ctlseq(void)
 		printf("ctlseq: <%d:%c>\n", c, c);
 		break;
 	default:
-		term_put(readutf8(c), row, col);
+		lazy_put(readutf8(c), row, col);
 		advance(0, 1, 1);
 		break;
 	}

@@ -77,8 +77,12 @@ static void lazy_drawcols(int r, int sc, int ec)
 	}
 }
 
-static void lazy_put(int r, int c)
+static void lazy_put(int ch, int r, int c)
 {
+	struct square *sqr = SQRADDR(r, c);
+	sqr->c = ch;
+	sqr->fg = fg;
+	sqr->bg = bg;
 	if (!visible)
 		return;
 	if (lazy)
@@ -144,15 +148,6 @@ static int readpty(void)
 		return ptybuf[0];
 	}
 	return -1;
-}
-
-void term_put(int ch, int r, int c)
-{
-	struct square *sqr = SQRADDR(r, c);
-	sqr->c = ch;
-	sqr->fg = fg;
-	sqr->bg = bg;
-	lazy_put(r, c);
 }
 
 static void empty_rows(int sr, int er)
@@ -268,8 +263,9 @@ static void setmode(int m)
 
 static void kill_chars(int sc, int ec)
 {
-	memset(SQRADDR(row, sc), 0, (ec - sc) * sizeof(*screen));
-	lazy_drawcols(row, sc, ec);
+	int i;
+	for (i = sc; i < ec; i++)
+		lazy_put(' ', row, i);
 	lazy_cursor(1);
 }
 
