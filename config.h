@@ -35,3 +35,6 @@
 /* white */
 #define COLOR7		0xeeeeee
 #define COLOR15		0xdedede
+
+/* framebuffer depth */
+typedef unsigned short fbval_t;

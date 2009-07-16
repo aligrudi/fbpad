@@ -1,5 +1,3 @@
-typedef unsigned short fbval_t;
-
 void fb_init(void);
 void fb_free(void);
 fbval_t fb_color(unsigned char r, unsigned char g, unsigned char b);

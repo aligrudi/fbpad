@@ -6,6 +6,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
+#include "config.h"
 #include "draw.h"
 #include "util.h"
 
