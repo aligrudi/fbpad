@@ -16,7 +16,7 @@ m-j		switch to alt terminal in this tag
 m-k		like m-j
 m-p		show tag summary
 m-o		jump to last tag
-m-.		show next terminal
+m-tab		show next terminal
 c-m-q		quit fbpad
 ==============  =======================================
 

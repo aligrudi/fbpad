@@ -129,7 +129,7 @@ static void directkey(void)
 		case 'p':
 			showterms();
 			return;
-		case '.':
+		case '\t':
 			nextterm();
 			return;
 		case CTRLKEY('q'):
