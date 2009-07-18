@@ -40,7 +40,7 @@ static void ctlseq(void)
 	case 0x0a:	/* LF		line feed */
 	case 0x0b:	/* VT		line feed */
 	case 0x0c:	/* FF		line feed */
-		advance(1, (mode & MODE_NOAUTOCR) ? 0 : -col, 1);
+		advance(1, (mode & MODE_AUTOCR) ? -col : 0, 1);
 		break;
 	case 0x08:	/* BS		backspace one column */
 		advance(0, -1, 0);
@@ -406,7 +406,7 @@ static void modeseq(int c, int set)
 		mode = BIT_SET(mode, MODE_ORIGIN, set);
 		break;
 	case 0x14:	/* LNM		Line Feed / New Line Mode */
-		mode = BIT_SET(mode, MODE_NOAUTOCR, !set);
+		mode = BIT_SET(mode, MODE_AUTOCR, set);
 		break;
 	case 0x04:	/* IRM		insertion/replacement mode (always reset) */
 		break;

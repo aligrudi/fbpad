@@ -16,7 +16,7 @@
 #define MODE_NOCURSOR		0x01
 #define MODE_NOWRAP		0x02
 #define MODE_ORIGIN		0x04
-#define MODE_NOAUTOCR		0x08
+#define MODE_AUTOCR		0x08
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
 #define SQRADDR(r, c)		(screen + (r) * pad_cols() + (c))
 
