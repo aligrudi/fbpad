@@ -331,7 +331,9 @@ void term_read(void)
 
 void term_exec(char *cmd)
 {
-	bot = pad_rows();
+	memset(term, 0, sizeof(*term));
+	term->cur.bot = term->sav.bot = pad_rows();
+	term_load(term, visible);
 	if ((term->pid = forkpty(&term->fd, NULL, NULL, NULL)) == -1) {
 		perror("failed to fork");
 		term->fd = 0;
