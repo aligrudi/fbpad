@@ -395,6 +395,8 @@ void term_load(struct term *t, int flags)
 
 void term_end(void)
 {
+	if (term->fd)
+		close(term->fd);
 	term->fd = 0;
 	row = col = 0;
 	fg = 0;
