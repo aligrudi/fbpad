@@ -1,5 +1,7 @@
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <pty.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -139,11 +141,24 @@ static void setsize(void)
 static char ptybuf[PTYBUFSIZE];
 static int ptylen;
 static int ptycur;
+static void waitpty(void)
+{
+	struct pollfd ufds[1];
+	ufds[0].fd = term->fd;
+	ufds[0].events = POLLIN;
+	poll(ufds, 1, -1);
+}
+
 static int readpty(void)
 {
 	if (ptycur < ptylen)
 		return ptybuf[ptycur++];
-	if ((ptylen = read(term->fd, ptybuf, PTYBUFSIZE)) > 0) {
+	ptylen = read(term->fd, ptybuf, PTYBUFSIZE);
+	if (ptylen == -1 && errno == EAGAIN) {
+		waitpty();
+		ptylen = read(term->fd, ptybuf, PTYBUFSIZE);
+	}
+	if (ptylen > 0) {
 		ptycur = 1;
 		return ptybuf[0];
 	}
