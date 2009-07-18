@@ -13,6 +13,7 @@
 #define FBDEV_PATH	"/dev/fb0"
 #define MAXWIDTH	(1 << 12)
 #define BPP		sizeof(fbval_t)
+#define NLEVELS		(1 << 8)
 
 static int fd;
 static unsigned char *fb;
@@ -24,7 +25,27 @@ static int fb_len()
 	return vinfo.xres_virtual * vinfo.yres_virtual * BPP;
 }
 
-#define NLEVELS	1 << 8
+static void fb_cmap_save(int save)
+{
+	static unsigned short red[NLEVELS], green[NLEVELS], blue[NLEVELS];
+	struct fb_cmap cmap;
+	int mr = 1 << vinfo.red.length;
+	int mg = 1 << vinfo.green.length;
+	int mb = 1 << vinfo.blue.length;
+	if (finfo.visual == FB_VISUAL_TRUECOLOR)
+		return;
+	cmap.start = 0;
+	cmap.len = MAX(mr, MAX(mg, mb));
+	cmap.red = red;
+	cmap.green = green;
+	cmap.blue = blue;
+	cmap.transp = 0;
+	if (save)
+		ioctl(fd, FBIOGETCMAP, &cmap);
+	else
+		ioctl(fd, FBIOPUTCMAP, &cmap);
+}
+
 void fb_cmap(void)
 {
 	unsigned short red[NLEVELS], green[NLEVELS], blue[NLEVELS];
@@ -65,6 +86,7 @@ void fb_init(void)
 	fb = mmap(NULL, fb_len(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (fb == MAP_FAILED)
 		xerror("can't map the framebuffer");
+	fb_cmap_save(1);
 	fb_cmap();
 }
 
@@ -77,6 +99,7 @@ void fb_set(int r, int c, fbval_t *mem, int len)
 
 void fb_free()
 {
+	fb_cmap_save(0);
 	munmap(fb, fb_len());
 	close(fd);
 }
