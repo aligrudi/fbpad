@@ -18,7 +18,7 @@
 #define MODE_ORIGIN		0x04
 #define MODE_NOAUTOCR		0x08
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
-#define SQRADDR(r, c)		(&screen[(r) * pad_cols() + (c)])
+#define SQRADDR(r, c)		(screen + (r) * pad_cols() + (c))
 
 static struct term *term;
 static struct square *screen;
@@ -287,19 +287,20 @@ static void kill_chars(int sc, int ec)
 static void move_chars(int sc, int nc, int n)
 {
 	lazy_cursor(0);
-	memmove(SQRADDR(row, sc + n), SQRADDR(row, sc),
-		nc * sizeof(*screen));
+	memmove(SQRADDR(row, sc + n), SQRADDR(row, sc), nc * sizeof(*screen));
 	if (n > 0)
 		memset(SQRADDR(row, sc), 0, n * sizeof(*screen));
 	else
-		memset(SQRADDR(row, pad_rows() + n), 0, -n * sizeof(*screen));
+		memset(SQRADDR(row, pad_cols() + n), 0, -n * sizeof(*screen));
 	lazy_drawcols(row, MIN(sc, sc + n), pad_cols());
 	lazy_cursor(1);
 }
 
 static void delete_chars(int n)
 {
-	move_chars(col + n, pad_cols(), -n);
+	int sc = col + n;
+	int nc = pad_cols() - sc;
+	move_chars(sc, nc, -n);
 }
 
 static void insert_chars(int n)

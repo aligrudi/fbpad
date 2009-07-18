@@ -330,7 +330,7 @@ static void csiseq(void)
 			modeseq(priv == '?' ? args[i] | 0x80 : args[i], 0);
 		break;
 	case 'P':	/* DCH		delete characters on current line */
-		delete_chars(MAX(1, args[0]));
+		delete_chars(MIN(MAX(1, args[0]), pad_cols() - col));
 		break;
 	case '@':	/* ICH		insert blank characters */
 		insert_chars(MAX(1, args[0]));
@@ -342,7 +342,7 @@ static void csiseq(void)
 		advance(0, MAX(0, args[0] - 1) - col, 0);
 		break;
 	case 'X':	/* ECH		erase characters on current line */
-		kill_chars(col, MAX(col + MAX(1, args[0]), pad_cols()));
+		kill_chars(col, MIN(col + MAX(1, args[0]), pad_cols()));
 		break;
 	case '[':	/* IGN		ignored control sequence */
 	case 'E':	/* CNL		move cursor down and to column 1 */
