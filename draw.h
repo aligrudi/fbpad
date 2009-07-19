@@ -5,5 +5,4 @@ void fb_set(int r, int c, fbval_t *mem, int len);
 int fb_rows(void);
 int fb_cols(void);
 void fb_box(int sr, int sc, int er, int ec, fbval_t val);
-void fb_scroll(int sr, int nr, int n, fbval_t val);
 void fb_cmap(void);

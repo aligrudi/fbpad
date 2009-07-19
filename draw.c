@@ -146,12 +146,3 @@ void fb_box(int sr, int sc, int er, int ec, fbval_t val)
 	for (i = sr; i < er; i++)
 		memcpy(rowaddr(i) + sc * BPP, cache, (ec - sc) * BPP);
 }
-
-void fb_scroll(int sr, int nr, int n, fbval_t val)
-{
-	memmove(rowaddr(sr + n), rowaddr(sr), nr * finfo.line_length);
-	if (n > 0)
-		fb_box(sr, 0, sr + n, fb_cols(), val);
-	else
-		fb_box(sr + nr + n, 0, sr + nr, fb_cols(), val);
-}

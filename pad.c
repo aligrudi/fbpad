@@ -100,12 +100,6 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 			fb_set(sr + i, sc, bits + (i * fcols), fcols);
 }
 
-void pad_scroll(int sr, int nr, int n, int c)
-{
-	fb_scroll(sr * font_rows(), nr * font_rows(),
-		  n * font_rows(), color2fb(c));
-}
-
 void pad_blank(int c)
 {
 	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(c));
