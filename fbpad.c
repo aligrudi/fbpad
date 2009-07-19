@@ -241,10 +241,12 @@ static void signalreceived(int n)
 	switch (n) {
 	case SIGUSR1:
 		term_save(&terms[cterm]);
+		term_load(&terms[cterm], TERM_HIDDEN);
 		ioctl(STDIN_FILENO, VT_RELDISP, 1);
 		break;
 	case SIGUSR2:
 		pad_shown();
+		term_save(&terms[cterm]);
 		term_load(&terms[cterm], TERM_REDRAW);
 		break;
 	case SIGCHLD:
