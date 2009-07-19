@@ -123,6 +123,17 @@ static void lazy_flush()
 	_term_show(row, col, 1);
 }
 
+static void term_redraw(void)
+{
+	int i, j;
+	pad_blank(bg);
+	for (i = 0; i < pad_rows(); i++)
+		for (j = 0; j < pad_cols(); j++)
+			if (SQRADDR(i, j)->c)
+				_term_show(i, j, 0);
+	_term_show(row, col, 1);
+}
+
 static int origin(void)
 {
 	return mode & MODE_ORIGIN;
@@ -390,12 +401,10 @@ void term_load(struct term *t, int flags)
 	screen = term->screen;
 	visible = flags;
 	if (flags == TERM_REDRAW) {
-		if (term->fd) {
-			lazy_draw(0, pad_rows());
-			lazy_cursor(1);
-		} else {
+		if (term->fd)
+			term_redraw();
+		else
 			pad_blank(0);
-		}
 	}
 }
 
