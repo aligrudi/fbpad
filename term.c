@@ -153,6 +153,8 @@ static int readpty(void)
 {
 	if (ptycur < ptylen)
 		return ptybuf[ptycur++];
+	if (!term->fd)
+		return -1;
 	ptylen = read(term->fd, ptybuf, PTYBUFSIZE);
 	if (ptylen == -1 && errno == EAGAIN) {
 		waitpty();

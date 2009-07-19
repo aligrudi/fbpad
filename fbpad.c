@@ -198,8 +198,7 @@ static void check_ufds(struct pollfd *ufds, int n)
 			temp_switch(idx);
 			term_end();
 			switch_back(idx);
-		}
-		if (ufds[i].revents & POLLIN) {
+		} else if (ufds[i].revents & POLLIN) {
 			temp_switch(idx);
 			term_read();
 			switch_back(idx);
