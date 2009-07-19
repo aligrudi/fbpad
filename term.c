@@ -385,12 +385,14 @@ void term_load(struct term *t, int flags)
 	misc_load(&term->cur);
 	screen = term->screen;
 	visible = flags;
-	if (term->fd && flags == TERM_REDRAW) {
-		lazy_draw(0, pad_rows());
-		lazy_cursor(1);
+	if (flags == TERM_REDRAW) {
+		if (term->fd) {
+			lazy_draw(0, pad_rows());
+			lazy_cursor(1);
+		} else {
+			pad_blank(0);
+		}
 	}
-	if (!term->fd && flags)
-		pad_blank(0);
 }
 
 void term_end(void)
