@@ -253,7 +253,7 @@ void term_send(int c)
 		write(term->fd, &b, 1);
 }
 
-void term_sendstr(char *s)
+static void term_sendstr(char *s)
 {
 	if (term->fd)
 		write(term->fd, s, strlen(s));
@@ -408,7 +408,7 @@ void term_end(void)
 	term_blank();
 }
 
-void set_region(int t, int b)
+static void set_region(int t, int b)
 {
 	top = MIN(pad_rows(), MAX(0, t - 1));
 	bot = MIN(pad_rows(), MAX(0, b ? b : pad_rows()));
