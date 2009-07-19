@@ -14,7 +14,7 @@
 #include "term.h"
 
 #define MODE_NOCURSOR		0x01
-#define MODE_NOWRAP		0x02
+#define MODE_WRAP		0x02
 #define MODE_ORIGIN		0x04
 #define MODE_AUTOCR		0x08
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
@@ -225,11 +225,11 @@ static void advance(int dr, int dc, int scrl)
 	int r = row + dr;
 	int c = col + dc;
 	if (c >= pad_cols()) {
-		if (!scrl || (mode & MODE_NOWRAP)) {
-			c = pad_cols() - 1;
-		} else {
+		if (scrl && mode & MODE_WRAP) {
 			r++;
 			c = 0;
+		} else {
+			c = pad_cols() - 1;
 		}
 	}
 	if (r >= bot && scrl) {

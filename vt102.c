@@ -397,7 +397,7 @@ static void modeseq(int c, int set)
 {
 	switch(c) {
 	case 0x87:	/* DECAWM	Auto Wrap */
-		mode = BIT_SET(mode, MODE_NOWRAP, !set);
+		mode = BIT_SET(mode, MODE_WRAP, set);
 		break;
 	case 0x99:	/* DECTCEM	Cursor on (set); Cursor off (reset) */
 		mode = BIT_SET(mode, MODE_NOCURSOR, !set);
