@@ -13,10 +13,11 @@
 #include "util.h"
 #include "term.h"
 
-#define MODE_NOCURSOR		0x01
+#define MODE_CURSOR		0x01
 #define MODE_WRAP		0x02
 #define MODE_ORIGIN		0x04
 #define MODE_AUTOCR		0x08
+#define MODE_DEFAULT		(MODE_CURSOR | MODE_WRAP)
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
 #define SQRADDR(r, c)		(screen + (r) * pad_cols() + (c))
 
@@ -37,7 +38,7 @@ static void _term_show(int r, int c, int cursor)
 	struct square *sqr = SQRADDR(r, c);
 	int fgcolor = sqr->c ? sqr->fg : fg;
 	int bgcolor = sqr->c ? sqr->bg : bg;
-	if (cursor && !(mode & MODE_NOCURSOR)) {
+	if (cursor && mode & MODE_CURSOR) {
 		int t = fgcolor;
 		fgcolor = bgcolor;
 		bgcolor = t;
@@ -335,6 +336,7 @@ void term_exec(char *cmd)
 {
 	memset(term, 0, sizeof(*term));
 	term->cur.bot = term->sav.bot = pad_rows();
+	term->cur.mode = MODE_DEFAULT;
 	term_load(term, visible);
 	if ((term->pid = forkpty(&term->fd, NULL, NULL, NULL)) == -1) {
 		perror("failed to fork");

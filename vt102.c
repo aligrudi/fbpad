@@ -400,7 +400,7 @@ static void modeseq(int c, int set)
 		mode = BIT_SET(mode, MODE_WRAP, set);
 		break;
 	case 0x99:	/* DECTCEM	Cursor on (set); Cursor off (reset) */
-		mode = BIT_SET(mode, MODE_NOCURSOR, !set);
+		mode = BIT_SET(mode, MODE_CURSOR, set);
 		break;
 	case 0x86:	/* DECOM	Sets relative coordinates (set); Sets absolute coordinates (reset) */
 		mode = BIT_SET(mode, MODE_ORIGIN, set);
