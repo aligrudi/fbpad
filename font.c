@@ -29,11 +29,12 @@ unsigned char *font_bitmap(int c)
 		return NULL;
 	sr = rows + (face->size->metrics.descender >> 6) -
 		 face->glyph->bitmap_top;
-	sc = MAX(0, face->glyph->bitmap_left);
+	sc = face->glyph->bitmap_left;
 	er = MIN(rows, sr + face->glyph->bitmap.rows);
 	ec = MIN(cols, sc + face->glyph->bitmap.width);
 	memset(bits, 0, rows * cols);
-	src = face->glyph->bitmap.buffer - MIN(0, face->glyph->bitmap_left);
+	src = face->glyph->bitmap.buffer - MIN(0, sc);
+	sc = MAX(0, sc);
 	for (i = MAX(0, sr); i < er; i++) {
 		int w = face->glyph->bitmap.pitch;
 		memcpy(&bits[i * cols + sc], src + (i - sr) * w, ec - sc);
