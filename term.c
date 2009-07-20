@@ -51,9 +51,11 @@ static void _draw_row(int r)
 {
 	int i;
 	pad_blankrow(r, bg);
-	for (i = 0; i < pad_cols(); i++)
-		if (SQRADDR(r, i)->c)
+	for (i = 0; i < pad_cols(); i++) {
+		struct square *s = SQRADDR(r, i);
+		if (s->c && (s->c != ' ' || s->bg != bg))
 			_term_show(r, i, 0);
+	}
 }
 
 static void lazy_draw(int sr, int er)
