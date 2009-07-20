@@ -50,8 +50,10 @@ static void _term_show(int r, int c, int cursor)
 static void _draw_row(int r)
 {
 	int i;
+	pad_blankrow(r, bg);
 	for (i = 0; i < pad_cols(); i++)
-		_term_show(r, i, 0);
+		if (SQRADDR(r, i)->c)
+			_term_show(r, i, 0);
 }
 
 static void lazy_draw(int sr, int er)
@@ -125,12 +127,9 @@ static void lazy_flush()
 
 static void term_redraw(void)
 {
-	int i, j;
-	pad_blank(bg);
+	int i;
 	for (i = 0; i < pad_rows(); i++)
-		for (j = 0; j < pad_cols(); j++)
-			if (SQRADDR(i, j)->c)
-				_term_show(i, j, 0);
+		_draw_row(i);
 	_term_show(row, col, 1);
 }
 

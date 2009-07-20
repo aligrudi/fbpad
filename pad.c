@@ -105,6 +105,13 @@ void pad_blank(int c)
 	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(c));
 }
 
+void pad_blankrow(int r, int bg)
+{
+	int sr = r * font_rows();
+	int er = r == rows - 1 ? fb_rows() : (r + 1) * font_rows();
+	fb_box(sr, 0, er, fb_cols(), color2fb(bg));
+}
+
 int pad_rows(void)
 {
 	return rows;
