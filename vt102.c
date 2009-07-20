@@ -14,16 +14,12 @@ static void modeseq(int c, int set);
 static int readutf8(int c)
 {
 	int result;
-	int l = 0;
-	int z = 0x20;
-	int m = 0x1f;
+	int l = 1;
 	if (~c & 0xc0)
 		return c;
-	while (++l < 6 && c & z) {
-		m >>= 1;
-		z >>= 1;
-	}
-	result = m & c;
+	while (l < 6 && c & (0x40 >> l))
+		l++;
+	result = (0x3f >> l) & c;
 	while (l--)
 		result = (result << 6) | (readpty() & 0x3f);
 	return result;
