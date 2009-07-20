@@ -306,7 +306,8 @@ static void csiseq(void)
 		move_cursor(absrow(MAX(1, args[0]) - 1), col);
 		break;
 	case 'm':	/* SGR		set graphic rendition */
-		setmode(0);
+		if (!n)
+			setmode(0);
 		for (i = 0; i < n; i++)
 			setmode(args[i]);
 		break;
