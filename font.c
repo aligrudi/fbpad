@@ -24,22 +24,20 @@ unsigned char *font_bitmap(int c)
 	static unsigned char bits[MAXDOTS];
 	int sr, sc, er, ec;
 	int i;
+	unsigned char *src;
 	if (FT_Load_Char(face, c, FT_LOAD_RENDER))
 		return NULL;
-	sr = MAX(0, rows + (face->size->metrics.descender >> 6) -
-		 (face->glyph->metrics.horiBearingY >> 6));
-	sc = MAX(0, face->glyph->metrics.horiBearingX >> 6);
+	sr = rows + (face->size->metrics.descender >> 6) -
+		 face->glyph->bitmap_top;
+	sc = MAX(0, face->glyph->bitmap_left);
 	er = MIN(rows, sr + face->glyph->bitmap.rows);
 	ec = MIN(cols, sc + face->glyph->bitmap.width);
-	memset(bits, 0, sr * cols);
-	for (i = sr; i < er; i++) {
-		unsigned char *rowaddr = face->glyph->bitmap.buffer +
-					(i - sr) * face->glyph->bitmap.pitch;
-		memset(&bits[i * cols], 0, sc);
-		memcpy(&bits[i * cols + sc], rowaddr, ec - sc);
-		memset(&bits[i * cols + ec], 0, cols - ec);
+	memset(bits, 0, rows * cols);
+	src = face->glyph->bitmap.buffer - MIN(0, face->glyph->bitmap_left);
+	for (i = MAX(0, sr); i < er; i++) {
+		int w = face->glyph->bitmap.pitch;
+		memcpy(&bits[i * cols + sc], src + (i - sr) * w, ec - sc);
 	}
-	memset(&bits[er * cols], 0, (rows - er) * cols);
 	return bits;
 }
 
