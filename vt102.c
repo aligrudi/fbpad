@@ -307,9 +307,9 @@ static void csiseq(void)
 		break;
 	case 'm':	/* SGR		set graphic rendition */
 		if (!n)
-			setmode(0);
+			setattr(0);
 		for (i = 0; i < n; i++)
-			setmode(args[i]);
+			setattr(args[i]);
 		break;
 	case 'r':	/* DECSTBM	set scrolling region to (top, bottom) rows
  */

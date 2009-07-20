@@ -272,7 +272,7 @@ static void term_sendstr(char *s)
 		write(term->fd, s, strlen(s));
 }
 
-static void setmode(int m)
+static void setattr(int m)
 {
 	if (m == 0) {
 		fg = FGCOLOR;
@@ -363,7 +363,7 @@ void term_exec(char *cmd)
 	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);
 	fcntl(term->fd, F_SETFL, fcntl(term->fd, F_GETFL) | O_NONBLOCK);
 	setsize();
-	setmode(0);
+	setattr(0);
 	term_blank();
 }
 
