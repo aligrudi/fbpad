@@ -285,10 +285,10 @@ static void setmode(int m)
 		fg = bg;
 		bg = t;
 	}
-	if (m >= 30 && m <= 37)
-		fg = m - 30;
-	if (m >= 40 && m <= 47)
-		bg = m - 40;
+	if ((m / 10) == 3)
+		fg = m > 37 ? FGCOLOR : m - 30;
+	if ((m / 10) == 4)
+		bg = m > 47 ? BGCOLOR : m - 40;
 }
 
 static void kill_chars(int sc, int ec)
