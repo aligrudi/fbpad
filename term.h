@@ -4,7 +4,7 @@ struct term_state {
 	int row, col;
 	int fg, bg;
 	int top, bot;
-	unsigned long mode;
+	unsigned int mode;
 };
 
 struct term {
