@@ -18,6 +18,10 @@
 #define MODE_ORIGIN		0x04
 #define MODE_AUTOCR		0x08
 #define MODE_DEFAULT		(MODE_CURSOR | MODE_WRAP)
+#define ATTR_BOLD		0x10
+#define ATTR_REV		0x20
+#define ATTR_ALL		(ATTR_BOLD | ATTR_REV)
+
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
 #define SQRADDR(r, c)		(screen + (r) * pad_cols() + (c))
 
@@ -26,34 +30,45 @@ static struct square *screen;
 static int row, col;
 static int fg, bg;
 static int top, bot;
-static int mode;
+static unsigned int mode;
 static int visible;
 
 #define MAXLINES		(1 << 13)
 static int dirty[MAXLINES];
 static int lazy;
 
+static int fgcolor(void)
+{
+	int c = mode & ATTR_REV ? bg : fg;
+	return mode & ATTR_BOLD ? c | 0x08 : c;
+}
+
+static int bgcolor(void)
+{
+	return mode & ATTR_REV ? fg : bg;
+}
+
 static void _term_show(int r, int c, int cursor)
 {
 	struct square *sqr = SQRADDR(r, c);
-	int fgcolor = sqr->c ? sqr->fg : fg;
-	int bgcolor = sqr->c ? sqr->bg : bg;
+	int fg = sqr->c ? sqr->fg : fgcolor();
+	int bg = sqr->c ? sqr->bg : bgcolor();
 	if (cursor && mode & MODE_CURSOR) {
-		int t = fgcolor;
-		fgcolor = bgcolor;
-		bgcolor = t;
+		int t = fg;
+		fg = bg;
+		bg = t;
 	}
 	if (visible)
-		pad_put(sqr->c, r, c, fgcolor, bgcolor);
+		pad_put(sqr->c, r, c, fg, bg);
 }
 
 static void _draw_row(int r)
 {
 	int i;
-	pad_blankrow(r, bg);
+	pad_blankrow(r, bgcolor());
 	for (i = 0; i < pad_cols(); i++) {
 		struct square *s = SQRADDR(r, i);
-		if (s->c && (s->c != ' ' || s->bg != bg))
+		if (s->c && (s->c != ' ' || s->bg != bgcolor()))
 			_term_show(r, i, 0);
 	}
 }
@@ -88,8 +103,8 @@ static void lazy_put(int ch, int r, int c)
 {
 	struct square *sqr = SQRADDR(r, c);
 	sqr->c = ch;
-	sqr->fg = fg;
-	sqr->bg = bg;
+	sqr->fg = fgcolor();
+	sqr->bg = bgcolor();
 	if (!visible)
 		return;
 	if (lazy)
@@ -274,21 +289,30 @@ static void term_sendstr(char *s)
 
 static void setattr(int m)
 {
-	if (m == 0) {
+	switch (m) {
+	case 0:
 		fg = FGCOLOR;
 		bg = BGCOLOR;
+		mode &= ~ATTR_ALL;
+		break;
+	case 1:
+		mode |= ATTR_BOLD;
+		break;
+	case 7:
+		mode |= ATTR_REV;
+		break;
+	case 22:
+		mode &= ~ATTR_BOLD;
+		break;
+	case 27:
+		mode &= ~ATTR_REV;
+		break;
+	default:
+		if ((m / 10) == 3)
+			fg = m > 37 ? FGCOLOR : m - 30;
+		if ((m / 10) == 4)
+			bg = m > 47 ? BGCOLOR : m - 40;
 	}
-	if (m == 1)
-		fg = fg | 0x08;
-	if (m == 7) {
-		int t = fg;
-		fg = bg;
-		bg = t;
-	}
-	if ((m / 10) == 3)
-		fg = m > 37 ? FGCOLOR : m - 30;
-	if ((m / 10) == 4)
-		bg = m > 47 ? BGCOLOR : m - 40;
 }
 
 static void kill_chars(int sc, int ec)
@@ -328,7 +352,7 @@ static void term_blank(void)
 {
 	memset(screen, 0, MAXCHARS * sizeof(*screen));
 	if (visible) {
-		pad_blank(bg);
+		pad_blank(bgcolor());
 		lazy_clean();
 	}
 }
