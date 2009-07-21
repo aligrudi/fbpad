@@ -3,19 +3,19 @@
 struct term_state {
 	int row, col;
 	int fg, bg;
-	int top, bot;
 	unsigned int mode;
 };
 
 struct term {
 	int fd;
 	int pid;
+	int top, bot;
+	struct term_state cur, sav;
 	struct square {
 		int c;
 		short fg;
 		short bg;
 	} screen[MAXCHARS];
-	struct term_state cur, sav;
 };
 
 #define TERM_HIDDEN		0

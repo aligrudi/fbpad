@@ -371,8 +371,8 @@ void term_read(void)
 void term_exec(char *cmd)
 {
 	memset(term, 0, sizeof(*term));
-	term->cur.bot = term->sav.bot = pad_rows();
-	term->cur.mode = MODE_DEFAULT;
+	term->bot = pad_rows();
+	term->cur.mode = term->sav.mode = MODE_DEFAULT;
 	term_load(term, visible);
 	if ((term->pid = forkpty(&term->fd, NULL, NULL, NULL)) == -1) {
 		perror("failed to fork");
@@ -397,8 +397,6 @@ static void misc_save(struct term_state *state)
 	state->col = col;
 	state->fg = fg;
 	state->bg = bg;
-	state->top = top;
-	state->bot = bot;
 	state->mode = mode;
 }
 
@@ -408,8 +406,6 @@ static void misc_load(struct term_state *state)
 	col = state->col;
 	fg = state->fg;
 	bg = state->bg;
-	top = state->top;
-	bot = state->bot;
 	mode = state->mode;
 }
 
@@ -417,6 +413,8 @@ void term_save(struct term *term)
 {
 	visible = 0;
 	misc_save(&term->cur);
+	term->top = top;
+	term->bot = bot;
 }
 
 void term_load(struct term *t, int flags)
@@ -425,6 +423,8 @@ void term_load(struct term *t, int flags)
 	misc_load(&term->cur);
 	screen = term->screen;
 	visible = flags;
+	top = term->top;
+	bot = term->bot;
 	if (flags == TERM_REDRAW) {
 		if (term->fd)
 			term_redraw();
