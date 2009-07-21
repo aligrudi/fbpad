@@ -32,6 +32,7 @@ static struct term terms[NTAGS * 2];
 static int cterm;	/* current tag */
 static int lterm;	/* last tag */
 static int exitit;
+static int hidden;
 
 static int readchar(void)
 {
@@ -47,7 +48,7 @@ static void showterm(int n)
 		lterm = cterm;
 	term_save(&terms[cterm]);
 	cterm = n;
-	term_load(&terms[cterm], TERM_REDRAW);
+	term_load(&terms[cterm], hidden ? TERM_HIDDEN : TERM_REDRAW);
 }
 
 static struct term *mainterm(void)
@@ -185,7 +186,7 @@ static void switch_back(int termid)
 {
 	if (termid != cterm) {
 		term_save(&terms[termid]);
-		term_load(&terms[cterm], TERM_VISIBLE);
+		term_load(&terms[cterm], hidden ? TERM_HIDDEN : TERM_VISIBLE);
 	}
 }
 
@@ -239,11 +240,13 @@ static void signalreceived(int n)
 		return;
 	switch (n) {
 	case SIGUSR1:
+		hidden = 1;
 		term_save(&terms[cterm]);
 		term_load(&terms[cterm], TERM_HIDDEN);
 		ioctl(STDIN_FILENO, VT_RELDISP, 1);
 		break;
 	case SIGUSR2:
+		hidden = 0;
 		pad_shown();
 		term_save(&terms[cterm]);
 		term_load(&terms[cterm], TERM_REDRAW);
