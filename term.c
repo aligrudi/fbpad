@@ -437,11 +437,8 @@ void term_end(void)
 {
 	if (term->fd)
 		close(term->fd);
-	term->fd = 0;
-	row = col = 0;
-	fg = 0;
-	bg = 0;
-	term_blank();
+	memset(term, 0, sizeof(*term));
+	term_load(term, visible);
 }
 
 static void set_region(int t, int b)
