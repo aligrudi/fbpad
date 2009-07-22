@@ -438,7 +438,7 @@ void term_end(void)
 	if (term->fd)
 		close(term->fd);
 	memset(term, 0, sizeof(*term));
-	term_load(term, visible);
+	term_load(term, visible ? TERM_REDRAW : TERM_HIDDEN);
 }
 
 static void set_region(int t, int b)
