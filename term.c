@@ -21,6 +21,7 @@
 #define ATTR_BOLD		0x10
 #define ATTR_REV		0x20
 #define ATTR_ALL		(ATTR_BOLD | ATTR_REV)
+#define MODE_WRAPREADY		0x80
 
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
 #define SQRADDR(r, c)		(screen + (r) * pad_cols() + (c))
@@ -246,20 +247,13 @@ static void move_cursor(int r, int c)
 	row = MAX(t, MIN(r, b - 1));
 	col = MAX(0, MIN(c, pad_cols() - 1));
 	lazy_cursor(1);
+	mode = BIT_SET(mode, MODE_WRAPREADY, 0);
 }
 
 static void advance(int dr, int dc, int scrl)
 {
 	int r = row + dr;
 	int c = col + dc;
-	if (c >= pad_cols()) {
-		if (scrl && mode & MODE_WRAP) {
-			r++;
-			c = 0;
-		} else {
-			c = pad_cols() - 1;
-		}
-	}
 	if (r >= bot && scrl) {
 		int n = bot - r - 1;
 		int nr = (bot - top) + n;
@@ -271,7 +265,20 @@ static void advance(int dr, int dc, int scrl)
 		scroll_screen(top, nr, n);
 	}
 	r = MIN(bot - 1, MAX(top, r));
-	move_cursor(r, MAX(0, c));
+	c = MIN(pad_cols() - 1, MAX(0, c));
+	move_cursor(r, c);
+}
+
+static void insertchar(int c)
+{
+	int wrapready;
+	if (mode & MODE_WRAPREADY)
+		advance(1, -col, 1);
+	lazy_put(c, row, col);
+	wrapready = col == pad_cols() - 1;
+	advance(0, 1, 1);
+	if (wrapready)
+		mode = BIT_SET(mode, MODE_WRAPREADY, 1);
 }
 
 void term_send(int c)
