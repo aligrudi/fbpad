@@ -74,6 +74,12 @@ void fb_cmap(void)
 	ioctl(fd, FBIOPUTCMAP, &cmap);
 }
 
+static void xdie(char *msg)
+{
+	fprintf(stderr, "%s\n", msg);
+	exit(1);
+}
+
 void fb_init(void)
 {
 	fd = open(FBDEV_PATH, O_RDWR);
@@ -83,6 +89,8 @@ void fb_init(void)
 		xerror("ioctl failed");
 	if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1)
 		xerror("ioctl failed");
+	if ((vinfo.bits_per_pixel + 7) >> 3 != BPP)
+		xdie("fbval_t does not match framebuffer depth");
 	fb = mmap(NULL, fb_len(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (fb == MAP_FAILED)
 		xerror("can't map the framebuffer");
