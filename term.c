@@ -375,12 +375,19 @@ void term_read(void)
 	lazy = 0;
 }
 
+static void term_reset(void)
+{
+	row = col = 0;
+	top = 0;
+	bot = pad_rows();
+	mode = MODE_DEFAULT;
+	setattr(0);
+	term_blank();
+}
+
 void term_exec(char *cmd)
 {
 	memset(term, 0, sizeof(*term));
-	term->bot = pad_rows();
-	term->cur.mode = term->sav.mode = MODE_DEFAULT;
-	term_load(term, visible);
 	if ((term->pid = forkpty(&term->fd, NULL, NULL, NULL)) == -1) {
 		perror("failed to fork");
 		term->fd = 0;
@@ -394,8 +401,7 @@ void term_exec(char *cmd)
 	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);
 	fcntl(term->fd, F_SETFL, fcntl(term->fd, F_GETFL) | O_NONBLOCK);
 	setsize();
-	setattr(0);
-	term_blank();
+	term_reset();
 }
 
 static void misc_save(struct term_state *state)

@@ -111,6 +111,8 @@ static void escseq(void)
 		advance(1, -col, 1);
 		break;
 	case 'c':	/* RIS		reset */
+		term_reset();
+		break;
 	case 'H':	/* HTS		set tab stop at current column */
 	case 'Z':	/* DECID	DEC private ID; return ESC [ ? 6 c (VT102) */
 	case '#':	/* DECALN	("#8") DEC alignment test - fill screen with E's */
