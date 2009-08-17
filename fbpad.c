@@ -136,6 +136,9 @@ static void directkey(void)
 		case CTRLKEY('q'):
 			exitit = 1;
 			return;
+		case 's':
+			term_screenshot();
+			return;
 		default:
 			if (strchr(tags, c)) {
 				showterm(strchr(tags, c) - tags);

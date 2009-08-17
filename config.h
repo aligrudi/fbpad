@@ -36,5 +36,8 @@
 #define COLOR7		0xf0f0f0
 #define COLOR15		0xdedede
 
+/* where to write the screen shot */
+#define SCREENSHOT	"/tmp/screen.txt"
+
 /* framebuffer depth */
 typedef unsigned short fbval_t;

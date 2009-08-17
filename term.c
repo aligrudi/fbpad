@@ -465,4 +465,18 @@ static void set_region(int t, int b)
 		move_cursor(top, 0);
 }
 
+void term_screenshot(void)
+{
+	FILE *fp = fopen(SCREENSHOT, "w");
+	int i, j;
+	for (i = 0; i < pad_rows(); i++) {
+		for (j = 0; j < pad_cols(); j++) {
+			int c = screen[i * pad_cols() + j].c;
+			fputc(c ? c : ' ', fp);
+		}
+		fputc('\n', fp);
+	}
+	fclose(fp);
+}
+
 #include "vt102.c"
