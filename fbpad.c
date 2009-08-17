@@ -252,7 +252,8 @@ static void signalreceived(int n)
 		term_load(&terms[cterm], TERM_REDRAW);
 		break;
 	case SIGCHLD:
-		waitpid(-1, 0, WNOHANG);
+		while (waitpid(-1, 0, WNOHANG) > 0)
+			;
 		break;
 	}
 }
