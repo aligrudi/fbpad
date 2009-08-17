@@ -368,10 +368,13 @@ static void ctlseq(void);
 void term_read(void)
 {
 	ctlseq();
-	lazy = 1;
-	while (ptycur < ptylen)
+	while (ptycur < ptylen) {
+		if (ptylen - ptycur > 15)
+			lazy = 1;
 		ctlseq();
-	lazy_flush();
+	}
+	if (lazy)
+		lazy_flush();
 	lazy = 0;
 }
 
