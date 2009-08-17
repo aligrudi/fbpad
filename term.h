@@ -11,11 +11,9 @@ struct term {
 	int pid;
 	int top, bot;
 	struct term_state cur, sav;
-	struct square {
-		int c;
-		short fg;
-		short bg;
-	} screen[MAXCHARS];
+	unsigned int screen[MAXCHARS];
+	unsigned char fgs[MAXCHARS];
+	unsigned char bgs[MAXCHARS];
 };
 
 #define TERM_HIDDEN		0

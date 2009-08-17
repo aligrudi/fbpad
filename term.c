@@ -24,12 +24,13 @@
 #define MODE_WRAPREADY		0x80
 
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
-#define SQRADDR(r, c)		(screen + (r) * pad_cols() + (c))
+#define OFFSET(r, c)		((r) * pad_cols() + (c))
 
 static struct term *term;
-static struct square *screen;
+static unsigned int *screen;
+static unsigned char *fgs, *bgs;
 static int row, col;
-static int fg, bg;
+static unsigned char fg, bg;
 static int top, bot;
 static unsigned int mode;
 static int visible;
@@ -38,29 +39,29 @@ static int visible;
 static int dirty[MAXLINES];
 static int lazy;
 
-static int fgcolor(void)
+static unsigned char fgcolor(void)
 {
 	int c = mode & ATTR_REV ? bg : fg;
 	return mode & ATTR_BOLD ? c | 0x08 : c;
 }
 
-static int bgcolor(void)
+static unsigned char bgcolor(void)
 {
 	return mode & ATTR_REV ? fg : bg;
 }
 
 static void _term_show(int r, int c, int cursor)
 {
-	struct square *sqr = SQRADDR(r, c);
-	int fg = sqr->c ? sqr->fg : fgcolor();
-	int bg = sqr->c ? sqr->bg : bgcolor();
+	int i = OFFSET(r, c);
+	unsigned char fg = screen[i] ? fgs[i] : fgcolor();
+	unsigned char bg = screen[i] ? bgs[i] : bgcolor();
 	if (cursor && mode & MODE_CURSOR) {
 		int t = fg;
 		fg = bg;
 		bg = t;
 	}
 	if (visible)
-		pad_put(sqr->c, r, c, fg, bg);
+		pad_put(screen[i], r, c, fg, bg);
 }
 
 static void _draw_row(int r)
@@ -68,8 +69,8 @@ static void _draw_row(int r)
 	int i;
 	pad_blankrow(r, bgcolor());
 	for (i = 0; i < pad_cols(); i++) {
-		struct square *s = SQRADDR(r, i);
-		if (s->c && (s->c != ' ' || s->bg != bgcolor()))
+		unsigned int c = screen[OFFSET(r, i)];
+		if (c && (c != ' ' || bgs[OFFSET(r, i)] != bgcolor()))
 			_term_show(r, i, 0);
 	}
 }
@@ -102,10 +103,10 @@ static void lazy_drawcols(int r, int sc, int ec)
 
 static void lazy_put(int ch, int r, int c)
 {
-	struct square *sqr = SQRADDR(r, c);
-	sqr->c = ch;
-	sqr->fg = fgcolor();
-	sqr->bg = bgcolor();
+	int i = OFFSET(r, c);
+	screen[i] = ch;
+	fgs[i] = fgcolor();
+	bgs[i] = bgcolor();
 	if (!visible)
 		return;
 	if (lazy)
@@ -196,9 +197,23 @@ static int readpty(void)
 	return -1;
 }
 
+static void screen_move(int dst, int src, int n)
+{
+	memmove(screen + dst, screen + src, n * sizeof(*screen));
+	memmove(fgs + dst, fgs + src, n);
+	memmove(bgs + dst, bgs + src, n);
+}
+
+static void screen_reset(int i, int n)
+{
+	memset(screen + i, 0, n * sizeof(*screen));
+	memset(fgs + i, fg, n);
+	memset(bgs + i, bg, n);
+}
+
 static void empty_rows(int sr, int er)
 {
-	memset(SQRADDR(sr, 0), 0, (er - sr) * sizeof(*screen) * pad_cols());
+	screen_reset(OFFSET(sr, 0), (er - sr) * pad_cols());
 }
 
 static void blank_rows(int sr, int er)
@@ -211,8 +226,7 @@ static void blank_rows(int sr, int er)
 static void scroll_screen(int sr, int nr, int n)
 {
 	lazy_cursor(0);
-	memmove(SQRADDR(sr + n, 0), SQRADDR(sr, 0),
-		nr * pad_cols() * sizeof(*screen));
+	screen_move(OFFSET(sr + n, 0), OFFSET(sr, 0), nr * pad_cols());
 	if (n > 0)
 		empty_rows(sr, sr + n);
 	else
@@ -333,11 +347,11 @@ static void kill_chars(int sc, int ec)
 static void move_chars(int sc, int nc, int n)
 {
 	lazy_cursor(0);
-	memmove(SQRADDR(row, sc + n), SQRADDR(row, sc), nc * sizeof(*screen));
+	screen_move(OFFSET(row, sc + n), OFFSET(row, sc), nc);
 	if (n > 0)
-		memset(SQRADDR(row, sc), 0, n * sizeof(*screen));
+		screen_reset(OFFSET(row, sc), n);
 	else
-		memset(SQRADDR(row, pad_cols() + n), 0, -n * sizeof(*screen));
+		screen_reset(OFFSET(row, pad_cols() + n), -n);
 	lazy_drawcols(row, MIN(sc, sc + n), pad_cols());
 	lazy_cursor(1);
 }
@@ -357,7 +371,7 @@ static void insert_chars(int n)
 
 static void term_blank(void)
 {
-	memset(screen, 0, MAXCHARS * sizeof(*screen));
+	screen_reset(0, pad_rows() * pad_cols());
 	if (visible) {
 		pad_blank(bgcolor());
 		lazy_clean();
@@ -438,6 +452,8 @@ void term_load(struct term *t, int flags)
 	term = t;
 	misc_load(&term->cur);
 	screen = term->screen;
+	fgs = term->fgs;
+	bgs = term->bgs;
 	visible = flags;
 	top = term->top;
 	bot = term->bot;
@@ -471,7 +487,7 @@ void term_screenshot(void)
 	int i, j;
 	for (i = 0; i < pad_rows(); i++) {
 		for (j = 0; j < pad_cols(); j++) {
-			int c = screen[i * pad_cols() + j].c;
+			int c = screen[OFFSET(i, j)];
 			fputc(c ? c : ' ', fp);
 		}
 		fputc('\n', fp);
