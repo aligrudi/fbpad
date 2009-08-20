@@ -39,5 +39,7 @@
 /* where to write the screen shot */
 #define SCREENSHOT	"/tmp/screen.txt"
 
+/* framebuffer device */
+#define FBDEV_PATH	"/dev/fb0"
 /* framebuffer depth */
 typedef unsigned short fbval_t;

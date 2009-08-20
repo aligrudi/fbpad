@@ -10,7 +10,6 @@
 #include "draw.h"
 #include "util.h"
 
-#define FBDEV_PATH	"/dev/fb0"
 #define MAXWIDTH	(1 << 12)
 #define BPP		sizeof(fbval_t)
 #define NLEVELS		(1 << 8)
