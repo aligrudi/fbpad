@@ -282,7 +282,7 @@ int main(void)
 	char *clear = "\x1b[2J\x1b[H";
 	char *show = "\x1b[?25h";
 	setlocale(LC_ALL, "");
-	write(STDIN_FILENO, clear, strlen(clear));
+	write(STDOUT_FILENO, clear, strlen(clear));
 	write(STDIN_FILENO, hide, strlen(hide));
 	pad_init();
 	setupsignals();
