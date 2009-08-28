@@ -10,7 +10,7 @@
 #include "draw.h"
 #include "util.h"
 
-#define MAXWIDTH	(1 << 12)
+#define MAXFBWIDTH	(1 << 12)
 #define BPP		sizeof(fbval_t)
 #define NLEVELS		(1 << 8)
 
@@ -71,6 +71,12 @@ void fb_cmap(void)
 	cmap.transp = 0;
 
 	ioctl(fd, FBIOPUTCMAP, &cmap);
+}
+
+static void xerror(char *msg)
+{
+	perror(msg);
+	exit(1);
 }
 
 static void xdie(char *msg)
@@ -139,12 +145,12 @@ static unsigned char *rowaddr(int r)
 	return fb + (r + vinfo.yoffset) * finfo.line_length;
 }
 
-static unsigned long cache[MAXWIDTH];
+static unsigned long cache[MAXFBWIDTH];
 void fb_box(int sr, int sc, int er, int ec, fbval_t val)
 {
 	int i;
 	int pc = sizeof(cache[0]) / sizeof(val);
-	int cn = MIN((ec - sc) / pc + 1, ARRAY_SIZE(cache));
+	int cn = MIN((ec - sc) / pc + 1, MAXFBWIDTH);
 	unsigned long nv = val;
 	for (i = 1; i < pc; i++)
 		nv = (nv << (sizeof(val) * 8)) | val;
