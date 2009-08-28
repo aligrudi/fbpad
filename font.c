@@ -9,11 +9,17 @@ static FT_Library library;
 static FT_Face face;
 static int rows, cols;
 
+static void xdie(char *msg)
+{
+	fprintf(stderr, "%s\n", msg);
+	exit(1);
+}
+
 void font_init(void)
 {
 	FT_Init_FreeType(&library);
 	if (FT_New_Face(library, FONTFACE, 0, &face))
-		xerror("failed to load font");
+		xdie("failed to load font");
 	FT_Set_Char_Size(face, 0, FONTSIZE << 6, DPI, DPI);
 	rows = face->size->metrics.height >> 6;
 	cols = (face->size->metrics.max_advance >> 6) + WIDTHDIFF;
