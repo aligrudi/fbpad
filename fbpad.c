@@ -83,7 +83,7 @@ static void nextterm(void)
 
 static void showterms(void)
 {
-	int colors[] = {FGCOLOR, 4, 2, 5};
+	int colors[] = {15, 4, 2, 5};
 	int c = 0;
 	int r = pad_rows() - 1;
 	int i;
