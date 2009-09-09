@@ -39,10 +39,7 @@ static void fb_cmap_save(int save)
 	cmap.green = green;
 	cmap.blue = blue;
 	cmap.transp = 0;
-	if (save)
-		ioctl(fd, FBIOGETCMAP, &cmap);
-	else
-		ioctl(fd, FBIOPUTCMAP, &cmap);
+	ioctl(fd, save ? FBIOGETCMAP : FBIOPUTCMAP, &cmap);
 }
 
 void fb_cmap(void)
