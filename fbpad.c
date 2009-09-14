@@ -29,8 +29,9 @@
 
 static char tags[] = TAGS;
 static struct term terms[NTAGS * 2];
-static int cterm;	/* current tag */
-static int lterm;	/* last tag */
+static int tops[NTAGS];	/* top terms of tags */
+static int ctag;	/* current tag */
+static int ltag;	/* the last tag */
 static int exitit;
 static int hidden;
 
@@ -42,19 +43,30 @@ static int readchar(void)
 	return -1;
 }
 
+static int cterm(void)
+{
+	return tops[ctag] * NTAGS + ctag;
+}
+
 static void showterm(int n)
 {
-	if (cterm % NTAGS != n % NTAGS)
-		lterm = cterm;
-	term_save(&terms[cterm]);
-	cterm = n;
-	term_load(&terms[cterm], hidden ? TERM_HIDDEN : TERM_REDRAW);
+	if (ctag != n % NTAGS)
+		ltag = ctag;
+	term_save(&terms[cterm()]);
+	ctag = n % NTAGS;
+	tops[ctag] = n / NTAGS;
+	term_load(&terms[n], hidden ? TERM_HIDDEN : TERM_REDRAW);
+}
+
+static void showtag(int n)
+{
+	showterm(tops[n] * NTAGS + n);
 }
 
 static struct term *mainterm(void)
 {
-	if (terms[cterm].fd)
-		return &terms[cterm];
+	if (terms[cterm()].fd)
+		return &terms[cterm()];
 	return NULL;
 }
 
@@ -71,8 +83,8 @@ static int altterm(int n)
 
 static void nextterm(void)
 {
-	int n = (cterm + 1) % ARRAY_SIZE(terms);
-	while (n != cterm) {
+	int n = (cterm() + 1) % ARRAY_SIZE(terms);
+	while (n != cterm()) {
 		if (terms[n].fd) {
 			showterm(n);
 			break;
@@ -81,9 +93,9 @@ static void nextterm(void)
 	}
 }
 
-static void showterms(void)
+static void showtags(void)
 {
-	int colors[] = {15, 4, 2, 5};
+	int colors[] = {15, 4, 2};
 	int c = 0;
 	int r = pad_rows() - 1;
 	int i;
@@ -95,14 +107,13 @@ static void showterms(void)
 	pad_put(' ', r, c++, FGCOLOR, BGCOLOR);
 	for (i = 0; i < NTAGS; i++) {
 		int nt = 0;
-		int shown = i == cterm || altterm(i) == cterm;
 		if (terms[i].fd)
-			nt = 1;
+			nt++;
 		if (terms[altterm(i)].fd)
-			nt = nt ? 2 : 3;
-		pad_put(shown ? '(' : ' ', r, c++, FGCOLOR, BGCOLOR);
+			nt++;
+		pad_put(i == ctag ? '(' : ' ', r, c++, FGCOLOR, BGCOLOR);
 		pad_put(tags[i], r, c++, colors[nt], 7);
-		pad_put(shown ? ')' : ' ', r, c++, FGCOLOR, BGCOLOR);
+		pad_put(i == ctag ? ')' : ' ', r, c++, FGCOLOR, BGCOLOR);
 	}
 }
 
@@ -122,13 +133,13 @@ static void directkey(void)
 			return;
 		case 'j':
 		case 'k':
-			showterm(altterm(cterm));
+			showterm(altterm(cterm()));
 			return;
 		case 'o':
-			showterm(lterm);
+			showtag(ltag);
 			return;
 		case 'p':
-			showterms();
+			showtags();
 			return;
 		case '\t':
 			nextterm();
@@ -141,7 +152,7 @@ static void directkey(void)
 			return;
 		default:
 			if (strchr(tags, c)) {
-				showterm(strchr(tags, c) - tags);
+				showtag(strchr(tags, c) - tags);
 				return;
 			}
 			if (mainterm())
@@ -179,17 +190,17 @@ static int fill_ufds(struct pollfd *ufds)
 
 static void temp_switch(int termid)
 {
-	if (termid != cterm) {
-		term_save(&terms[cterm]);
+	if (termid != cterm()) {
+		term_save(&terms[cterm()]);
 		term_load(&terms[termid], TERM_HIDDEN);
 	}
 }
 
 static void switch_back(int termid)
 {
-	if (termid != cterm) {
+	if (termid != cterm()) {
 		term_save(&terms[termid]);
-		term_load(&terms[cterm], hidden ? TERM_HIDDEN : TERM_VISIBLE);
+		term_load(&terms[cterm()], hidden ? TERM_HIDDEN : TERM_VISIBLE);
 	}
 }
 
@@ -221,7 +232,7 @@ static void mainloop(void)
 	cfmakeraw(&termios);
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &termios);
 	memset(ufds, 0, sizeof(ufds));
-	term_load(&terms[cterm], TERM_REDRAW);
+	term_load(&terms[cterm()], TERM_REDRAW);
 	n = fill_ufds(ufds);
 	while (!exitit) {
 		rv = poll(ufds, n, 1000);
@@ -244,15 +255,15 @@ static void signalreceived(int n)
 	switch (n) {
 	case SIGUSR1:
 		hidden = 1;
-		term_save(&terms[cterm]);
-		term_load(&terms[cterm], TERM_HIDDEN);
+		term_save(&terms[cterm()]);
+		term_load(&terms[cterm()], TERM_HIDDEN);
 		ioctl(STDIN_FILENO, VT_RELDISP, 1);
 		break;
 	case SIGUSR2:
 		hidden = 0;
 		pad_shown();
-		term_save(&terms[cterm]);
-		term_load(&terms[cterm], TERM_REDRAW);
+		term_save(&terms[cterm()]);
+		term_load(&terms[cterm()], TERM_REDRAW);
 		break;
 	case SIGCHLD:
 		while (waitpid(-1, 0, WNOHANG) > 0)
