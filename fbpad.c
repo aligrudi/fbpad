@@ -50,6 +50,8 @@ static int cterm(void)
 
 static void showterm(int n)
 {
+	if (cterm() == n)
+		return;
 	if (ctag != n % NTAGS)
 		ltag = ctag;
 	term_save(&terms[cterm()]);
