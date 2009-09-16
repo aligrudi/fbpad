@@ -1,4 +1,4 @@
-#define TAGS		"xnlhtrv-"
+#define TAGS		"xnlhtrav-"
 #define SHELL		"/bin/bash"
 #define MAIL		"mutt"
 #define EDITOR		"vim"
