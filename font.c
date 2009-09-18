@@ -21,7 +21,7 @@ void font_init(void)
 	if (FT_New_Face(library, FONTFACE, 0, &face))
 		xdie("failed to load font");
 	FT_Set_Char_Size(face, 0, FONTSIZE << 6, DPI, DPI);
-	rows = face->size->metrics.height >> 6;
+	rows = (face->size->metrics.height >> 6) + HEIGHTDIFF;
 	cols = (face->size->metrics.max_advance >> 6) + WIDTHDIFF;
 }
 

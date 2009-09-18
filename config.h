@@ -7,6 +7,7 @@
 #define FONTSIZE	10
 #define DPI		196
 #define WIDTHDIFF	1
+#define HEIGHTDIFF	0
 
 #define FGCOLOR		0
 #define BGCOLOR		7
