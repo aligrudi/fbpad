@@ -25,6 +25,13 @@ static int readutf8(int c)
 	return result;
 }
 
+static void unknown(char *ctl, int c)
+{
+#ifdef DEBUG
+	fprintf(stderr, "%s: <%d:%c>\r\n", ctl, c, c);
+#endif
+}
+
 /* control sequences */
 static void ctlseq(void)
 {
@@ -59,7 +66,7 @@ static void ctlseq(void)
 	case 0x18:	/* CAN		interrupt escape sequence */
 	case 0x1a:	/* SUB		interrupt escape sequence */
 	case 0x9b:	/* CSI		equivalent to ESC [ */
-		printf("ctlseq: <%d:%c>\n", c, c);
+		unknown("ctlseq", c);
 		break;
 	default:
 		insertchar(readutf8(c));
@@ -133,7 +140,7 @@ static void escseq(void)
 	case ']':	/* OSC		operating system command */
 	case 'g':	/* BEL		alternate BEL */
 	default:
-		printf("escseq: <%d:%c>\n", c, c);
+		unknown("escseq", c);
 		break;
 	}
 }
@@ -146,7 +153,7 @@ static void escseq_cs(void)
 	case 'G':	/* CSUTF8	select UTF-8 */
 	case '8':	/* CSUTF8	select UTF-8 (obsolete) */
 	default:
-		printf("escseq_cs: <%d:%c>\n", c, c);
+		unknown("escseq_cs", c);
 		break;
 	}
 }
@@ -161,7 +168,7 @@ static void escseq_g0(void)
 	case 'K':	/* G0USR	G0 charset = user defined mapping */
 	case 'B':	/* G0TXT	G0 charset = ASCII mapping */
 	default:
-		printf("escseq_g0: <%d:%c>\n", c, c);
+		unknown("escseq_g0", c);
 		break;
 	}
 }
@@ -176,7 +183,7 @@ static void escseq_g1(void)
 	case 'K':	/* G1USR	G1 charset = user defined mapping */
 	case 'B':	/* G1TXT	G1 charset = ASCII mapping */
 	default:
-		printf("escseq_g1: <%d:%c>\n", c, c);
+		unknown("escseq_g1", c);
 		break;
 	}
 }
@@ -190,7 +197,7 @@ static void escseq_g2(void)
 	case 'U':	/* G2ROM	G2 charset = null mapping (straight to ROM) */
 	case 'K':	/* G2USR	G2 charset = user defined mapping */
 	default:
-		printf("escseq_g2: <%d:%c>\n", c, c);
+		unknown("escseq_g2", c);
 		break;
 	}
 }
@@ -204,7 +211,7 @@ static void escseq_g3(void)
 	case 'U':	/* G3ROM	G3 charset = null mapping (straight to ROM) */
 	case 'K':	/* G3USR	G3 charset = user defined mapping */
 	default:
-		printf("escseq_g3: <%d:%c>\n", c, c);
+		unknown("escseq_g3", c);
 		break;
 	}
 }
@@ -351,10 +358,7 @@ static void csiseq(void)
 	case 'u':	/* CUPRS	restore cursor position */
 	case '`':	/* HPA		move cursor to column in current row */
 	default:
-		printf("csiseq: <%d:%c>:", c, c);
-		for (i = 0; i < n; i++)
-			printf(" %d", args[i]);
-		printf("\n");
+		unknown("csiseq", c);
 		break;
 	}
 }
@@ -385,7 +389,7 @@ static void csiseq_dsr(int c)
 		term_sendstr(status);
 		break;
 	default:
-		printf("csiseq_dsr <0x%x>\n", c);
+		unknown("csiseq_dsr", c);
 		break;
 	}
 }
@@ -437,7 +441,7 @@ static void modeseq(int c, int set)
 	case 0x92:	/* DECPFF	Send FF to printer after print screen (set); No char after PS (reset) */
 	case 0x93:	/* DECPEX	Print screen: prints full screen (set); prints scroll region (reset) */
 	default:
-		printf("modeseq <0x%x>: %d\n", c, set);
+		unknown("modeseq", c);
 		break;
 	}
 }
