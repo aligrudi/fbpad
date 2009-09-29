@@ -102,6 +102,7 @@ void fb_init(void)
 		xerror("ioctl failed");
 	if ((vinfo.bits_per_pixel + 7) >> 3 != BPP)
 		xdie("fbval_t does not match framebuffer depth");
+	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
 	init_colors();
 	fb = mmap(NULL, fb_len(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (fb == MAP_FAILED)
