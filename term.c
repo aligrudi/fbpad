@@ -157,16 +157,6 @@ static int origin(void)
 	return mode & MODE_ORIGIN;
 }
 
-static void setsize(void)
-{
-	struct winsize size;
-	size.ws_col = pad_cols();
-	size.ws_row = pad_rows();
-	size.ws_xpixel = 0;
-	size.ws_ypixel = 0;
-	ioctl(term->fd, TIOCSWINSZ, &size);
-}
-
 #define PTYBUFSIZE		(1 << 13)
 static char ptybuf[PTYBUFSIZE];
 static int ptylen;
@@ -404,8 +394,13 @@ static void term_reset(void)
 
 void term_exec(char *cmd)
 {
+	struct winsize size;
+	size.ws_col = pad_cols();
+	size.ws_row = pad_rows();
+	size.ws_xpixel = 0;
+	size.ws_ypixel = 0;
 	memset(term, 0, sizeof(*term));
-	if ((term->pid = forkpty(&term->fd, NULL, NULL, NULL)) == -1) {
+	if ((term->pid = forkpty(&term->fd, NULL, NULL, &size)) == -1) {
 		perror("failed to fork");
 		term->fd = 0;
 		return;
@@ -417,7 +412,6 @@ void term_exec(char *cmd)
 	}
 	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);
 	fcntl(term->fd, F_SETFL, fcntl(term->fd, F_GETFL) | O_NONBLOCK);
-	setsize();
 	term_reset();
 }
 
