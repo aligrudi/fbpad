@@ -14,6 +14,7 @@
 #include <pty.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <linux/vt.h>
