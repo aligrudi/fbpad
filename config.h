@@ -3,11 +3,7 @@
 #define MAIL		"mutt"
 #define EDITOR		"vim"
 
-#define FONTFACE	"/usr/lib/X11/fonts/TTF/DejaVuSansMono.ttf"
-#define FONTSIZE	10
-#define DPI		196
-#define WIDTHDIFF	1
-#define HEIGHTDIFF	0
+#define TINYFONT	"/path/to/tinyfont/file.tf"
 
 #define FGCOLOR		0
 #define BGCOLOR		7

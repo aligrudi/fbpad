@@ -1,6 +1,6 @@
 CC = cc
-CFLAGS = -std=gnu99 -pedantic -Wall -O2 `pkg-config --cflags freetype2`
-LDFLAGS = -lutil `pkg-config --libs freetype2`
+CFLAGS = -std=gnu99 -pedantic -Wall -O2
+LDFLAGS = -lutil
 
 all: fbpad
 .c.o:

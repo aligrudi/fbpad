@@ -1,57 +1,87 @@
-#include <ft2build.h>
-#include FT_FREETYPE_H
-#include FT_BITMAP_H
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string.h>
 #include "config.h"
 #include "font.h"
 #include "util.h"
 
-static FT_Library library;
-static FT_Face face;
-static int rows, cols;
+static int fd;
+static char *tf;
+static int rows;
+static int cols;
+static int n;
+static int *glyphs;
+static unsigned char *data;
 
-static void xdie(char *msg)
+static void xerror(char *msg)
 {
-	fprintf(stderr, "%s\n", msg);
+	perror(msg);
 	exit(1);
 }
 
+static size_t file_size(int fd)
+{
+	struct stat st;
+	if (!fstat(fd, &st))
+		return st.st_size;
+	return 0;
+}
+
+struct tf_header {
+	char sig[8];
+	int ver;
+	int n;
+	int rows, cols;
+};
+
 void font_init(void)
 {
-	FT_Init_FreeType(&library);
-	if (FT_New_Face(library, FONTFACE, 0, &face))
-		xdie("failed to load font");
-	FT_Set_Char_Size(face, 0, FONTSIZE << 6, DPI, DPI);
-	rows = (face->size->metrics.height >> 6) + HEIGHTDIFF;
-	cols = (face->size->metrics.max_advance >> 6) + WIDTHDIFF;
+	struct tf_header *head;
+	fd = open(TINYFONT, O_RDONLY);
+	if (fd == -1)
+		xerror("can't open font");
+	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
+	tf = mmap(NULL, file_size(fd), PROT_READ, MAP_SHARED, fd, 0);
+	if (tf == MAP_FAILED)
+		xerror("can't mmap font file");
+	head = (struct tf_header *) tf;
+	n = head->n;
+	rows = head->rows;
+	cols = head->cols;
+	glyphs = (int *) (tf + sizeof(*head));
+	data = (unsigned char *) (glyphs + n);
+}
+
+static int find_glyph(int c)
+{
+	int l = 0;
+	int h = n;
+	while (l < h) {
+		int m = (l + h) / 2;
+		if (glyphs[m] == c)
+			return m;
+		if (c < glyphs[m])
+			h = m;
+		else
+			l = m + 1;
+	}
+	return -1;
 }
 
 unsigned char *font_bitmap(int c)
 {
-	static unsigned char bits[MAXDOTS];
-	int sr, sc, er, ec;
-	int i;
-	unsigned char *src;
-	if (FT_Load_Char(face, c, FT_LOAD_RENDER))
-		return NULL;
-	sr = rows + (face->size->metrics.descender >> 6) -
-		 face->glyph->bitmap_top;
-	sc = face->glyph->bitmap_left;
-	er = MIN(rows, sr + face->glyph->bitmap.rows);
-	ec = MIN(cols, sc + face->glyph->bitmap.width);
-	memset(bits, 0, rows * cols);
-	src = face->glyph->bitmap.buffer - MIN(0, sc);
-	sc = MAX(0, sc);
-	for (i = MAX(0, sr); i < er; i++) {
-		int w = face->glyph->bitmap.pitch;
-		memcpy(&bits[i * cols + sc], src + (i - sr) * w, ec - sc);
-	}
-	return bits;
+	int i = find_glyph(c);
+	return i >= 0 ? &data[i * rows * cols] : NULL;
 }
 
 void font_free(void)
 {
-	FT_Done_Face(face);
-	FT_Done_FreeType(library);
+	munmap(tf, file_size(fd));
+	close(fd);
 }
 
 int font_rows(void)
