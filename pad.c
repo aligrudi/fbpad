@@ -68,7 +68,7 @@ static fbval_t *bitmap(int c, short fg, short bg)
 	int hash;
 	int i;
 	int nbits = font_rows() * font_cols();
-	if (c < 0 || !iswprint(c) || iswspace(c))
+	if (c < 0 || (c < 256 && (!isprint(c) || isspace(c))))
 		return NULL;
 	glyph.c = c;
 	glyph.fg = fg;
