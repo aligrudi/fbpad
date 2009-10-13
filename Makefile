@@ -1,6 +1,6 @@
 CC = cc
 CFLAGS = -std=gnu99 -pedantic -Wall -O2
-LDFLAGS = -lutil
+LDFLAGS =
 
 all: fbpad
 .c.o:

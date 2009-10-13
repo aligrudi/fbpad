@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include "config.h"
 #include "pad.h"
@@ -392,24 +393,57 @@ static void term_reset(void)
 	term_blank();
 }
 
+static int _openpty(int *master, int *slave)
+{
+	int unlock = 0;
+	int ptyno = 0;
+	char name[20];
+	if ((*master = open("/dev/ptmx", O_RDWR)) == -1)
+		return -1;
+	if (ioctl(*master, TIOCSPTLCK, &unlock) == -1)
+		return -1;
+	if (ioctl(*master, TIOCGPTN, &ptyno) == -1)
+		return -1;
+	sprintf(name, "/dev/pts/%d", ptyno);
+	*slave = open(name, O_RDWR | O_NOCTTY);
+	return 0;
+}
+
+static void _login(int fd)
+{
+	static char env[] = "TERM=linux";
+	struct winsize winp;
+	winp.ws_col = pad_cols();
+	winp.ws_row = pad_rows();
+	winp.ws_xpixel = 0;
+	winp.ws_ypixel = 0;
+	setsid();
+	ioctl(fd, TIOCSCTTY, NULL);
+	ioctl(fd, TIOCSWINSZ, &winp);
+	dup2(fd, 0);
+	dup2(fd, 1);
+	dup2(fd, 2);
+	if (fd > 2)
+		close(fd);
+	putenv(env);
+}
+
 void term_exec(char *cmd)
 {
-	struct winsize size;
-	size.ws_col = pad_cols();
-	size.ws_row = pad_rows();
-	size.ws_xpixel = 0;
-	size.ws_ypixel = 0;
+	int master, slave;
 	memset(term, 0, sizeof(*term));
-	if ((term->pid = forkpty(&term->fd, NULL, NULL, &size)) == -1) {
-		perror("failed to fork");
-		term->fd = 0;
+	if (_openpty(&master, &slave) == -1)
 		return;
-	}
+	if ((term->pid = fork()) == -1)
+		return;
 	if (!term->pid) {
-		setenv("TERM", "linux", 1);
+		_login(slave);
+		close(master);
 		execlp(cmd, cmd, NULL);
 		exit(1);
 	}
+	close(slave);
+	term->fd = master;
 	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);
 	fcntl(term->fd, F_SETFL, fcntl(term->fd, F_GETFL) | O_NONBLOCK);
 	term_reset();
