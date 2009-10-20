@@ -21,7 +21,7 @@ static struct fb_fix_screeninfo finfo;
 static int rl, rr, gl, gr, bl, br;
 static int nr, ng, nb;
 
-static int fb_len()
+static int fb_len(void)
 {
 	return vinfo.xres_virtual * vinfo.yres_virtual * BPP;
 }
@@ -118,7 +118,7 @@ void fb_set(int r, int c, fbval_t *mem, int len)
 	memcpy(fb + loc, mem, len * BPP);
 }
 
-void fb_free()
+void fb_free(void)
 {
 	fb_cmap_save(0);
 	munmap(fb, fb_len());

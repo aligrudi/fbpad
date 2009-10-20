@@ -83,7 +83,7 @@ static void escseq(void)
 	int c = readpty();
 	while (ESCM(c))
 		c = readpty();
-	switch(c) {
+	switch (c) {
 	case '[':	/* CSI		control sequence introducer */
 		csiseq();
 		break;
@@ -148,7 +148,7 @@ static void escseq(void)
 static void escseq_cs(void)
 {
 	int c = readpty();
-	switch(c) {
+	switch (c) {
 	case '@':	/* CSDFL	select default charset (ISO646/8859-1) */
 	case 'G':	/* CSUTF8	select UTF-8 */
 	case '8':	/* CSUTF8	select UTF-8 (obsolete) */
@@ -161,7 +161,7 @@ static void escseq_cs(void)
 static void escseq_g0(void)
 {
 	int c = readpty();
-	switch(c) {
+	switch (c) {
 	case '8':	/* G0DFL	G0 charset = default mapping (ISO8859-1) */
 	case '0':	/* G0GFX	G0 charset = VT100 graphics mapping */
 	case 'U':	/* G0ROM	G0 charset = null mapping (straight to ROM) */
@@ -176,7 +176,7 @@ static void escseq_g0(void)
 static void escseq_g1(void)
 {
 	int c = readpty();
-	switch(c) {
+	switch (c) {
 	case '8':	/* G1DFL	G1 charset = default mapping (ISO8859-1) */
 	case '0':	/* G1GFX	G1 charset = VT100 graphics mapping */
 	case 'U':	/* G1ROM	G1 charset = null mapping (straight to ROM) */
@@ -191,7 +191,7 @@ static void escseq_g1(void)
 static void escseq_g2(void)
 {
 	int c = readpty();
-	switch(c) {
+	switch (c) {
 	case '8':	/* G2DFL	G2 charset = default mapping (ISO8859-1) */
 	case '0':	/* G2GFX	G2 charset = VT100 graphics mapping */
 	case 'U':	/* G2ROM	G2 charset = null mapping (straight to ROM) */
@@ -205,7 +205,7 @@ static void escseq_g2(void)
 static void escseq_g3(void)
 {
 	int c = readpty();
-	switch(c) {
+	switch (c) {
 	case '8':	/* G3DFL	G3 charset = default mapping (ISO8859-1) */
 	case '0':	/* G3GFX	G3 charset = VT100 graphics mapping */
 	case 'U':	/* G3ROM	G3 charset = null mapping (straight to ROM) */
@@ -255,13 +255,13 @@ static void csiseq(void)
 		inter = c;
 		c = readpty();
 	}
-	switch(c) {
+	switch (c) {
 	case 'H':	/* CUP		move cursor to row, column */
 	case 'f':	/* HVP		move cursor to row, column */
 		move_cursor(absrow(MAX(0, args[0] - 1)), MAX(0, args[1] - 1));
 		break;
 	case 'J':	/* ED		erase display */
-		switch(args[0]) {
+		switch (args[0]) {
 		case 0:
 			kill_chars(col, pad_cols());
 			blank_rows(row + 1, pad_rows());
@@ -365,7 +365,7 @@ static void csiseq(void)
 
 static void csiseq_da(int c)
 {
-	switch(c) {
+	switch (c) {
 	case 0x00:
 		term_sendstr("\x1b[?6c");
 		break;
@@ -379,7 +379,7 @@ static void csiseq_da(int c)
 static void csiseq_dsr(int c)
 {
 	char status[1 << 5];
-	switch(c) {
+	switch (c) {
 	case 0x05:
 		term_sendstr("\x1b[0n");
 		break;
@@ -397,7 +397,7 @@ static void csiseq_dsr(int c)
 /* ANSI/DEC specified modes for SM/RM ANSI Specified Modes */
 static void modeseq(int c, int set)
 {
-	switch(c) {
+	switch (c) {
 	case 0x87:	/* DECAWM	Auto Wrap */
 		mode = BIT_SET(mode, MODE_WRAP, set);
 		break;

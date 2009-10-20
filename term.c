@@ -126,13 +126,13 @@ static void lazy_cursor(int put)
 		_term_show(row, col, put);
 }
 
-static void lazy_clean()
+static void lazy_clean(void)
 {
 	if (visible)
 		memset(dirty, 0, sizeof(*dirty) * MAXLINES);
 }
 
-static void lazy_flush()
+static void lazy_flush(void)
 {
 	int i;
 	if (!visible)
