@@ -1,5 +1,5 @@
 CC = cc
-CFLAGS = -std=gnu99 -pedantic -Wall -O2
+CFLAGS = -Wall -O2
 LDFLAGS =
 
 all: fbpad
