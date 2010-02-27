@@ -1,7 +1,7 @@
-#define TAGS		"xnlhtrav-"
-#define SHELL		"/bin/bash"
-#define MAIL		"mutt"
-#define EDITOR		"vim"
+#define TAGS		"xnlhtruva-"
+#define SHELL		"ksh"
+#define MAIL		"mailx"
+#define EDITOR		"vi"
 
 #define TINYFONT	"/path/to/tinyfont/file.tf"
 
@@ -9,26 +9,26 @@
 #define BGCOLOR		7
 
 /* black */
-#define COLOR0		0x0a0a0a
+#define COLOR0		0x000000
 #define COLOR8		0x407080
 /* red */
 #define COLOR1		0xa02020
 #define COLOR9		0xb05050
 /* green */
-#define COLOR2		0x208020
-#define COLOR10		0x509050
+#define COLOR2		0x156015
+#define COLOR10		0x307030
 /* yellow */
-#define COLOR3		0x909050
-#define COLOR11		0xa0a070
+#define COLOR3		0x707030
+#define COLOR11		0x909060
 /* blue */
-#define COLOR4		0x202080
-#define COLOR12		0x505090
+#define COLOR4		0x202070
+#define COLOR12		0x303080
 /* magenta */
-#define COLOR5		0xa04080
-#define COLOR13		0xb06090
+#define COLOR5		0x903070
+#define COLOR13		0xa05080
 /* cyan */
-#define COLOR6		0x8040a0
-#define COLOR14		0x9060b0
+#define COLOR6		0x602080
+#define COLOR14		0x704090
 /* white */
 #define COLOR7		0xf0f0f0
 #define COLOR15		0xdedede
@@ -39,4 +39,4 @@
 /* framebuffer device */
 #define FBDEV_PATH	"/dev/fb0"
 /* framebuffer depth */
-typedef unsigned short fbval_t;
+typedef unsigned int fbval_t;
