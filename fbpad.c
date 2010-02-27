@@ -1,7 +1,7 @@
 /*
  * fbpad - A small linux framebuffer virtual terminal
  *
- * Copyright (C) 2009 Ali Gholami Rudi
+ * Copyright (C) 2009-2010 Ali Gholami Rudi
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License, as published by the
