@@ -509,18 +509,42 @@ static void set_region(int t, int b)
 		move_cursor(top, 0);
 }
 
+static int writeutf8(char *dst, int c)
+{
+	char *d = dst;
+	int l;
+	if (!(c & ~0x7f)) {
+		*d++ = c ? c : ' ';
+		return 1;
+	}
+	if (c > 0xffff) {
+		*d++ = 0xf0 | (c >> 18);
+		l = 3;
+	} else if (c > 0x7ff) {
+		*d++ = 0xe0 | (c >> 12);
+		l = 2;
+	} else if (c > 0x7f) {
+		*d++ = 0xc0 | (c >> 6);
+		l = 1;
+	}
+	while (l--)
+		*d++ = 0x80 | ((c >> (l * 6)) & 0x3f);
+	return d - dst;
+}
+
 void term_screenshot(void)
 {
-	FILE *fp = fopen(SCREENSHOT, "w");
+	char buf[1 << 11];
+	int fd = open(SCREENSHOT, O_CREAT | O_TRUNC | O_WRONLY, 0600);
 	int i, j;
 	for (i = 0; i < pad_rows(); i++) {
-		for (j = 0; j < pad_cols(); j++) {
-			int c = screen[OFFSET(i, j)];
-			fputc(c ? c : ' ', fp);
-		}
-		fputc('\n', fp);
+		char *s = buf;
+		for (j = 0; j < pad_cols(); j++)
+			s += writeutf8(s, screen[OFFSET(i, j)]);
+		*s++ = '\n';
+		write(fd, buf, s - buf);
 	}
-	fclose(fp);
+	close(fd);
 }
 
 #include "vt102.c"
