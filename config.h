@@ -1,4 +1,4 @@
-#define TAGS		"xnlhtruva-"
+#define TAGS		"xnlhtr01uiva-"
 #define SHELL		"ksh"
 #define MAIL		"mailx"
 #define EDITOR		"vi"
@@ -34,7 +34,7 @@
 #define COLOR15		0xdedede
 
 /* where to write the screen shot */
-#define SCREENSHOT	"/tmp/screen.txt"
+#define SCREENSHOT	"/tmp/scr"
 
 /* framebuffer device */
 #define FBDEV_PATH	"/dev/fb0"
