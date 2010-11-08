@@ -36,7 +36,7 @@ static int top, bot;
 static unsigned int mode;
 static int visible;
 
-#define MAXLINES		(1 << 13)
+#define MAXLINES		(1 << 10)
 static int dirty[MAXLINES];
 static int lazy;
 
