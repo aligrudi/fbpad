@@ -28,25 +28,25 @@
 #define OFFSET(r, c)		((r) * pad_cols() + (c))
 
 static struct term *term;
-static unsigned int *screen;
-static unsigned char *fgs, *bgs;
+static int *screen;
+static char *fgs, *bgs;
 static int row, col;
-static unsigned char fg, bg;
+static char fg, bg;
 static int top, bot;
-static unsigned int mode;
+static int mode;
 static int visible;
 
 #define MAXLINES		(1 << 10)
 static int dirty[MAXLINES];
 static int lazy;
 
-static unsigned char fgcolor(void)
+static char fgcolor(void)
 {
 	int c = mode & ATTR_REV ? bg : fg;
 	return mode & ATTR_BOLD ? c | 0x08 : c;
 }
 
-static unsigned char bgcolor(void)
+static char bgcolor(void)
 {
 	return mode & ATTR_REV ? fg : bg;
 }
@@ -54,8 +54,8 @@ static unsigned char bgcolor(void)
 static void _term_show(int r, int c, int cursor)
 {
 	int i = OFFSET(r, c);
-	unsigned char fg = screen[i] ? fgs[i] : fgcolor();
-	unsigned char bg = screen[i] ? bgs[i] : bgcolor();
+	char fg = screen[i] ? fgs[i] : fgcolor();
+	char bg = screen[i] ? bgs[i] : bgcolor();
 	if (cursor && mode & MODE_CURSOR) {
 		int t = fg;
 		fg = bg;
@@ -70,7 +70,7 @@ static void _draw_row(int r)
 	int i;
 	pad_blankrow(r, bgcolor());
 	for (i = 0; i < pad_cols(); i++) {
-		unsigned int c = screen[OFFSET(r, i)];
+		int c = screen[OFFSET(r, i)];
 		if (c && (c != ' ' || bgs[OFFSET(r, i)] != bgcolor()))
 			_term_show(r, i, 0);
 	}
@@ -288,7 +288,7 @@ static void insertchar(int c)
 
 void term_send(int c)
 {
-	unsigned char b = (unsigned char) c;
+	char b = c;
 	if (term->fd)
 		write(term->fd, &b, 1);
 }

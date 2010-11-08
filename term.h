@@ -3,7 +3,7 @@
 struct term_state {
 	int row, col;
 	int fg, bg;
-	unsigned int mode;
+	int mode;
 };
 
 struct term {
@@ -11,9 +11,9 @@ struct term {
 	int pid;
 	int top, bot;
 	struct term_state cur, sav;
-	unsigned int screen[MAXCHARS];
-	unsigned char fgs[MAXCHARS];
-	unsigned char bgs[MAXCHARS];
+	int screen[MAXCHARS];
+	char fgs[MAXCHARS];
+	char bgs[MAXCHARS];
 };
 
 #define TERM_HIDDEN		0
