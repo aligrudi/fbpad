@@ -27,9 +27,10 @@
 #define CTRLKEY(x)	((x) - 96)
 #define BADPOLLFLAGS	(POLLHUP | POLLERR | POLLNVAL)
 #define NTAGS		sizeof(tags)
+#define NTERMS		(NTAGS * 2)
 
 static char tags[] = TAGS;
-static struct term terms[NTAGS * 2];
+static struct term terms[NTERMS];
 static int tops[NTAGS];	/* top terms of tags */
 static int ctag;	/* current tag */
 static int ltag;	/* the last tag */
@@ -86,13 +87,13 @@ static int altterm(int n)
 
 static void nextterm(void)
 {
-	int n = (cterm() + 1) % ARRAY_SIZE(terms);
+	int n = (cterm() + 1) % NTERMS;
 	while (n != cterm()) {
 		if (terms[n].fd) {
 			showterm(n);
 			break;
 		}
-		n = (n + 1) % ARRAY_SIZE(terms);
+		n = (n + 1) % NTERMS;
 	}
 }
 
@@ -166,31 +167,6 @@ static void directkey(void)
 		term_send(c);
 }
 
-static int find_by_fd(int fd)
-{
-	int i;
-	for (i = 0; i < ARRAY_SIZE(terms); i++)
-		if (terms[i].fd == fd)
-			return i;
-	return -1;
-}
-
-static int fill_ufds(struct pollfd *ufds)
-{
-	int n = 1;
-	int i;
-	ufds[0].fd = STDIN_FILENO;
-	ufds[0].events = POLLIN;
-	for (i = 0; i < ARRAY_SIZE(terms); i++) {
-		if (terms[i].fd) {
-			ufds[n].fd = terms[i].fd;
-			ufds[n].events = POLLIN;
-			n++;
-		}
-	}
-	return n;
-}
-
 static void temp_switch(int termid)
 {
 	if (termid != cterm()) {
@@ -207,47 +183,49 @@ static void switch_back(int termid)
 	}
 }
 
-static void check_ufds(struct pollfd *ufds, int n)
+static int poll_all(void)
 {
+	struct pollfd ufds[NTERMS + 1];
+	int term_idx[NTERMS + 1];
 	int i;
-	for (i = 1; i < n; i++) {
-		int idx = find_by_fd(ufds[i].fd);
-		if (ufds[i].revents & BADPOLLFLAGS) {
-			temp_switch(idx);
-			term_end();
-			switch_back(idx);
-		} else if (ufds[i].revents & POLLIN) {
-			temp_switch(idx);
-			term_read();
-			switch_back(idx);
+	int n = 1;
+	ufds[0].fd = STDIN_FILENO;
+	ufds[0].events = POLLIN;
+	for (i = 0; i < NTERMS; i++) {
+		if (terms[i].fd) {
+			ufds[n].fd = terms[i].fd;
+			ufds[n].events = POLLIN;
+			term_idx[n++] = i;
 		}
 	}
+	if (poll(ufds, n, 1000) < 1)
+		return 0;
+	if (ufds[0].revents & BADPOLLFLAGS)
+		return 1;
+	if (ufds[0].revents & POLLIN)
+		directkey();
+	for (i = 1; i < n; i++) {
+		temp_switch(term_idx[i]);
+		if (ufds[i].revents & POLLIN)
+			term_read();
+		if (ufds[i].revents & BADPOLLFLAGS)
+			term_end();
+		switch_back(term_idx[i]);
+	}
+	return 0;
 }
 
 static void mainloop(void)
 {
-	struct pollfd ufds[ARRAY_SIZE(terms) + 1];
 	struct termios oldtermios, termios;
-	int rv;
-	int n;
 	tcgetattr(STDIN_FILENO, &termios);
 	oldtermios = termios;
 	cfmakeraw(&termios);
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &termios);
-	memset(ufds, 0, sizeof(ufds));
 	term_load(&terms[cterm()], TERM_REDRAW);
-	n = fill_ufds(ufds);
-	while (!exitit) {
-		rv = poll(ufds, n, 1000);
-		if (rv == -1 && errno != EINTR)
+	while (!exitit)
+		if (poll_all())
 			break;
-		if (ufds[0].revents & BADPOLLFLAGS)
-			break;
-		if (ufds[0].revents & POLLIN)
-			directkey();
-		check_ufds(ufds, n);
-		n = fill_ufds(ufds);
-	}
 	tcsetattr(STDIN_FILENO, 0, &oldtermios);
 }
 
