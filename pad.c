@@ -48,7 +48,7 @@ static fbval_t color2fb(int c)
 	return fb_color(CR(cd[c]), CG(cd[c]), CB(cd[c]));
 }
 
-#define NCACHE		((1 << 11) - 1)
+#define NCACHE		(1 << 11)
 static fbval_t cache[NCACHE * MAXDOTS];
 static struct glyph {
 	int c;
@@ -57,7 +57,7 @@ static struct glyph {
 
 static int glyph_hash(struct glyph *g)
 {
-	return (g->c | (((g->fg + 1) ^ g->bg) << 7)) % NCACHE;
+	return (g->c ^ (g->fg << 7) ^ (g->bg << 6)) & (NCACHE - 1);
 }
 
 static fbval_t *bitmap(int c, short fg, short bg)
