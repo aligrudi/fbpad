@@ -10,7 +10,6 @@
 #include "draw.h"
 #include "util.h"
 
-#define MAXFBWIDTH	(1 << 12)
 #define BPP		sizeof(fbval_t)
 #define NLEVELS		(1 << 8)
 
@@ -138,24 +137,4 @@ int fb_rows(void)
 int fb_cols(void)
 {
 	return vinfo.xres;
-}
-
-static unsigned char *rowaddr(int r)
-{
-	return fb + (r + vinfo.yoffset) * finfo.line_length;
-}
-
-static unsigned long cache[MAXFBWIDTH];
-void fb_box(int sr, int sc, int er, int ec, fbval_t val)
-{
-	int i;
-	int pc = sizeof(cache[0]) / sizeof(val);
-	int cn = MIN((ec - sc) / pc + 1, MAXFBWIDTH);
-	unsigned long nv = val;
-	for (i = 1; i < pc; i++)
-		nv = (nv << (sizeof(val) * 8)) | val;
-	for (i = 0; i < cn; i++)
-		cache[i] = nv;
-	for (i = sr; i < er; i++)
-		memcpy(rowaddr(i) + sc * BPP, cache, (ec - sc) * BPP);
 }

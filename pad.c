@@ -86,6 +86,18 @@ static fbval_t *bitmap(int c, short fg, short bg)
 	return fbbits;
 }
 
+#define MAXFBWIDTH	(1 << 12)
+void fb_box(int sr, int sc, int er, int ec, fbval_t val)
+{
+	static fbval_t line[MAXFBWIDTH];
+	int cn = ec - sc;
+	int i;
+	for (i = 0; i < cn; i++)
+		line[i] = val;
+	for (i = sr; i < er; i++)
+		fb_set(i, sc, line, cn);
+}
+
 void pad_put(int ch, int r, int c, int fg, int bg)
 {
 	int sr = font_rows() * r;
