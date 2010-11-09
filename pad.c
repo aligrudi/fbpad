@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wctype.h>
 #include "config.h"
 #include "draw.h"
 #include "font.h"

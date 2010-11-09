@@ -11,11 +11,11 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <pty.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <unistd.h>
 #include <linux/vt.h>
 #include "config.h"
