@@ -197,7 +197,7 @@ static void screen_move(int dst, int src, int n)
 
 static void screen_reset(int i, int n)
 {
-	memset(screen + i, 0, n * sizeof(*screen));
+	memset(screen + i, ' ', n * sizeof(*screen));
 	memset(fgs + i, fg, n);
 	memset(bgs + i, bg, n);
 }
