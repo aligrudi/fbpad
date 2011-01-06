@@ -576,12 +576,7 @@ static int readutf8(int c)
 	return result;
 }
 
-static void unknown(char *ctl, int c)
-{
-#ifdef DEBUG
-	fprintf(stderr, "%s: <%d:%c>\r\n", ctl, c, c);
-#endif
-}
+#define unknown(ctl, c)
 
 /* control sequences */
 static void ctlseq(void)
