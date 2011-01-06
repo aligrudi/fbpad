@@ -167,7 +167,7 @@ static void waitpty(void)
 	struct pollfd ufds[1];
 	ufds[0].fd = term->fd;
 	ufds[0].events = POLLIN;
-	poll(ufds, 1, -1);
+	poll(ufds, 1, 100);
 }
 
 static int readpty(void)
