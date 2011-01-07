@@ -53,14 +53,10 @@ static char bgcolor(void)
 
 static void _draw_pos(int r, int c, int cursor)
 {
+	int rev = cursor && mode & MODE_CURSOR;
 	int i = OFFSET(r, c);
-	char fg = screen[i] ? fgs[i] : fgcolor();
-	char bg = screen[i] ? bgs[i] : bgcolor();
-	if (cursor && mode & MODE_CURSOR) {
-		int t = fg;
-		fg = bg;
-		bg = t;
-	}
+	char fg = rev ? bgs[i] : fgs[i];
+	char bg = rev ? fgs[i] : bgs[i];
 	if (visible)
 		pad_put(screen[i], r, c, fg, bg);
 }
@@ -71,7 +67,7 @@ static void _draw_row(int r)
 	pad_blankrow(r, bgcolor());
 	for (i = 0; i < pad_cols(); i++) {
 		int c = screen[OFFSET(r, i)];
-		if (c && (c != ' ' || bgs[OFFSET(r, i)] != bgcolor()))
+		if ((c && c != ' ') || bgs[OFFSET(r, i)] != bgcolor())
 			_draw_pos(r, i, 0);
 	}
 }
@@ -196,7 +192,7 @@ static void screen_move(int dst, int src, int n)
 
 static void screen_reset(int i, int n)
 {
-	memset(screen + i, ' ', n * sizeof(*screen));
+	memset(screen + i, 0, n * sizeof(*screen));
 	memset(fgs + i, fg, n);
 	memset(bgs + i, bg, n);
 }
