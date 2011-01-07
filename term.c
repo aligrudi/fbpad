@@ -36,7 +36,7 @@ static int top, bot;
 static int mode;
 static int visible;
 
-#define MAXLINES		(1 << 10)
+#define MAXLINES		(1 << 8)
 static int dirty[MAXLINES];
 static int lazy;
 
@@ -51,7 +51,7 @@ static char bgcolor(void)
 	return mode & ATTR_REV ? fg : bg;
 }
 
-static void _term_show(int r, int c, int cursor)
+static void _draw_pos(int r, int c, int cursor)
 {
 	int i = OFFSET(r, c);
 	char fg = screen[i] ? fgs[i] : fgcolor();
@@ -72,11 +72,11 @@ static void _draw_row(int r)
 	for (i = 0; i < pad_cols(); i++) {
 		int c = screen[OFFSET(r, i)];
 		if (c && (c != ' ' || bgs[OFFSET(r, i)] != bgcolor()))
-			_term_show(r, i, 0);
+			_draw_pos(r, i, 0);
 	}
 }
 
-static void lazy_draw(int sr, int er)
+static void draw_rows(int sr, int er)
 {
 	int i;
 	if (!visible)
@@ -89,20 +89,19 @@ static void lazy_draw(int sr, int er)
 	}
 }
 
-static void lazy_drawcols(int r, int sc, int ec)
+static void draw_cols(int r, int sc, int ec)
 {
 	int i;
 	if (!visible)
 		return;
-	if (lazy) {
+	if (lazy)
 		dirty[r] = 1;
-	} else {
+	else
 		for (i = sc; i < ec; i++)
-			_term_show(r, i, 0);
-	}
+			_draw_pos(r, i, 0);
 }
 
-static void lazy_put(int ch, int r, int c)
+static void draw_char(int ch, int r, int c)
 {
 	int i = OFFSET(r, c);
 	screen[i] = ch;
@@ -113,23 +112,23 @@ static void lazy_put(int ch, int r, int c)
 	if (lazy)
 		dirty[r] = 1;
 	else
-		_term_show(r, c, 0);
+		_draw_pos(r, c, 0);
 }
 
-static void lazy_cursor(int put)
+static void draw_cursor(int put)
 {
 	if (!visible)
 		return;
 	if (lazy)
 		dirty[row] = 1;
 	else
-		_term_show(row, col, put);
+		_draw_pos(row, col, put);
 }
 
 static void lazy_clean(void)
 {
 	if (visible)
-		memset(dirty, 0, sizeof(*dirty) * MAXLINES);
+		memset(dirty, 0, sizeof(dirty));
 }
 
 static void lazy_flush(void)
@@ -137,12 +136,12 @@ static void lazy_flush(void)
 	int i;
 	if (!visible)
 		return;
-	_term_show(row, col, 0);
+	_draw_pos(row, col, 0);
 	for (i = 0; i < pad_rows(); i++)
 		if (dirty[i])
 			_draw_row(i);
 	lazy_clean();
-	_term_show(row, col, 1);
+	_draw_pos(row, col, 1);
 }
 
 static void term_redraw(void)
@@ -150,7 +149,7 @@ static void term_redraw(void)
 	int i;
 	for (i = 0; i < pad_rows(); i++)
 		_draw_row(i);
-	_term_show(row, col, 1);
+	_draw_pos(row, col, 1);
 }
 
 static int origin(void)
@@ -210,20 +209,20 @@ static void empty_rows(int sr, int er)
 static void blank_rows(int sr, int er)
 {
 	empty_rows(sr, er);
-	lazy_draw(sr, er);
-	lazy_cursor(1);
+	draw_rows(sr, er);
+	draw_cursor(1);
 }
 
 static void scroll_screen(int sr, int nr, int n)
 {
-	lazy_cursor(0);
+	draw_cursor(0);
 	screen_move(OFFSET(sr + n, 0), OFFSET(sr, 0), nr * pad_cols());
 	if (n > 0)
 		empty_rows(sr, sr + n);
 	else
 		empty_rows(sr + nr + n, sr + nr);
-	lazy_draw(MIN(sr, sr + n), MAX(sr + nr, sr + nr + n));
-	lazy_cursor(1);
+	draw_rows(MIN(sr, sr + n), MAX(sr + nr, sr + nr + n));
+	draw_cursor(1);
 }
 
 static void insert_lines(int n)
@@ -246,12 +245,12 @@ static void delete_lines(int n)
 static void move_cursor(int r, int c)
 {
 	int t, b;
-	lazy_cursor(0);
+	draw_cursor(0);
 	t = origin() ? top : 0;
 	b = origin() ? bot : pad_rows();
 	row = MAX(t, MIN(r, b - 1));
 	col = MAX(0, MIN(c, pad_cols() - 1));
-	lazy_cursor(1);
+	draw_cursor(1);
 	mode = BIT_SET(mode, MODE_WRAPREADY, 0);
 }
 
@@ -279,7 +278,7 @@ static void insertchar(int c)
 	int wrapready;
 	if (mode & MODE_WRAPREADY)
 		advance(1, -col, 1);
-	lazy_put(c, row, col);
+	draw_char(c, row, col);
 	wrapready = col == pad_cols() - 1;
 	advance(0, 1, 1);
 	if (wrapready)
@@ -331,20 +330,20 @@ static void kill_chars(int sc, int ec)
 {
 	int i;
 	for (i = sc; i < ec; i++)
-		lazy_put(' ', row, i);
-	lazy_cursor(1);
+		draw_char(' ', row, i);
+	draw_cursor(1);
 }
 
 static void move_chars(int sc, int nc, int n)
 {
-	lazy_cursor(0);
+	draw_cursor(0);
 	screen_move(OFFSET(row, sc + n), OFFSET(row, sc), nc);
 	if (n > 0)
 		screen_reset(OFFSET(row, sc), n);
 	else
 		screen_reset(OFFSET(row, pad_cols() + n), -n);
-	lazy_drawcols(row, MIN(sc, sc + n), pad_cols());
-	lazy_cursor(1);
+	draw_cols(row, MIN(sc, sc + n), pad_cols());
+	draw_cursor(1);
 }
 
 static void delete_chars(int n)
