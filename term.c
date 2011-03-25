@@ -498,8 +498,8 @@ void term_end(void)
 
 static void set_region(int t, int b)
 {
-	top = MIN(pad_rows(), MAX(0, t - 1));
-	bot = MIN(pad_rows(), MAX(0, b ? b : pad_rows()));
+	top = MIN(pad_rows() - 1, MAX(0, t - 1));
+	bot = MIN(pad_rows(), MAX(top + 1, b ? b : pad_rows()));
 	if (origin())
 		move_cursor(top, 0);
 }
