@@ -6,7 +6,7 @@
 #define FBM_COLORS(m)	((m) & 0x0fff)
 
 /* main functions */
-void fb_init(void);
+int fb_init(void);
 void fb_free(void);
 unsigned fb_mode(void);
 void *fb_mem(int r);

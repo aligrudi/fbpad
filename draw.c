@@ -64,27 +64,21 @@ void fb_cmap(void)
 	ioctl(fd, FBIOPUTCMAP, &cmap);
 }
 
-static void xerror(char *msg)
-{
-	perror(msg);
-	exit(1);
-}
-
 unsigned fb_mode(void)
 {
 	return (bpp << 16) | (vinfo.red.length << 8) |
 		(vinfo.green.length << 4) | (vinfo.blue.length);
 }
 
-void fb_init(void)
+int fb_init(void)
 {
 	fd = open(FBDEV_PATH, O_RDWR);
 	if (fd == -1)
-		xerror("can't open " FBDEV_PATH);
+		goto failed;
 	if (ioctl(fd, FBIOGET_VSCREENINFO, &vinfo) == -1)
-		xerror("ioctl failed");
+		goto failed;
 	if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1)
-		xerror("ioctl failed");
+		goto failed;
 	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
 	bpp = (vinfo.bits_per_pixel + 7) >> 3;
 	nr = 1 << vinfo.red.length;
@@ -92,9 +86,14 @@ void fb_init(void)
 	nb = 1 << vinfo.green.length;
 	fb = mmap(NULL, fb_len(), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (fb == MAP_FAILED)
-		xerror("can't map the framebuffer");
+		goto failed;
 	fb_cmap_save(1);
 	fb_cmap();
+	return 0;
+failed:
+	perror("fb_init()");
+	close(fd);
+	return 1;
 }
 
 void fb_free(void)

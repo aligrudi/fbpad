@@ -1,11 +1,9 @@
 /*
- * fbpad - a small linux framebuffer virtual terminal
+ * fbpad - a small framebuffer virtual terminal
  *
  * Copyright (C) 2009-2011 Ali Gholami Rudi <ali at rudi dot ir>
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License, as published by the
- * Free Software Foundation.
+ * This program is released under GNU GPL version 2.
  */
 #include <ctype.h>
 #include <errno.h>
@@ -274,12 +272,14 @@ int main(void)
 	char *show = "\x1b[?25h";
 	write(STDOUT_FILENO, clear, strlen(clear));
 	write(STDIN_FILENO, hide, strlen(hide));
-	pad_init();
+	if (pad_init())
+		goto failed;
 	setupsignals();
 	fcntl(STDIN_FILENO, F_SETFL,
 		fcntl(STDIN_FILENO, F_GETFL) | O_NONBLOCK);
 	mainloop();
 	pad_free();
+failed:
 	write(STDIN_FILENO, show, strlen(show));
 	return 0;
 }

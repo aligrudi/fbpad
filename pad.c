@@ -15,12 +15,18 @@ static unsigned int cd[] = {
 	COLOR12, COLOR13, COLOR14, COLOR15};
 static int rows, cols;
 
-void pad_init(void)
+int pad_init(void)
 {
-	fb_init();
+	if (fb_init())
+		return 1;
+	if (sizeof(fbval_t) != FBM_BPP(fb_mode())) {
+		fprintf(stderr, "pad_init: fbval_t doesn't match fb depth\n");
+		return 1;
+	}
 	font_init();
 	rows = fb_rows() / font_rows();
 	cols = fb_cols() / font_cols();
+	return 0;
 }
 
 void pad_free(void)
