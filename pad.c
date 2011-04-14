@@ -33,18 +33,18 @@ void pad_free(void)
 #define CB(a)		((a) & 0x0000ff)
 #define COLORMERGE(f, b, c)		((b) + (((f) - (b)) * (c) >> 8u))
 
-static fbval_t mixed_color(int fg, int bg, unsigned char val)
+static unsigned mixed_color(int fg, int bg, unsigned char val)
 {
 	unsigned int fore = cd[fg], back = cd[bg];
 	unsigned char r = COLORMERGE(CR(fore), CR(back), val);
 	unsigned char g = COLORMERGE(CG(fore), CG(back), val);
 	unsigned char b = COLORMERGE(CB(fore), CB(back), val);
-	return fb_color(r, g, b);
+	return fb_val(r, g, b);
 }
 
-static fbval_t color2fb(int c)
+static unsigned color2fb(int c)
 {
-	return fb_color(CR(cd[c]), CG(cd[c]), CB(cd[c]));
+	return fb_val(CR(cd[c]), CG(cd[c]), CB(cd[c]));
 }
 
 #define NCACHE		(1 << 11)
@@ -86,7 +86,7 @@ static fbval_t *bitmap(int c, short fg, short bg)
 }
 
 #define MAXFBWIDTH	(1 << 12)
-void fb_box(int sr, int sc, int er, int ec, fbval_t val)
+static void fb_box(int sr, int sc, int er, int ec, fbval_t val)
 {
 	static fbval_t line[MAXFBWIDTH];
 	int cn = ec - sc;
