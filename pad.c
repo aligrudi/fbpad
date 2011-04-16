@@ -45,12 +45,12 @@ static unsigned mixed_color(int fg, int bg, unsigned char val)
 	unsigned char r = COLORMERGE(CR(fore), CR(back), val);
 	unsigned char g = COLORMERGE(CG(fore), CG(back), val);
 	unsigned char b = COLORMERGE(CB(fore), CB(back), val);
-	return fb_val(r, g, b);
+	return FB_VAL(r, g, b);
 }
 
 static unsigned color2fb(int c)
 {
-	return fb_val(CR(cd[c]), CG(cd[c]), CB(cd[c]));
+	return FB_VAL(CR(cd[c]), CG(cd[c]), CB(cd[c]));
 }
 
 #define NCACHE		(1 << 11)
