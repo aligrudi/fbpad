@@ -406,7 +406,6 @@ static int _openpty(int *master, int *slave)
 
 static void _login(int fd)
 {
-	static char env[] = "TERM=linux";
 	struct winsize winp;
 	winp.ws_col = pad_cols();
 	winp.ws_row = pad_rows();
@@ -420,9 +419,35 @@ static void _login(int fd)
 	dup2(fd, 2);
 	if (fd > 2)
 		close(fd);
-	putenv(env);
 }
 
+#define MAXENV		(1 << 8)
+
+static void envcpy(char **d, char **s)
+{
+	while (*s)
+		*d++ = *s++;
+	*d = NULL;
+}
+
+static void execvep(char *cmd, char **argv, char **envp)
+{
+	char path[512];
+	char *p = getenv("PATH");
+	execve(cmd, argv, envp);
+	while (*p) {
+		char *s = path;
+		while (*p && *p != ':')
+			*s++ = *p++;
+		*s++ = '/';
+		strcpy(s, cmd);
+		execve(path, argv, envp);
+		while (*p == ':')
+			p++;
+	}
+}
+
+extern char **environ;
 void term_exec(char *cmd)
 {
 	int master, slave;
@@ -432,9 +457,12 @@ void term_exec(char *cmd)
 	if ((term->pid = fork()) == -1)
 		return;
 	if (!term->pid) {
+		char *envp[MAXENV] = {"TERM=linux"};
+		char *argv[2] = {cmd};
+		envcpy(envp + 1, environ);
 		_login(slave);
 		close(master);
-		execlp(cmd, cmd, NULL);
+		execvep(cmd, argv, envp);
 		exit(1);
 	}
 	close(slave);
@@ -924,7 +952,7 @@ static void csiseq_dsr(int c)
 		term_sendstr("\x1b[0n");
 		break;
 	case 0x06:
-		snprintf(status, sizeof(status), "\x1b[%d;%dR",
+		sprintf(status, "\x1b[%d;%dR",
 			 (origin() ? row - top : row) + 1, col + 1);
 		term_sendstr(status);
 		break;
