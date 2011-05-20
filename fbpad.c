@@ -226,10 +226,20 @@ static void mainloop(void)
 	tcsetattr(STDIN_FILENO, 0, &oldtermios);
 }
 
+static void signalreceived(int n);
+static int signalregister(void)
+{
+	signal(SIGUSR1, signalreceived);
+	signal(SIGUSR2, signalreceived);
+	signal(SIGCHLD, signalreceived);
+}
+
 static void signalreceived(int n)
 {
 	if (exitit)
 		return;
+	/* racy, new signals may arrive before re-registeration */
+	signalregister();
 	switch (n) {
 	case SIGUSR1:
 		hidden = 1;
@@ -258,11 +268,8 @@ static void setupsignals(void)
 	vtm.relsig = SIGUSR1;
 	vtm.acqsig = SIGUSR2;
 	vtm.frsig = 0;
+	signalregister();
 	ioctl(STDIN_FILENO, VT_SETMODE, &vtm);
-
-	signal(SIGUSR1, signalreceived);
-	signal(SIGUSR2, signalreceived);
-	signal(SIGCHLD, signalreceived);
 }
 
 int main(void)
