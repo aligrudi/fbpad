@@ -126,13 +126,14 @@ void fb_set(int r, int c, void *mem, int len)
 unsigned fb_val(int r, int g, int b)
 {
 	switch (fb_mode() & 0x0fff) {
-	default:
-		fprintf(stderr, "fb_val: unknown fb_mode()\n");
 	case 0x0888:
 		return (r << 16) | (g << 8) | b;
 	case 0x0565:
 		return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
 	case 0x0233:
 		return ((r >> 6) << 6) | ((g >> 5) << 3) | (b >> 5);
+	default:
+		fprintf(stderr, "fb_val: unknown <%x> fb_mode()\r\n", fb_mode());
+		return 0;
 	}
 }
