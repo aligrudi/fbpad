@@ -227,7 +227,7 @@ static void mainloop(void)
 }
 
 static void signalreceived(int n);
-static int signalregister(void)
+static void signalregister(void)
 {
 	signal(SIGUSR1, signalreceived);
 	signal(SIGUSR2, signalreceived);
