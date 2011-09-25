@@ -23,7 +23,10 @@ int pad_init(void)
 		fprintf(stderr, "pad_init: fbval_t doesn't match fb depth\n");
 		return 1;
 	}
-	font_init();
+	if (font_init()) {
+		fprintf(stderr, "pad_init: loading font failed\n");
+		return 1;
+	}
 	rows = fb_rows() / font_rows();
 	cols = fb_cols() / font_cols();
 	return 0;
@@ -31,6 +34,7 @@ int pad_init(void)
 
 void pad_free(void)
 {
+	font_free();
 	fb_free();
 }
 
@@ -60,32 +64,29 @@ static struct glyph {
 	short fg, bg;
 } cacheid[NCACHE];
 
-static int glyph_hash(struct glyph *g)
+static int glyph_hash(int c, int fg, int bg)
 {
-	return (g->c ^ (g->fg << 7) ^ (g->bg << 6)) & (NCACHE - 1);
+	return (c ^ (fg << 7) ^ (bg << 6)) & (NCACHE - 1);
 }
 
 static fbval_t *bitmap(int c, short fg, short bg)
 {
-	unsigned char *bits;
+	unsigned char bits[MAXDOTS];
 	fbval_t *fbbits;
-	struct glyph glyph = {0};
-	int hash;
+	struct glyph *glyph;
 	int i;
 	int nbits = font_rows() * font_cols();
 	if (c < 0 || (c < 256 && (!isprint(c) || isspace(c))))
 		return NULL;
-	glyph.c = c;
-	glyph.fg = fg;
-	glyph.bg = bg;
-	hash = glyph_hash(&glyph);
-	fbbits = &cache[hash * MAXDOTS];
-	if (!memcmp(&glyph, &cacheid[hash], sizeof(glyph)))
+	glyph = &cacheid[glyph_hash(c, fg, bg)];
+	fbbits = &cache[glyph_hash(c, fg, bg) * MAXDOTS];
+	if (glyph->c == c && glyph->fg == fg && glyph->bg == bg)
 		return fbbits;
-	bits = font_bitmap(c);
-	if (!bits)
+	if (font_bitmap(bits, c))
 		return NULL;
-	memcpy(&cacheid[hash], &glyph, sizeof(glyph));
+	glyph->c = c;
+	glyph->fg = fg;
+	glyph->bg = bg;
 	for (i = 0; i < nbits; i++)
 		fbbits[i] = mixed_color(fg, bg, bits[i]);
 	return fbbits;

@@ -1,8 +1,6 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <string.h>
 #include "config.h"
@@ -10,50 +8,46 @@
 #include "util.h"
 
 static int fd;
-static char *tf;
 static int rows;
 static int cols;
 static int n;
 static int *glyphs;
-static unsigned char *data;
 
-static void xerror(char *msg)
-{
-	perror(msg);
-	exit(1);
-}
-
-static size_t file_size(int fd)
-{
-	struct stat st;
-	if (!fstat(fd, &st))
-		return st.st_size;
-	return 0;
-}
-
-struct tf_header {
+/*
+ * tinyfont format:
+ *
+ * sig[8]	"tinyfont"
+ * ver		0
+ * n		number of glyphs
+ * rows		glyph rows
+ * cols		glyph cols
+ *
+ * glyphs[n]	unicode character numbers (int)
+ * bitmaps[n]	character bitmaps (char[rows * cols])
+ */
+struct tinyfont {
 	char sig[8];
 	int ver;
 	int n;
 	int rows, cols;
 };
 
-void font_init(void)
+int font_init(void)
 {
-	struct tf_header *head;
+	struct tinyfont head;
 	fd = open(TINYFONT, O_RDONLY);
 	if (fd == -1)
-		xerror("can't open font");
+		return 1;
 	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
-	tf = mmap(NULL, file_size(fd), PROT_READ, MAP_SHARED, fd, 0);
-	if (tf == MAP_FAILED)
-		xerror("can't mmap font file");
-	head = (struct tf_header *) tf;
-	n = head->n;
-	rows = head->rows;
-	cols = head->cols;
-	glyphs = (int *) (tf + sizeof(*head));
-	data = (unsigned char *) (glyphs + n);
+	if (read(fd, &head, sizeof(head)) != sizeof(head))
+		return 1;
+	n = head.n;
+	rows = head.rows;
+	cols = head.cols;
+	glyphs = malloc(n * sizeof(int));
+	if (read(fd, glyphs, n * sizeof(int)) != n * sizeof(int))
+		return 1;
+	return 0;
 }
 
 static int find_glyph(int c)
@@ -72,15 +66,19 @@ static int find_glyph(int c)
 	return -1;
 }
 
-unsigned char *font_bitmap(int c)
+int font_bitmap(void *dst, int c)
 {
 	int i = find_glyph(c);
-	return i >= 0 ? &data[i * rows * cols] : NULL;
+	if (i < 0)
+		return 1;
+	lseek(fd, sizeof(struct tinyfont) + n * sizeof(int) + i * rows * cols, 0);
+	read(fd, dst, rows * cols);
+	return 0;
 }
 
 void font_free(void)
 {
-	munmap(tf, file_size(fd));
+	free(glyphs);
 	close(fd);
 }
 
