@@ -22,6 +22,7 @@
 #define ATTR_BOLD		0x10
 #define ATTR_REV		0x20
 #define ATTR_ALL		(ATTR_BOLD | ATTR_REV)
+#define MODE_INSERT		0x40
 #define MODE_WRAPREADY		0x80
 
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
@@ -574,6 +575,8 @@ static void insertchar(int c)
 	int wrapready;
 	if (mode & MODE_WRAPREADY)
 		advance(1, -col, 1);
+	if (mode & MODE_INSERT)
+		insert_chars(1);
 	draw_char(c, row, col);
 	wrapready = col == pad_cols() - 1;
 	advance(0, 1, 1);
@@ -988,6 +991,7 @@ static void modeseq(int c, int set)
 		mode = BIT_SET(mode, MODE_AUTOCR, set);
 		break;
 	case 0x04:	/* IRM		insertion/replacement mode (always reset) */
+		mode = BIT_SET(mode, MODE_INSERT, set);
 		break;
 	case 0x00:	/* IGN		Error (Ignored) */
 	case 0x01:	/* GATM		guarded-area transfer mode (ignored) */
