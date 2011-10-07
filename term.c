@@ -36,6 +36,8 @@ static int top, bot;
 static int mode;
 static int visible;
 
+/* low level drawing and lazy updating */
+
 #define MAXLINES		(1 << 8)
 static int dirty[MAXLINES];
 static int lazy;
@@ -140,23 +142,28 @@ static void lazy_flush(void)
 	_draw_pos(row, col, 1);
 }
 
-static void term_redraw(void)
+static void screen_reset(int i, int n)
 {
-	int i;
-	for (i = 0; i < pad_rows(); i++)
-		_draw_row(i);
-	_draw_pos(row, col, 1);
+	memset(screen + i, 0, n * sizeof(*screen));
+	memset(fgs + i, fg, n);
+	memset(bgs + i, bg, n);
 }
 
-static int origin(void)
+static void screen_move(int dst, int src, int n)
 {
-	return mode & MODE_ORIGIN;
+	memmove(screen + dst, screen + src, n * sizeof(*screen));
+	memmove(fgs + dst, fgs + src, n);
+	memmove(bgs + dst, bgs + src, n);
 }
+
+/* terminal input buffering */
 
 #define PTYBUFSIZE		(1 << 13)
-static char ptybuf[PTYBUFSIZE];
-static int ptylen;
-static int ptycur;
+
+static char ptybuf[PTYBUFSIZE];		/* always emptied in term_read() */
+static int ptylen;			/* buffer length */
+static int ptycur;			/* current offset */
+
 static void waitpty(void)
 {
 	struct pollfd ufds[1];
@@ -183,103 +190,7 @@ static int readpty(void)
 	return -1;
 }
 
-static void screen_move(int dst, int src, int n)
-{
-	memmove(screen + dst, screen + src, n * sizeof(*screen));
-	memmove(fgs + dst, fgs + src, n);
-	memmove(bgs + dst, bgs + src, n);
-}
-
-static void screen_reset(int i, int n)
-{
-	memset(screen + i, 0, n * sizeof(*screen));
-	memset(fgs + i, fg, n);
-	memset(bgs + i, bg, n);
-}
-
-static void empty_rows(int sr, int er)
-{
-	screen_reset(OFFSET(sr, 0), (er - sr) * pad_cols());
-}
-
-static void blank_rows(int sr, int er)
-{
-	empty_rows(sr, er);
-	draw_rows(sr, er);
-	draw_cursor(1);
-}
-
-static void scroll_screen(int sr, int nr, int n)
-{
-	draw_cursor(0);
-	screen_move(OFFSET(sr + n, 0), OFFSET(sr, 0), nr * pad_cols());
-	if (n > 0)
-		empty_rows(sr, sr + n);
-	else
-		empty_rows(sr + nr + n, sr + nr);
-	draw_rows(MIN(sr, sr + n), MAX(sr + nr, sr + nr + n));
-	draw_cursor(1);
-}
-
-static void insert_lines(int n)
-{
-	int sr = MAX(top, row);
-	int nr = bot - row - n;
-	if (nr > 0)
-		scroll_screen(sr, nr, n);
-}
-
-static void delete_lines(int n)
-{
-	int r = MAX(top, row);
-	int sr = r + n;
-	int nr = bot - r - n;
-	if (nr > 0)
-		scroll_screen(sr, nr, -n);
-}
-
-static void move_cursor(int r, int c)
-{
-	int t, b;
-	draw_cursor(0);
-	t = origin() ? top : 0;
-	b = origin() ? bot : pad_rows();
-	row = MAX(t, MIN(r, b - 1));
-	col = MAX(0, MIN(c, pad_cols() - 1));
-	draw_cursor(1);
-	mode = BIT_SET(mode, MODE_WRAPREADY, 0);
-}
-
-static void advance(int dr, int dc, int scrl)
-{
-	int r = row + dr;
-	int c = col + dc;
-	if (r >= bot && scrl) {
-		int n = bot - r - 1;
-		int nr = (bot - top) + n;
-		scroll_screen(top + -n, nr, n);
-	}
-	if (r < top && scrl) {
-		int n = top - r;
-		int nr = (bot - top) - n;
-		scroll_screen(top, nr, n);
-	}
-	r = MIN(bot - 1, MAX(top, r));
-	c = MIN(pad_cols() - 1, MAX(0, c));
-	move_cursor(r, c);
-}
-
-static void insertchar(int c)
-{
-	int wrapready;
-	if (mode & MODE_WRAPREADY)
-		advance(1, -col, 1);
-	draw_char(c, row, col);
-	wrapready = col == pad_cols() - 1;
-	advance(0, 1, 1);
-	if (wrapready)
-		mode = BIT_SET(mode, MODE_WRAPREADY, 1);
-}
+/* term interface functions */
 
 void term_send(int c)
 {
@@ -292,67 +203,6 @@ static void term_sendstr(char *s)
 {
 	if (term->fd)
 		write(term->fd, s, strlen(s));
-}
-
-static void setattr(int m)
-{
-	switch (m) {
-	case 0:
-		fg = FGCOLOR;
-		bg = BGCOLOR;
-		mode &= ~ATTR_ALL;
-		break;
-	case 1:
-		mode |= ATTR_BOLD;
-		break;
-	case 7:
-		mode |= ATTR_REV;
-		break;
-	case 22:
-		mode &= ~ATTR_BOLD;
-		break;
-	case 27:
-		mode &= ~ATTR_REV;
-		break;
-	default:
-		if ((m / 10) == 3)
-			fg = m > 37 ? FGCOLOR : m - 30;
-		if ((m / 10) == 4)
-			bg = m > 47 ? BGCOLOR : m - 40;
-	}
-}
-
-static void kill_chars(int sc, int ec)
-{
-	int i;
-	for (i = sc; i < ec; i++)
-		draw_char(' ', row, i);
-	draw_cursor(1);
-}
-
-static void move_chars(int sc, int nc, int n)
-{
-	draw_cursor(0);
-	screen_move(OFFSET(row, sc + n), OFFSET(row, sc), nc);
-	if (n > 0)
-		screen_reset(OFFSET(row, sc), n);
-	else
-		screen_reset(OFFSET(row, pad_cols() + n), -n);
-	draw_cols(row, MIN(sc, sc + n), pad_cols());
-	draw_cursor(1);
-}
-
-static void delete_chars(int n)
-{
-	int sc = col + n;
-	int nc = pad_cols() - sc;
-	move_chars(sc, nc, -n);
-}
-
-static void insert_chars(int n)
-{
-	int nc = pad_cols() - col - n;
-	move_chars(col, nc, n);
 }
 
 static void term_blank(void)
@@ -384,7 +234,8 @@ static void term_reset(void)
 	top = 0;
 	bot = pad_rows();
 	mode = MODE_DEFAULT;
-	setattr(0);
+	fg = FGCOLOR;
+	bg = BGCOLOR;
 	term_blank();
 }
 
@@ -498,6 +349,14 @@ void term_save(struct term *term)
 	term->bot = bot;
 }
 
+static void term_redraw(void)
+{
+	int i;
+	for (i = 0; i < pad_rows(); i++)
+		_draw_row(i);
+	_draw_pos(row, col, 1);
+}
+
 void term_load(struct term *t, int flags)
 {
 	term = t;
@@ -522,14 +381,6 @@ void term_end(void)
 		close(term->fd);
 	memset(term, 0, sizeof(*term));
 	term_load(term, visible ? TERM_REDRAW : TERM_HIDDEN);
-}
-
-static void set_region(int t, int b)
-{
-	top = MIN(pad_rows() - 1, MAX(0, t - 1));
-	bot = MIN(pad_rows(), MAX(top + 1, b ? b : pad_rows()));
-	if (origin())
-		move_cursor(top, 0);
 }
 
 static int writeutf8(char *dst, int c)
@@ -569,6 +420,167 @@ void term_screenshot(void)
 	}
 	close(fd);
 }
+
+/* high-level drawing functions */
+
+static void empty_rows(int sr, int er)
+{
+	screen_reset(OFFSET(sr, 0), (er - sr) * pad_cols());
+}
+
+static void blank_rows(int sr, int er)
+{
+	empty_rows(sr, er);
+	draw_rows(sr, er);
+	draw_cursor(1);
+}
+
+static void scroll_screen(int sr, int nr, int n)
+{
+	draw_cursor(0);
+	screen_move(OFFSET(sr + n, 0), OFFSET(sr, 0), nr * pad_cols());
+	if (n > 0)
+		empty_rows(sr, sr + n);
+	else
+		empty_rows(sr + nr + n, sr + nr);
+	draw_rows(MIN(sr, sr + n), MAX(sr + nr, sr + nr + n));
+	draw_cursor(1);
+}
+
+static void insert_lines(int n)
+{
+	int sr = MAX(top, row);
+	int nr = bot - row - n;
+	if (nr > 0)
+		scroll_screen(sr, nr, n);
+}
+
+static void delete_lines(int n)
+{
+	int r = MAX(top, row);
+	int sr = r + n;
+	int nr = bot - r - n;
+	if (nr > 0)
+		scroll_screen(sr, nr, -n);
+}
+
+static int origin(void)
+{
+	return mode & MODE_ORIGIN;
+}
+
+static void move_cursor(int r, int c)
+{
+	int t, b;
+	draw_cursor(0);
+	t = origin() ? top : 0;
+	b = origin() ? bot : pad_rows();
+	row = MAX(t, MIN(r, b - 1));
+	col = MAX(0, MIN(c, pad_cols() - 1));
+	draw_cursor(1);
+	mode = BIT_SET(mode, MODE_WRAPREADY, 0);
+}
+
+static void set_region(int t, int b)
+{
+	top = MIN(pad_rows() - 1, MAX(0, t - 1));
+	bot = MIN(pad_rows(), MAX(top + 1, b ? b : pad_rows()));
+	if (origin())
+		move_cursor(top, 0);
+}
+
+static void setattr(int m)
+{
+	switch (m) {
+	case 0:
+		fg = FGCOLOR;
+		bg = BGCOLOR;
+		mode &= ~ATTR_ALL;
+		break;
+	case 1:
+		mode |= ATTR_BOLD;
+		break;
+	case 7:
+		mode |= ATTR_REV;
+		break;
+	case 22:
+		mode &= ~ATTR_BOLD;
+		break;
+	case 27:
+		mode &= ~ATTR_REV;
+		break;
+	default:
+		if ((m / 10) == 3)
+			fg = m > 37 ? FGCOLOR : m - 30;
+		if ((m / 10) == 4)
+			bg = m > 47 ? BGCOLOR : m - 40;
+	}
+}
+
+static void kill_chars(int sc, int ec)
+{
+	int i;
+	for (i = sc; i < ec; i++)
+		draw_char(' ', row, i);
+	draw_cursor(1);
+}
+
+static void move_chars(int sc, int nc, int n)
+{
+	draw_cursor(0);
+	screen_move(OFFSET(row, sc + n), OFFSET(row, sc), nc);
+	if (n > 0)
+		screen_reset(OFFSET(row, sc), n);
+	else
+		screen_reset(OFFSET(row, pad_cols() + n), -n);
+	draw_cols(row, MIN(sc, sc + n), pad_cols());
+	draw_cursor(1);
+}
+
+static void delete_chars(int n)
+{
+	int sc = col + n;
+	int nc = pad_cols() - sc;
+	move_chars(sc, nc, -n);
+}
+
+static void insert_chars(int n)
+{
+	int nc = pad_cols() - col - n;
+	move_chars(col, nc, n);
+}
+
+static void advance(int dr, int dc, int scrl)
+{
+	int r = row + dr;
+	int c = col + dc;
+	if (r >= bot && scrl) {
+		int n = bot - r - 1;
+		int nr = (bot - top) + n;
+		scroll_screen(top + -n, nr, n);
+	}
+	if (r < top && scrl) {
+		int n = top - r;
+		int nr = (bot - top) - n;
+		scroll_screen(top, nr, n);
+	}
+	r = MIN(bot - 1, MAX(top, r));
+	c = MIN(pad_cols() - 1, MAX(0, c));
+	move_cursor(r, c);
+}
+
+static void insertchar(int c)
+{
+	int wrapready;
+	if (mode & MODE_WRAPREADY)
+		advance(1, -col, 1);
+	draw_char(c, row, col);
+	wrapready = col == pad_cols() - 1;
+	advance(0, 1, 1);
+	if (wrapready)
+		mode = BIT_SET(mode, MODE_WRAPREADY, 1);
+}
+
 
 /* partial vt102 implementation */
 
@@ -802,7 +814,6 @@ static void csiseq(void)
 	int i;
 	int n = 0;
 	int c = readpty();
-	int inter = 0;
 	int priv = 0;
 
 	if (strchr("<=>?", c)) {
@@ -820,10 +831,8 @@ static void csiseq(void)
 		args[n] = arg;
 		n = n < ARRAY_SIZE(args) ? n + 1 : 0;
 	}
-	while (CSII(c)) {
-		inter = c;
+	while (CSII(c))
 		c = readpty();
-	}
 	switch (c) {
 	case 'H':	/* CUP		move cursor to row, column */
 	case 'f':	/* HVP		move cursor to row, column */
