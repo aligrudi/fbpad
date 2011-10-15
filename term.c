@@ -75,27 +75,29 @@ static void _draw_row(int r)
 	}
 }
 
+static int candraw(int sr, int er)
+{
+	int i;
+	if (visible && !lazy)
+		return 1;
+	if (lazy)
+		for (i = sr; i < er; i++)
+			dirty[i] = 1;
+	return 0;
+}
+
 static void draw_rows(int sr, int er)
 {
 	int i;
-	if (!visible)
-		return;
-	for (i = sr; i < er; i++) {
-		if (lazy)
-			dirty[i] = 1;
-		else
+	if (candraw(sr, er))
+		for (i = sr; i < er; i++)
 			_draw_row(i);
-	}
 }
 
 static void draw_cols(int r, int sc, int ec)
 {
 	int i;
-	if (!visible)
-		return;
-	if (lazy)
-		dirty[r] = 1;
-	else
+	if (candraw(r, r + 1))
 		for (i = sc; i < ec; i++)
 			_draw_pos(r, i, 0);
 }
@@ -106,21 +108,13 @@ static void draw_char(int ch, int r, int c)
 	screen[i] = ch;
 	fgs[i] = fgcolor();
 	bgs[i] = bgcolor();
-	if (!visible)
-		return;
-	if (lazy)
-		dirty[r] = 1;
-	else
+	if (candraw(r, r + 1))
 		_draw_pos(r, c, 0);
 }
 
 static void draw_cursor(int put)
 {
-	if (!visible)
-		return;
-	if (lazy)
-		dirty[row] = 1;
-	else
+	if (candraw(row, row + 1))
 		_draw_pos(row, col, put);
 }
 
