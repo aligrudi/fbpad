@@ -1,4 +1,5 @@
 #define TAGS		"xnlhtr01uiva-"
+#define TAGS_SAVED	""
 #define SHELL		"ksh"
 #define MAIL		"mailx"
 #define EDITOR		"vi"

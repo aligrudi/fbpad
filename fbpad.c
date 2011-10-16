@@ -20,6 +20,7 @@
 #include "pad.h"
 #include "term.h"
 #include "util.h"
+#include "scrsnap.h"
 #include "draw.h"
 
 #define CTRLKEY(x)	((x) - 96)
@@ -27,6 +28,7 @@
 #define NTAGS		(sizeof(tags) - 1)
 #define NTERMS		(NTAGS * 2)
 #define TERMOPEN(i)	(terms[i].fd)
+#define TERMSNAP(i)	(strchr(TAGS_SAVED, tags[(i) % NTAGS]))
 
 static char tags[] = TAGS;
 static struct term terms[NTERMS];
@@ -52,7 +54,11 @@ static int cterm(void)
 static void term_switch(int oidx, int nidx, int show, int save, int load)
 {
 	int flags = show ? (load ? TERM_REDRAW : TERM_VISIBLE) : TERM_HIDDEN;
+	if (save && TERMOPEN(oidx) && TERMSNAP(oidx))
+		scr_snap(&terms[oidx]);
 	term_save(&terms[oidx]);
+	if (show && load && TERMOPEN(nidx) && TERMSNAP(nidx))
+		flags = scr_load(&terms[nidx]) ? TERM_REDRAW : TERM_VISIBLE;
 	term_load(&terms[nidx], flags);
 }
 
@@ -121,7 +127,10 @@ static void showtags(void)
 		if (TERMOPEN(altterm(i)))
 			nt++;
 		pad_put(i == ctag ? '(' : ' ', r, c++, FGCOLOR, BGCOLOR);
-		pad_put(tags[i], r, c++, colors[nt], BGCOLOR);
+		if (TERMSNAP(i))
+			pad_put(tags[i], r, c++, !nt ? BGCOLOR : colors[nt], 15);
+		else
+			pad_put(tags[i], r, c++, colors[nt], BGCOLOR);
 		pad_put(i == ctag ? ')' : ' ', r, c++, FGCOLOR, BGCOLOR);
 	}
 }
@@ -158,6 +167,9 @@ static void directkey(void)
 			return;
 		case 's':
 			term_screenshot();
+			return;
+		case 'y':
+			term_switch(cterm(), cterm(), 1, 0, 1);
 			return;
 		default:
 			if (strchr(tags, c)) {
@@ -209,8 +221,10 @@ static int poll_all(void)
 		temp_switch(term_idx[i]);
 		if (ufds[i].revents & POLLIN)
 			term_read();
-		if (ufds[i].revents & BADPOLLFLAGS)
+		if (ufds[i].revents & BADPOLLFLAGS) {
+			scr_free(&terms[cterm()]);
 			term_end();
+		}
 		switch_back(term_idx[i]);
 	}
 	return 0;
