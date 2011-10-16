@@ -118,10 +118,10 @@ static void draw_cursor(int put)
 		_draw_pos(row, col, put);
 }
 
-static void lazy_clean(void)
+static void lazy_start(void)
 {
-	if (visible)
-		memset(dirty, 0, sizeof(dirty));
+	memset(dirty, 0, sizeof(dirty));
+	lazy = 1;
 }
 
 static void lazy_flush(void)
@@ -133,7 +133,6 @@ static void lazy_flush(void)
 	for (i = 0; i < pad_rows(); i++)
 		if (dirty[i])
 			_draw_row(i);
-	lazy_clean();
 	_draw_pos(row, col, 1);
 }
 
@@ -203,10 +202,8 @@ static void term_sendstr(char *s)
 static void term_blank(void)
 {
 	screen_reset(0, pad_rows() * pad_cols());
-	if (visible) {
+	if (visible)
 		pad_blank(bgcolor());
-		lazy_clean();
-	}
 }
 
 static void ctlseq(void);
@@ -214,8 +211,8 @@ void term_read(void)
 {
 	ctlseq();
 	while (ptycur < ptylen) {
-		if (ptylen - ptycur > 15)
-			lazy = 1;
+		if (!lazy && ptylen - ptycur > 15)
+			lazy_start();
 		ctlseq();
 	}
 	if (lazy)
