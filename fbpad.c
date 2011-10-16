@@ -26,6 +26,7 @@
 #define BADPOLLFLAGS	(POLLHUP | POLLERR | POLLNVAL)
 #define NTAGS		sizeof(tags)
 #define NTERMS		(NTAGS * 2)
+#define TERMOPEN(i)	(terms[i].fd)
 
 static char tags[] = TAGS;
 static struct term terms[NTERMS];
@@ -47,9 +48,6 @@ static int cterm(void)
 {
 	return tops[ctag] * NTAGS + ctag;
 }
-
-#define TERMSAVE(i)	(isupper(tags[i]))
-#define TERMOPEN(i)	(terms[i].fd)
 
 static void term_switch(int oidx, int nidx, int show, int save, int load)
 {
@@ -131,7 +129,6 @@ static void showtags(void)
 static void directkey(void)
 {
 	int c = readchar();
-	int i;
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
@@ -163,11 +160,9 @@ static void directkey(void)
 			term_screenshot();
 			return;
 		default:
-			for (i = 0; i < NTAGS; i++) {
-				if (c == tolower(tags[i])) {
-					showtag(i);
-					return;
-				}
+			if (strchr(tags, c)) {
+				showtag(strchr(tags, c) - tags);
+				return;
 			}
 			if (mainterm())
 				term_send(ESC);
