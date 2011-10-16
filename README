@@ -17,6 +17,7 @@ m-k		like m-j
 m-p		show tag summary
 m-o		jump to last tag
 m-tab		show next terminal
+m-s		create a text screenshot (/tmp/scr)
 c-m-q		quit fbpad
 ==============  =======================================
 
