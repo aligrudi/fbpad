@@ -20,6 +20,7 @@
 #include "pad.h"
 #include "term.h"
 #include "util.h"
+#include "draw.h"
 
 #define CTRLKEY(x)	((x) - 96)
 #define BADPOLLFLAGS	(POLLHUP | POLLERR | POLLNVAL)
@@ -47,16 +48,25 @@ static int cterm(void)
 	return tops[ctag] * NTAGS + ctag;
 }
 
+#define TERMSAVE(i)	(isupper(tags[i]))
+#define TERMOPEN(i)	(terms[i].fd)
+
+static void term_switch(int oidx, int nidx, int show, int save, int load)
+{
+	int flags = show ? (load ? TERM_REDRAW : TERM_VISIBLE) : TERM_HIDDEN;
+	term_save(&terms[oidx]);
+	term_load(&terms[nidx], flags);
+}
+
 static void showterm(int n)
 {
 	if (cterm() == n)
 		return;
 	if (ctag != n % NTAGS)
 		ltag = ctag;
-	term_save(&terms[cterm()]);
+	term_switch(cterm(), n, !hidden, !hidden, !hidden);
 	ctag = n % NTAGS;
 	tops[ctag] = n / NTAGS;
-	term_load(&terms[n], hidden ? TERM_HIDDEN : TERM_REDRAW);
 }
 
 static void showtag(int n)
@@ -66,7 +76,7 @@ static void showtag(int n)
 
 static struct term *mainterm(void)
 {
-	if (terms[cterm()].fd)
+	if (TERMOPEN(cterm()))
 		return &terms[cterm()];
 	return NULL;
 }
@@ -86,7 +96,7 @@ static void nextterm(void)
 {
 	int n = (cterm() + 1) % NTERMS;
 	while (n != cterm()) {
-		if (terms[n].fd) {
+		if (TERMOPEN(n)) {
 			showterm(n);
 			break;
 		}
@@ -108,9 +118,9 @@ static void showtags(void)
 	pad_put(' ', r, c++, FGCOLOR, BGCOLOR);
 	for (i = 0; i < NTAGS; i++) {
 		int nt = 0;
-		if (terms[i].fd)
+		if (TERMOPEN(i))
 			nt++;
-		if (terms[altterm(i)].fd)
+		if (TERMOPEN(altterm(i)))
 			nt++;
 		pad_put(i == ctag ? '(' : ' ', r, c++, FGCOLOR, BGCOLOR);
 		pad_put(tags[i], r, c++, colors[nt], 7);
@@ -121,6 +131,7 @@ static void showtags(void)
 static void directkey(void)
 {
 	int c = readchar();
+	int i;
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
@@ -152,9 +163,11 @@ static void directkey(void)
 			term_screenshot();
 			return;
 		default:
-			if (strchr(tags, c)) {
-				showtag(strchr(tags, c) - tags);
-				return;
+			for (i = 0; i < NTAGS; i++) {
+				if (c == tolower(tags[i])) {
+					showtag(i);
+					return;
+				}
 			}
 			if (mainterm())
 				term_send(ESC);
@@ -166,18 +179,14 @@ static void directkey(void)
 
 static void temp_switch(int termid)
 {
-	if (termid != cterm()) {
-		term_save(&terms[cterm()]);
-		term_load(&terms[termid], TERM_HIDDEN);
-	}
+	if (termid != cterm())
+		term_switch(cterm(), termid, 0, 0, 0);
 }
 
 static void switch_back(int termid)
 {
-	if (termid != cterm()) {
-		term_save(&terms[termid]);
-		term_load(&terms[cterm()], hidden ? TERM_HIDDEN : TERM_VISIBLE);
-	}
+	if (termid != cterm())
+		term_switch(termid, cterm(), 1, 0, 0);
 }
 
 static int poll_all(void)
@@ -189,7 +198,7 @@ static int poll_all(void)
 	ufds[0].fd = STDIN_FILENO;
 	ufds[0].events = POLLIN;
 	for (i = 0; i < NTERMS; i++) {
-		if (terms[i].fd) {
+		if (TERMOPEN(i)) {
 			ufds[n].fd = terms[i].fd;
 			ufds[n].events = POLLIN;
 			term_idx[n++] = i;
@@ -243,15 +252,13 @@ static void signalreceived(int n)
 	switch (n) {
 	case SIGUSR1:
 		hidden = 1;
-		term_save(&terms[cterm()]);
-		term_load(&terms[cterm()], TERM_HIDDEN);
+		term_switch(cterm(), cterm(), 0, 1, 0);
 		ioctl(STDIN_FILENO, VT_RELDISP, 1);
 		break;
 	case SIGUSR2:
 		hidden = 0;
-		pad_shown();
-		term_save(&terms[cterm()]);
-		term_load(&terms[cterm()], TERM_REDRAW);
+		fb_cmap();
+		term_switch(cterm(), cterm(), 1, 0, 1);
 		break;
 	case SIGCHLD:
 		while (waitpid(-1, NULL, WNOHANG) > 0)

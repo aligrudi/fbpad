@@ -139,8 +139,3 @@ int pad_cols(void)
 {
 	return cols;
 }
-
-void pad_shown(void)
-{
-	fb_cmap();
-}
