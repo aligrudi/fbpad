@@ -1,11 +1,11 @@
 CC = cc
-CFLAGS = -Wall -Os
+CFLAGS = -Wall -O2
 LDFLAGS =
 
 all: fbpad
-.c.o:
+%.o: %.c
 	$(CC) -c $(CFLAGS) $<
 fbpad: fbpad.o term.o pad.o draw.o font.o
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) -o $@ $^ $(LDFLAGS)
 clean:
 	rm -f *.o fbpad
