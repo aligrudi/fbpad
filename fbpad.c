@@ -24,7 +24,7 @@
 
 #define CTRLKEY(x)	((x) - 96)
 #define BADPOLLFLAGS	(POLLHUP | POLLERR | POLLNVAL)
-#define NTAGS		sizeof(tags)
+#define NTAGS		(sizeof(tags) - 1)
 #define NTERMS		(NTAGS * 2)
 #define TERMOPEN(i)	(terms[i].fd)
 
