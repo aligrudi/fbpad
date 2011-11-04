@@ -34,7 +34,7 @@
 #define COLOR15		0xdedede
 
 /* where to write the screen shot */
-#define SCREENSHOT	"/tmp/scr"
+#define SCRSHOT		"/tmp/scr"
 
 /* framebuffer depth */
 typedef unsigned int fbval_t;

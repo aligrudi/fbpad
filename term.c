@@ -401,7 +401,7 @@ static int writeutf8(char *dst, int c)
 void term_screenshot(void)
 {
 	char buf[1 << 11];
-	int fd = open(SCREENSHOT, O_CREAT | O_TRUNC | O_WRONLY, 0600);
+	int fd = open(SCRSHOT, O_CREAT | O_TRUNC | O_WRONLY, 0600);
 	int i, j;
 	for (i = 0; i < pad_rows(); i++) {
 		char *s = buf;
