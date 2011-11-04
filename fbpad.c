@@ -121,7 +121,7 @@ static void showtags(void)
 		if (TERMOPEN(altterm(i)))
 			nt++;
 		pad_put(i == ctag ? '(' : ' ', r, c++, FGCOLOR, BGCOLOR);
-		pad_put(tags[i], r, c++, colors[nt], 7);
+		pad_put(tags[i], r, c++, colors[nt], BGCOLOR);
 		pad_put(i == ctag ? ')' : ' ', r, c++, FGCOLOR, BGCOLOR);
 	}
 }
