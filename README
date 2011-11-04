@@ -2,26 +2,44 @@ FBPAD
 =====
 
 Fbpad is a small and simple linux framebuffer virtual terminal.
-It manages many terminals through tags; each tag can have at most two
-terminals.  Tags are represented with a single letter.
+It manages many terminals through single-letter tags; each tag can
+hold two terminals.  The following table indicates fbpad's key-bindings
+(m-k means pressing k, while holding the alt key).
 
 ==============  =======================================
 key		command
 ==============  =======================================
-m-c		execute a shell
-m-m		execute mail program
-m-e		execute editor program
-m-x 		switch to tag 'x'
+m-c		execute a shell (SHELL)
+m-m		execute mail program (MAIL)
+m-e		execute editor program (EDITOR)
+m-x 		switch to tag 'x' (TAGS)
 m-j		switch to alt terminal in this tag
 m-k		like m-j
 m-p		show tag summary
 m-o		jump to last tag
 m-tab		show next terminal
-m-s		create a text screenshot (/tmp/scr)
+m-s		create a text screenshot (SCRSHOT)
 c-m-q		quit fbpad
 ==============  =======================================
 
-INSTALLATION
-============
+SETTING UP
+==========
 
-Change config.h file to customize the settings.  Then run make.
+You can edit config.h to configure fbpad.  To get fbpad running you need
+to make sure TINYFONT points to a valid tinyfont file and SHELL is the
+shell you want to execute.  Also the type of fbval_t should match
+the framebuffer depth: unsigned char for 8-bit, short for 16-bit and int
+for 24/32-bit framebuffers.  Once these are set, you should be able to
+start fbpad without problems.
+
+Next you may want to change the list of fbpad tags by changing TAGS.
+The background and foreground colors can be changed using FGCOLOR and
+BGCOLOR macros, for instance the FGCOLOR of 2 and BGCOLOR of 0 creates
+green on black terminals.  Individual colors can be customized by
+editing the hex RGB color description of COLOR* macros.  Also SCRSHOT
+macro specifies text screenshot location.
+
+If you are using the scrsnap branch, you can edit TAGS_SAVED to edit
+the list of saved terminals.  Framebuffer memory is saved and reloaded
+for these tags, which is very convenient when you are using programs
+that change the framebuffer simultaneously, like fbpdf.
