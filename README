@@ -58,3 +58,35 @@ If you are want to use fbpad's scrsnap feature, you can edit TAGS_SAVED
 to change the list of saved terminals.  Framebuffer memory is saved and
 reloaded for these tags, which is very convenient when you are using
 programs that change the framebuffer simultaneously, like fbpdf.
+
+256-COLOR MODE
+==============
+
+Fbpad supports xterm's 256-color extension, but most programs will not
+use this extension, unless the $TERM terminfo entry declares this
+feature.  For this purpose, you need to create fbpad-256 terminfo file
+containing (ignore the two-space identation):
+
+  fbpad-256,
+  	use=linux, U8#0,
+  	colors#256,
+  	pairs#32767,
+  	setab=\E[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48;5;%p1%d%;m,
+  	setaf=\E[%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m,
+
+And install it with:
+
+  $ tic -x ./fbpad-256
+
+Now you can add this line to your shell startup script:
+
+  export TERM=fbpad-256
+
+Note that in order to use this feature and italic fonts in Vim, adding
+fbpad-256 terminfo is not necessary.  Including the following lines in
+your vimrc should enable them:
+
+  set t_ve=[?25h
+  set t_vi=
+  set t_ZH=[3m
+  set t_Co=256

@@ -6,11 +6,11 @@
 #include "draw.h"
 #include "fbpad.h"
 
-#define FN_C(fg)	(((fg) & FN_B ? (fg) + 8 : (fg)) & 0x0f)
+#define FN_C(fg)	((fg) & ~(FN_I | FN_B))
 #define NCACHE		(1 << 11)
 #define MAXFBWIDTH	(1 << 12)
 
-static unsigned int cd[] = {
+static unsigned int cd[256] = {
 	COLOR0, COLOR1, COLOR2, COLOR3,
 	COLOR4, COLOR5, COLOR6, COLOR7,
 	COLOR8, COLOR9, COLOR10, COLOR11,
@@ -21,24 +21,32 @@ static struct font *fonts[3];
 
 int pad_init(void)
 {
-	int i;
-	char *paths[] = {FR, FI, FB};
+	int r, g, b;
 	if (fb_init())
 		return 1;
 	if (sizeof(fbval_t) != FBM_BPP(fb_mode())) {
 		fprintf(stderr, "pad_init: fbval_t doesn't match fb depth\n");
 		return 1;
 	}
-	for (i = 0; i < 3; i++)
-		fonts[i] = paths[i] ? font_open(paths[i]) : NULL;
-	if (!fonts[0]) {
-		fprintf(stderr, "pad: bad font <%s>\n", paths[0]);
+	if (pad_font(FR, FI, FB) < 0)
 		return -1;
-	}
 	fnrows = font_rows(fonts[0]);
 	fncols = font_cols(fonts[0]);
 	rows = fb_rows() / fnrows;
 	cols = fb_cols() / fncols;
+	for (r = 0; r < 6; r++) {
+		for (g = 0; g < 6; g++) {
+			for (b = 0; b < 6; b++) {
+				int idx = 16 + r * 36 + g * 6 + b;
+				cd[idx] = ((r * 40 + 55) << 16) |
+						((g * 40 + 55) << 8) |
+						(b * 40 + 55);
+			}
+		}
+	}
+	for (r = 0; r < 24; r++)
+		cd[232 + r] = ((r * 10 + 8) << 16) |
+				((r * 10 + 8) << 8) | (r * 10 + 8);
 	return 0;
 }
 
@@ -181,4 +189,19 @@ int pad_rows(void)
 int pad_cols(void)
 {
 	return cols;
+}
+
+int pad_font(char *fr, char *fi, char *fb)
+{
+	char *fns[] = {fr, fi, fb};
+	int i;
+	for (i = 0; i < 3; i++) {
+		if (fonts[i])
+			font_free(fonts[i]);
+		fonts[i] = fns[i] ? font_open(fns[i]) : NULL;
+	}
+	memset(glyphs, 0, sizeof(glyphs));
+	if (!fonts[0])
+		fprintf(stderr, "pad: bad font <%s>\n", fr);
+	return fonts[0] ? 0 : -1;
 }

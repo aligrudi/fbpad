@@ -30,9 +30,9 @@
 
 static struct term *term;
 static int *screen;
-static char *fgs, *bgs;
+static short *fgs, *bgs;
 static int row, col;
-static char fg, bg;
+static int fg, bg;
 static int top, bot;
 static int mode;
 static int visible;
@@ -42,7 +42,7 @@ static int visible;
 static int dirty[NROWS];
 static int lazy;
 
-static char fgcolor(void)
+static int fgcolor(void)
 {
 	int c = mode & ATTR_REV ? bg : fg;
 	if (mode & ATTR_BOLD)
@@ -52,7 +52,7 @@ static char fgcolor(void)
 	return c;
 }
 
-static char bgcolor(void)
+static int bgcolor(void)
 {
 	return mode & ATTR_REV ? fg : bg;
 }
@@ -62,8 +62,8 @@ static void _draw_pos(int r, int c, int cursor)
 {
 	int rev = cursor && mode & MODE_CURSOR;
 	int i = OFFSET(r, c);
-	char fg = rev ? bgs[i] : fgs[i];
-	char bg = rev ? fgs[i] : bgs[i];
+	int fg = rev ? bgs[i] : fgs[i];
+	int bg = rev ? fgs[i] : bgs[i];
 	pad_put(screen[i], r, c, fg, bg);
 }
 
@@ -143,16 +143,19 @@ static void lazy_flush(void)
 
 static void screen_reset(int i, int n)
 {
+	int c;
 	memset(screen + i, 0, n * sizeof(*screen));
-	memset(fgs + i, fg, n);
-	memset(bgs + i, bg, n);
+	for (c = 0; c < n; c++)
+		fgs[i + c] = fg;
+	for (c = 0; c < n; c++)
+		bgs[i + c] = bg;
 }
 
 static void screen_move(int dst, int src, int n)
 {
 	memmove(screen + dst, screen + src, n * sizeof(*screen));
-	memmove(fgs + dst, fgs + src, n);
-	memmove(bgs + dst, bgs + src, n);
+	memmove(fgs + dst, fgs + src, n * sizeof(*fgs));
+	memmove(bgs + dst, bgs + src, n * sizeof(*bgs));
 }
 
 /* terminal input buffering */
@@ -451,8 +454,8 @@ void term_hist(int scrl)
 	for (i = 0; i < pad_rows(); i++) {
 		int off = (i - scrl) * pad_cols();
 		int *_scr = i < scrl ? HISTROW(scrl - i) : term->screen + off;
-		char *_fgs = i < scrl ? NULL : term->fgs + off;
-		char *_bgs = i < scrl ? NULL : term->bgs + off;
+		short *_fgs = i < scrl ? NULL : term->fgs + off;
+		short *_bgs = i < scrl ? NULL : term->bgs + off;
 		for (j = 0; j < pad_cols(); j++)
 			pad_put(_scr[j], i, j, _fgs ? _fgs[j] : BGCOLOR,
 						_bgs ? _bgs[j] : FGCOLOR);
@@ -546,6 +549,10 @@ static void setattr(int m)
 			fg = m > 37 ? FGCOLOR : m - 30;
 		if ((m / 10) == 4)
 			bg = m > 47 ? BGCOLOR : m - 40;
+		if ((m / 10) == 9)
+			fg = 8 + m - 90;
+		if ((m / 10) == 10)
+			bg = 8 + m - 100;
 	}
 }
 
@@ -933,8 +940,19 @@ static void csiseq(void)
 	case 'm':	/* SGR		set graphic rendition */
 		if (!n)
 			setattr(0);
-		for (i = 0; i < n; i++)
+		for (i = 0; i < n; i++) {
+			if (args[i] == 38) {
+				fg = args[i + 2];
+				i += 2;
+				continue;
+			}
+			if (args[i] == 48) {
+				bg = args[i + 2];
+				i += 2;
+				continue;
+			}
 			setattr(args[i]);
+		}
 		break;
 	case 'r':	/* DECSTBM	set scrolling region to (top, bottom) rows */
 		set_region(args[0], args[1]);

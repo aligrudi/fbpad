@@ -26,8 +26,8 @@ struct term_state {
 struct term {
 	int screen[NROWS * NCOLS];
 	int hist[NHIST * NCOLS];
-	char fgs[NROWS * NCOLS];
-	char bgs[NROWS * NCOLS];
+	short fgs[NROWS * NCOLS];
+	short bgs[NROWS * NCOLS];
 	struct term_state cur, sav;
 	int histtail;			/* the next history row */
 	int fd;
@@ -47,11 +47,12 @@ void term_hist(int pos);
 void term_redraw(void);
 
 /* pad.c */
-#define FN_I		0x10
-#define FN_B		0x20
+#define FN_I		0x100
+#define FN_B		0x200
 
 int pad_init(void);
 void pad_free(void);
+int pad_font(char *fr, char *fi, char *fb);
 void pad_put(int ch, int r, int c, int fg, int bg);
 int pad_rows(void);
 int pad_cols(void);
