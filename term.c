@@ -546,17 +546,17 @@ static void advance(int dr, int dc, int scrl)
 {
 	int r = row + dr;
 	int c = col + dc;
-	if (r >= bot && scrl) {
+	if (dr && r >= bot && scrl) {
 		int n = bot - r - 1;
 		int nr = (bot - top) + n;
 		scroll_screen(top + -n, nr, n);
 	}
-	if (r < top && scrl) {
+	if (dr && r < top && scrl) {
 		int n = top - r;
 		int nr = (bot - top) - n;
 		scroll_screen(top, nr, n);
 	}
-	r = MIN(bot - 1, MAX(top, r));
+	r = dr ? MIN(bot - 1, MAX(top, r)) : r;
 	c = MIN(pad_cols() - 1, MAX(0, c));
 	move_cursor(r, c);
 }
