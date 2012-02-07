@@ -379,10 +379,6 @@ static int writeutf8(char *dst, int c)
 {
 	char *d = dst;
 	int l;
-	if (!(c & ~0x7f)) {
-		*d++ = c ? c : ' ';
-		return 1;
-	}
 	if (c > 0xffff) {
 		*d++ = 0xf0 | (c >> 18);
 		l = 3;
@@ -392,6 +388,9 @@ static int writeutf8(char *dst, int c)
 	} else if (c > 0x7f) {
 		*d++ = 0xc0 | (c >> 6);
 		l = 1;
+	} else {
+		*d++ = c > 0 ? c : ' ';
+		l = 0;
 	}
 	while (l--)
 		*d++ = 0x80 | ((c >> (l * 6)) & 0x3f);
