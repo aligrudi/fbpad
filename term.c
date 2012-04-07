@@ -466,16 +466,16 @@ static void move_cursor(int r, int c)
 	draw_cursor(0);
 	t = origin() ? top : 0;
 	b = origin() ? bot : pad_rows();
-	row = MAX(t, MIN(r, b - 1));
-	col = MAX(0, MIN(c, pad_cols() - 1));
+	row = LIMIT(r, t, b - 1);
+	col = LIMIT(c, 0, pad_cols() - 1);
 	draw_cursor(1);
 	mode = BIT_SET(mode, MODE_WRAPREADY, 0);
 }
 
 static void set_region(int t, int b)
 {
-	top = MIN(pad_rows() - 1, MAX(0, t - 1));
-	bot = MIN(pad_rows(), MAX(top + 1, b ? b : pad_rows()));
+	top = LIMIT(t - 1, 0, pad_rows() - 1);
+	bot = LIMIT(b ? b : pad_rows(), top + 1, pad_rows());
 	if (origin())
 		move_cursor(top, 0);
 }
@@ -555,8 +555,8 @@ static void advance(int dr, int dc, int scrl)
 		int nr = (bot - top) - n;
 		scroll_screen(top, nr, n);
 	}
-	r = dr ? MIN(bot - 1, MAX(top, r)) : r;
-	c = MIN(pad_cols() - 1, MAX(0, c));
+	r = dr ? LIMIT(r, top, bot - 1) : r;
+	c = LIMIT(c, 0, pad_cols() - 1);
 	move_cursor(r, c);
 }
 
@@ -819,10 +819,10 @@ static void csiseq(void)
 			arg = arg * 10 + (c - '0');
 			c = readpty();
 		}
-		if (c == ';')
+		if (CSIP(c))
 			c = readpty();
-		args[n] = arg;
-		n = n < ARRAY_SIZE(args) ? n + 1 : 0;
+		if (n < ARRAY_SIZE(args))
+			args[n++] = arg;
 	}
 	while (CSII(c))
 		c = readpty();
@@ -905,10 +905,10 @@ static void csiseq(void)
 			modeseq(priv == '?' ? args[i] | 0x80 : args[i], 0);
 		break;
 	case 'P':	/* DCH		delete characters on current line */
-		delete_chars(MIN(MAX(1, args[0]), pad_cols() - col));
+		delete_chars(LIMIT(args[0], 1, pad_cols() - col));
 		break;
 	case '@':	/* ICH		insert blank characters */
-		insert_chars(MAX(1, args[0]));
+		insert_chars(LIMIT(args[0], 1, pad_cols() - col));
 		break;
 	case 'n':	/* DSR		device status report */
 		csiseq_dsr(args[0]);
