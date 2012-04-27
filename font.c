@@ -7,11 +7,13 @@
 #include "font.h"
 #include "util.h"
 
-static int fd;
-static int rows;
-static int cols;
-static int n;
-static int *glyphs;
+struct font {
+	int fd;
+	int rows;
+	int cols;
+	int n;
+	int *glyphs;
+};
 
 /*
  * tinyfont format:
@@ -32,33 +34,35 @@ struct tinyfont {
 	int rows, cols;
 };
 
-int font_init(void)
+struct font *font_open(char *path)
 {
+	struct font *font;
 	struct tinyfont head;
-	fd = open(TINYFONT, O_RDONLY);
-	if (fd == -1)
-		return 1;
-	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
-	if (read(fd, &head, sizeof(head)) != sizeof(head))
-		return 1;
-	n = head.n;
-	rows = head.rows;
-	cols = head.cols;
-	glyphs = malloc(n * sizeof(int));
-	if (read(fd, glyphs, n * sizeof(int)) != n * sizeof(int))
-		return 1;
-	return 0;
+	font = malloc(sizeof(*font));
+	font->fd = open(path, O_RDONLY);
+	if (font->fd == -1)
+		return NULL;
+	fcntl(font->fd, F_SETFD, fcntl(font->fd, F_GETFD) | FD_CLOEXEC);
+	if (read(font->fd, &head, sizeof(head)) != sizeof(head))
+		return NULL;
+	font->n = head.n;
+	font->rows = head.rows;
+	font->cols = head.cols;
+	font->glyphs = malloc(font->n * sizeof(int));
+	if (read(font->fd, font->glyphs, font->n * sizeof(int)) != font->n * sizeof(int))
+		return NULL;
+	return font;
 }
 
-static int find_glyph(int c)
+static int find_glyph(struct font *font, int c)
 {
 	int l = 0;
-	int h = n;
+	int h = font->n;
 	while (l < h) {
 		int m = (l + h) / 2;
-		if (glyphs[m] == c)
+		if (font->glyphs[m] == c)
 			return m;
-		if (c < glyphs[m])
+		if (c < font->glyphs[m])
 			h = m;
 		else
 			l = m + 1;
@@ -66,28 +70,30 @@ static int find_glyph(int c)
 	return -1;
 }
 
-int font_bitmap(void *dst, int c)
+int font_bitmap(struct font *font, void *dst, int c)
 {
-	int i = find_glyph(c);
+	int i = find_glyph(font, c);
 	if (i < 0)
 		return 1;
-	lseek(fd, sizeof(struct tinyfont) + n * sizeof(int) + i * rows * cols, 0);
-	read(fd, dst, rows * cols);
+	lseek(font->fd, sizeof(struct tinyfont) + font->n * sizeof(int) +
+					i * font->rows * font->cols, 0);
+	read(font->fd, dst, font->rows * font->cols);
 	return 0;
 }
 
-void font_free(void)
+void font_free(struct font *font)
 {
-	free(glyphs);
-	close(fd);
+	free(font->glyphs);
+	close(font->fd);
+	free(font);
 }
 
-int font_rows(void)
+int font_rows(struct font *font)
 {
-	return rows;
+	return font->rows;
 }
 
-int font_cols(void)
+int font_cols(struct font *font)
 {
-	return cols;
+	return font->cols;
 }

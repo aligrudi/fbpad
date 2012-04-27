@@ -1,7 +1,7 @@
 #define MAXDOTS		(1 << 10)
 
-int font_init(void);
-void font_free(void);
-int font_rows(void);
-int font_cols(void);
-int font_bitmap(void *dst, int c);
+struct font *font_open(char *path);
+void font_free(struct font *font);
+int font_rows(struct font *font);
+int font_cols(struct font *font);
+int font_bitmap(struct font *font, void *dst, int c);

@@ -32,9 +32,11 @@
 
 static char tags[] = TAGS;
 static struct term terms[NTERMS];
-static int tops[NTAGS];	/* top terms of tags */
-static int ctag;	/* current tag */
-static int ltag;	/* the last tag */
+static int tops[NTAGS];		/* top terms of tags */
+static int ctag;		/* current tag */
+static int ltag;		/* the last tag */
+static int fonts[NTERMS];	/* term fonts */
+static int setfont;		/* the next character is font */
 static int exitit;
 static int hidden;
 
@@ -59,6 +61,8 @@ static void term_switch(int oidx, int nidx, int show, int save, int load)
 	term_save(&terms[oidx]);
 	if (show && load && TERMOPEN(nidx) && TERMSNAP(nidx))
 		flags = scr_load(&terms[nidx]) ? TERM_REDRAW : TERM_VISIBLE;
+	if (show)
+		pad_font(fonts[nidx]);
 	term_load(&terms[nidx], flags);
 }
 
@@ -138,6 +142,14 @@ static void showtags(void)
 static void directkey(void)
 {
 	int c = readchar();
+	if (setfont && c != -1) {
+		setfont = 0;
+		if (c != ESC && isdigit(c)) {
+			fonts[cterm()] = c - '0';
+			term_switch(cterm(), cterm(), 1, 0, 1);
+		}
+		return;
+	}
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
@@ -170,6 +182,9 @@ static void directkey(void)
 			return;
 		case 'y':
 			term_switch(cterm(), cterm(), 1, 0, 1);
+			return;
+		case 'f':
+			setfont = 1;
 			return;
 		default:
 			if (strchr(tags, c)) {

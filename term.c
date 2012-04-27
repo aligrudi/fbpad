@@ -20,10 +20,11 @@
 #define MODE_AUTOCR		0x08
 #define MODE_DEFAULT		(MODE_CURSOR | MODE_WRAP)
 #define ATTR_BOLD		0x10
-#define ATTR_REV		0x20
-#define ATTR_ALL		(ATTR_BOLD | ATTR_REV)
-#define MODE_INSERT		0x40
-#define MODE_WRAPREADY		0x80
+#define ATTR_ITALIC		0x20
+#define ATTR_REV		0x40
+#define ATTR_ALL		(ATTR_BOLD | ATTR_ITALIC | ATTR_REV)
+#define MODE_INSERT		0x100
+#define MODE_WRAPREADY		0x200
 
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
 #define OFFSET(r, c)		((r) * pad_cols() + (c))
@@ -46,7 +47,11 @@ static int lazy;
 static char fgcolor(void)
 {
 	int c = mode & ATTR_REV ? bg : fg;
-	return mode & ATTR_BOLD ? c | 0x08 : c;
+	if (mode & ATTR_BOLD)
+		c |= FN_B;
+	if (mode & ATTR_ITALIC)
+		c |= FN_I;
+	return c;
 }
 
 static char bgcolor(void)
@@ -490,6 +495,9 @@ static void setattr(int m)
 		break;
 	case 1:
 		mode |= ATTR_BOLD;
+		break;
+	case 3:
+		mode |= ATTR_ITALIC;
 		break;
 	case 7:
 		mode |= ATTR_REV;

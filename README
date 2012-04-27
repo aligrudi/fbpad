@@ -21,13 +21,14 @@ m-tab		show next terminal
 m-s		create a text screenshot (SCRSHOT)
 m-y		redraw terminal
 c-m-q		quit fbpad
+m-f x		use font x in this terminal
 ==============  =======================================
 
 SETTING UP
 ==========
 
 You can edit config.h to configure fbpad.  To get fbpad running you need
-to make sure TINYFONT points to a valid tinyfont file and SHELL is the
+to make sure F* point to a valid tinyfont file and SHELL is the
 shell you want to execute.  Also the type of fbval_t should match
 the framebuffer depth: unsigned char for 8-bit, short for 16-bit and int
 for 24/32-bit framebuffers.  Once these are set, you should be able to
