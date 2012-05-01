@@ -97,7 +97,7 @@ static struct glyph {
 
 static struct glyph *glyph_entry(int c, int fn, int fg, int bg)
 {
-	return &glyphs[(c ^ (fg << 7) ^ (bg << 6) ^ (fn << 8)) & (NCACHE - 1)];
+	return &glyphs[((c - 32) ^ (fg << 6) ^ (bg << 5) ^ (fn << 8)) & (NCACHE - 1)];
 }
 
 static fbval_t *glyph_cache(int c, int fn, short fg, short bg)
