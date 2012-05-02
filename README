@@ -1,10 +1,10 @@
 FBPAD
 =====
 
-Fbpad is a small and simple linux framebuffer virtual terminal.
-It manages many terminals through single-letter tags; each tag can
-hold two terminals.  The following table indicates fbpad's key-bindings
-(m-k means pressing k, while holding the alt key).
+Fbpad is a small linux framebuffer virtual terminal.  It manages many
+terminals through single-letter tags; each tag can hold two terminals.
+The following table indicates fbpad's key-bindings (m-k means pressing k,
+while holding the alt key).
 
 ==============  =======================================
 key		command
@@ -27,19 +27,26 @@ m-f x		use font x in this terminal
 SETTING UP
 ==========
 
-You can edit config.h to configure fbpad.  To get fbpad running you need
-to make sure F* point to a valid tinyfont file and SHELL is the
-shell you want to execute.  Also the type of fbval_t should match
-the framebuffer depth: unsigned char for 8-bit, short for 16-bit and int
-for 24/32-bit framebuffers.  Once these are set, you should be able to
-start fbpad without problems.
+To configure fbpad, you should edit config.h.  To get fbpad running
+you need to make sure F0 points to a valid tinyfont file and SHELL to
+the shell you want fbpad to execute.  Also the type of fbval_t should
+match the framebuffer depth: unsigned char for 8-bit, short for 16-bit
+and int for 24/32-bit framebuffers.  Once these are set, you should be
+able to start fbpad without problems.
+
+Fbpad uses tinyfont files which can be created using ft2tf program
+(http://litcave.rudi.ir/).  At any moment each terminal in fbpad uses
+a fontset; i.e. a set of three, not necessarily different, fonts for
+rendering regular, italic, and bold text.  Fx macros specify the fonts in
+each fontset where the digit x is the identifier of the fontset ("m-f x"
+command modifies current terminal to use fontset x).
 
 Next you may want to change the list of fbpad tags by changing TAGS.
-The background and foreground colors can be changed using FGCOLOR and
-BGCOLOR macros, for instance the FGCOLOR of 2 and BGCOLOR of 0 creates
-green on black terminals.  Individual colors can be customized by
-editing the hex RGB color description of COLOR* macros.  Also SCRSHOT
-macro specifies text screenshot location.
+FGCOLOR and BGCOLOR macros specify foreground and background colors,
+for instance the FGCOLOR of 2 and BGCOLOR of 0 creates green on black
+terminals.  Individual colors can be customized by editing the hex RGB
+color description of COLOR* macros.  Also SCRSHOT macro specifies where
+fbpad text screenshots, as created using "m-s" command, should be saved.
 
 If you are want to use fbpad's scrsnap feature, you can edit TAGS_SAVED
 to change the list of saved terminals.  Framebuffer memory is saved and
