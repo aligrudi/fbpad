@@ -4,6 +4,9 @@
 #define MAIL		"mailx"
 #define EDITOR		"vi"
 
+/* fbval_t should match framebuffer depth */
+typedef unsigned int fbval_t;
+
 /* fontsets; tinyfont files for regular, italic, and bold fonts */
 #define F0		{"/path/to/font.tf", NULL, NULL}
 #define F1		{}
@@ -13,6 +16,12 @@
 
 #define FGCOLOR		0
 #define BGCOLOR		7
+
+/* where to write the screen shot */
+#define SCRSHOT		"/tmp/scr"
+
+/* optimized version of fb_val() */
+#define FB_VAL(r, g, b)	fb_val((r), (g), (b))
 
 /* black */
 #define COLOR0		0x000000
@@ -38,12 +47,3 @@
 /* white */
 #define COLOR7		0xf0f0f0
 #define COLOR15		0xdedede
-
-/* where to write the screen shot */
-#define SCRSHOT		"/tmp/scr"
-
-/* framebuffer depth */
-typedef unsigned int fbval_t;
-
-/* optimized version of fb_val() */
-#define FB_VAL(r, g, b)	fb_val((r), (g), (b))
