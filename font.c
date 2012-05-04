@@ -8,11 +8,11 @@
 #include "util.h"
 
 struct font {
-	int fd;
 	int rows;
 	int cols;
 	int n;
 	int *glyphs;
+	char *data;
 };
 
 /*
@@ -34,23 +34,35 @@ struct tinyfont {
 	int rows, cols;
 };
 
+static void *xread(int fd, int len)
+{
+	void *buf = malloc(len);
+	if (buf && read(fd, buf, len) == len)
+		return buf;
+	free(buf);
+	return NULL;
+}
+
 struct font *font_open(char *path)
 {
 	struct font *font;
 	struct tinyfont head;
+	int fd = open(path, O_RDONLY);
+	if (fd < 0 || read(fd, &head, sizeof(head)) != sizeof(head)) {
+		close(fd);
+		return NULL;
+	}
 	font = malloc(sizeof(*font));
-	font->fd = open(path, O_RDONLY);
-	if (font->fd == -1)
-		return NULL;
-	fcntl(font->fd, F_SETFD, fcntl(font->fd, F_GETFD) | FD_CLOEXEC);
-	if (read(font->fd, &head, sizeof(head)) != sizeof(head))
-		return NULL;
 	font->n = head.n;
 	font->rows = head.rows;
 	font->cols = head.cols;
-	font->glyphs = malloc(font->n * sizeof(int));
-	if (read(font->fd, font->glyphs, font->n * sizeof(int)) != font->n * sizeof(int))
+	font->glyphs = xread(fd, font->n * sizeof(int));
+	font->data = xread(fd, font->n * font->rows * font->cols);
+	close(fd);
+	if (!font->glyphs || !font->data) {
+		font_free(font);
 		return NULL;
+	}
 	return font;
 }
 
@@ -73,18 +85,19 @@ static int find_glyph(struct font *font, int c)
 int font_bitmap(struct font *font, void *dst, int c)
 {
 	int i = find_glyph(font, c);
+	int len = font->rows * font->cols;
 	if (i < 0)
 		return 1;
-	lseek(font->fd, sizeof(struct tinyfont) + font->n * sizeof(int) +
-					i * font->rows * font->cols, 0);
-	read(font->fd, dst, font->rows * font->cols);
+	memcpy(dst, font->data + i * len, len);
 	return 0;
 }
 
 void font_free(struct font *font)
 {
-	free(font->glyphs);
-	close(font->fd);
+	if (font->data)
+		free(font->data);
+	if (font->glyphs)
+		free(font->glyphs);
 	free(font);
 }
 
