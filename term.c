@@ -505,6 +505,9 @@ static void setattr(int m)
 	case 22:
 		mode &= ~ATTR_BOLD;
 		break;
+	case 23:
+		mode &= ~ATTR_ITALIC;
+		break;
 	case 27:
 		mode &= ~ATTR_REV;
 		break;
