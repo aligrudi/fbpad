@@ -21,7 +21,7 @@
 #include "draw.h"
 
 #define CTRLKEY(x)	((x) - 96)
-#define BADPOLLFLAGS	(POLLHUP | POLLERR | POLLNVAL)
+#define POLLFLAGS	(POLLIN | POLLHUP | POLLERR | POLLNVAL)
 #define NTAGS		(sizeof(tags) - 1)
 #define NTERMS		(NTAGS * 2)
 #define TERMOPEN(i)	(terms[i].fd)
@@ -38,6 +38,7 @@ static int locked;
 static char pass[1024];
 static int passlen;
 static int cmdmode;		/* execute a command and exit */
+static int histpos;		/* scrolling history */
 
 static int readchar(void)
 {
@@ -61,6 +62,8 @@ static void term_switch(int oidx, int nidx, int show, int save, int load)
 	if (show && load && TERMOPEN(nidx) && TERMSNAP(nidx))
 		flags = scr_load(&terms[nidx]) ? TERM_REDRAW : TERM_VISIBLE;
 	term_load(&terms[nidx], flags);
+	if (show && load)
+		histpos = 0;
 }
 
 static void showterm(int n)
@@ -191,6 +194,14 @@ static void directkey(void)
 			locked = 1;
 			passlen = 0;
 			return;
+		case ',':
+			histpos = MIN(NHIST, histpos + pad_rows() / 2);
+			term_hist(histpos);
+			return;
+		case '.':
+			histpos = MAX(0, histpos - pad_rows() / 2);
+			term_hist(histpos);
+			return;
 		default:
 			if (strchr(tags, c)) {
 				showtag(strchr(tags, c) - tags);
@@ -200,6 +211,7 @@ static void directkey(void)
 				term_send(ESC);
 		}
 	}
+	histpos = 0;
 	if (c != -1 && mainterm())
 		term_send(c);
 }
@@ -233,15 +245,17 @@ static int poll_all(void)
 	}
 	if (poll(ufds, n, 1000) < 1)
 		return 0;
-	if (ufds[0].revents & BADPOLLFLAGS)
+	if (ufds[0].revents & (POLLFLAGS & ~POLLIN))
 		return 1;
 	if (ufds[0].revents & POLLIN)
 		directkey();
 	for (i = 1; i < n; i++) {
+		if (!(ufds[i].revents & POLLFLAGS))
+			continue;
 		temp_switch(term_idx[i]);
-		if (ufds[i].revents & POLLIN)
+		if (ufds[i].revents & POLLIN) {
 			term_read();
-		if (ufds[i].revents & BADPOLLFLAGS) {
+		} else {
 			scr_free(&terms[term_idx[i]]);
 			term_end();
 			if (cmdmode)

@@ -70,7 +70,7 @@ static unsigned color2fb(int c)
 	return FB_VAL(CR(cd[c]), CG(cd[c]), CB(cd[c]));
 }
 
-static fbval_t cache[NCACHE][MAXDOTS];
+static fbval_t cache[NCACHE][NDOTS];
 static struct glyph {
 	int c;
 	short fg, bg;
@@ -112,7 +112,7 @@ static void bmp2fb(fbval_t *d, char *s, int fg, int bg, int nr, int nc)
 
 static fbval_t *ch2fb(int fn, int c, short fg, short bg)
 {
-	char bits[MAXDOTS];
+	char bits[NDOTS];
 	fbval_t *fbbits;
 	if (c < 0 || (c < 128 && (!isprint(c) || isspace(c))))
 		return NULL;

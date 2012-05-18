@@ -316,6 +316,7 @@ void term_exec(char **args)
 	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);
 	fcntl(term->fd, F_SETFL, fcntl(term->fd, F_GETFL) | O_NONBLOCK);
 	term_reset();
+	memset(term->hist, 0, sizeof(term->hist));
 }
 
 static void misc_save(struct term_state *state)
@@ -430,9 +431,44 @@ static void blank_rows(int sr, int er)
 	draw_cursor(1);
 }
 
+static void scrl_rows(int nr)
+{
+	int nc = nr * pad_cols();
+	memmove(term->hist, term->hist + nc,
+			(LEN(term->hist) - nc) * sizeof(term->hist[0]));
+	memcpy(term->hist + LEN(term->hist) - nc, term->screen,
+			nc * sizeof(term->hist[0]));
+}
+
+void term_hist(int scrl)
+{
+	int i, j;
+	int *_scr;
+	char *_fgs, *_bgs;
+	lazy_start();
+	memset(dirty, 1, sizeof(dirty));
+	for (i = 0; i < pad_rows(); i++) {
+		int off = (i - scrl) * pad_cols();
+		if (i < scrl) {
+			_scr = term->hist + LEN(term->hist) + off;
+			_fgs = NULL;
+			_bgs = NULL;
+		} else {
+			_scr = term->screen + off;
+			_fgs = term->fgs + off;
+			_bgs = term->bgs + off;
+		}
+		for (j = 0; j < pad_cols(); j++)
+			pad_put(_scr[j], i, j, _fgs ? _fgs[j] : BGCOLOR,
+						_bgs ? _bgs[j] : FGCOLOR);
+	}
+}
+
 static void scroll_screen(int sr, int nr, int n)
 {
 	draw_cursor(0);
+	if (sr + n == 0)
+		scrl_rows(sr);
 	screen_move(OFFSET(sr + n, 0), OFFSET(sr, 0), nr * pad_cols());
 	if (n > 0)
 		empty_rows(sr, sr + n);

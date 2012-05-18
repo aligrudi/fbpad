@@ -2,10 +2,13 @@
 
 #define MIN(a, b)	((a) < (b) ? (a) : (b))
 #define MAX(a, b)	((a) > (b) ? (a) : (b))
+#define LEN(a)		(sizeof(a) / sizeof((a)[0]))
 
 #define ESC		27		/* escape code */
-#define MAXCHARS	(1 << 15)	/* maximum characters on screen */
-#define MAXDOTS		(1 << 10)	/* maximum pixels in glyphs */
+#define NCOLS		256		/* maximum number of screen columns */
+#define NROWS		128		/* maximum number of screen rows */
+#define NDOTS		1024		/* maximum pixels in glyphs */
+#define NHIST		32		/* scrolling history lines */
 
 /* isdw.c */
 #define DWCHAR		0x40000000u	/* 2nd half of a fullwidth char */
@@ -25,9 +28,10 @@ struct term_state {
 };
 
 struct term {
-	int screen[MAXCHARS];
-	char fgs[MAXCHARS];
-	char bgs[MAXCHARS];
+	int screen[NROWS * NCOLS];
+	int hist[NHIST * NCOLS];
+	char fgs[NROWS * NCOLS];
+	char bgs[NROWS * NCOLS];
 	struct term_state cur, sav;
 	int fd;
 	int pid;
@@ -42,6 +46,7 @@ void term_send(int c);
 void term_exec(char **args);
 void term_end(void);
 void term_screenshot(void);
+void term_hist(int pos);
 
 /* pad.c */
 #define FN_I		0x10
