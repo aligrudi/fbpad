@@ -134,7 +134,7 @@ static fbval_t *ch2fb(int fn, int c, short fg, short bg)
 {
 	char bits[MAXDOTS];
 	fbval_t *fbbits;
-	if (c < 0 || (c < 256 && (!isprint(c) || isspace(c))))
+	if (c < 0 || (c < 128 && (!isprint(c) || isspace(c))))
 		return NULL;
 	if ((fbbits = glyph_cache(c, fn, fg, bg)))
 		return fbbits;
