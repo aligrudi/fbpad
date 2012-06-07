@@ -1,9 +1,9 @@
 /*
  * fbpad - a small framebuffer virtual terminal
  *
- * Copyright (C) 2009-2011 Ali Gholami Rudi <ali at rudi dot ir>
+ * Copyright (C) 2009-2012 Ali Gholami Rudi <ali at rudi dot ir>
  *
- * This program is released under GNU GPL version 2.
+ * This program is released under the modified BSD license.
  */
 #include <ctype.h>
 #include <errno.h>
