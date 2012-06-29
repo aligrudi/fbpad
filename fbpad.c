@@ -118,6 +118,7 @@ static void showtags(void)
 	int c = 0;
 	int r = pad_rows() - 1;
 	int i;
+	pad_font(0);
 	pad_put('T', r, c++, FGCOLOR, BGCOLOR);
 	pad_put('A', r, c++, FGCOLOR, BGCOLOR);
 	pad_put('G', r, c++, FGCOLOR, BGCOLOR);
@@ -137,6 +138,7 @@ static void showtags(void)
 			pad_put(tags[i], r, c++, colors[nt], BGCOLOR);
 		pad_put(i == ctag ? ')' : ' ', r, c++, FGCOLOR, BGCOLOR);
 	}
+	pad_font(fonts[cterm()]);
 }
 
 static void directkey(void)
