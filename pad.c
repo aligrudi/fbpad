@@ -18,54 +18,37 @@ static unsigned int cd[] = {
 	COLOR12, COLOR13, COLOR14, COLOR15};
 static int rows, cols;
 static int fnrows, fncols;
-static struct font *fonts[32];
-static int nfonts;
-static int font;
-
-static int fnsets[16][3];
-static char *fnpaths[][3] = {F0, F1, F2, F3, F4};
-
-static int fontadd(char *path)
-{
-	fonts[nfonts] = font_open(path);
-	if (!fonts[nfonts]) {
-		fprintf(stderr, "pad: bad font <%s>\n", path);
-		return -1;
-	}
-	return nfonts++;
-}
+static struct font *fonts[3];
 
 int pad_init(void)
 {
-	int i, j;
+	int i;
+	char *paths[] = {FR, FI, FB};
 	if (fb_init())
 		return 1;
 	if (sizeof(fbval_t) != FBM_BPP(fb_mode())) {
 		fprintf(stderr, "pad_init: fbval_t doesn't match fb depth\n");
 		return 1;
 	}
-	for (i = 0; i < ARRAY_SIZE(fnpaths); i++) {
-		for (j = 0; j < 3; j++) {
-			int fn = -1;
-			if (fnpaths[i][j])
-				if ((fn = fontadd(fnpaths[i][j])) < 0)
-					return 1;
-			if (fn < 0 && j > 0)
-				fn = fnsets[i][0];
-			if (fn < 0 && i > 0)
-				fn = fnsets[0][j];
-			fnsets[i][j] = fn;
-		}
+	for (i = 0; i < 3; i++)
+		fonts[i] = paths[i] ? font_open(paths[i]) : NULL;
+	if (!fonts[0]) {
+		fprintf(stderr, "pad: bad font <%s>\n", paths[0]);
+		return -1;
 	}
-	pad_font(0);
+	fnrows = font_rows(fonts[0]);
+	fncols = font_cols(fonts[0]);
+	rows = fb_rows() / fnrows;
+	cols = fb_cols() / fncols;
 	return 0;
 }
 
 void pad_free(void)
 {
 	int i;
-	for (i = 0; i < nfonts; i++)
-		font_free(fonts[i]);
+	for (i = 0; i < 3; i++)
+		if (fonts[i])
+			font_free(fonts[i]);
 	fb_free();
 }
 
@@ -91,30 +74,28 @@ static unsigned color2fb(int c)
 static fbval_t cache[NCACHE][MAXDOTS];
 static struct glyph {
 	int c;
-	int fn;
 	short fg, bg;
 } glyphs[NCACHE];
 
-static struct glyph *glyph_entry(int c, int fn, int fg, int bg)
+static struct glyph *glyph_entry(int c, int fg, int bg)
 {
-	return &glyphs[((c - 32) ^ (fg << 6) ^ (bg << 5) ^ (fn << 8)) & (NCACHE - 1)];
+	return &glyphs[((c - 32) ^ (fg << 6) ^ (bg << 5)) & (NCACHE - 1)];
 }
 
-static fbval_t *glyph_cache(int c, int fn, short fg, short bg)
+static fbval_t *glyph_cache(int c, short fg, short bg)
 {
-	struct glyph *g = glyph_entry(c, fn, fg, bg);
-	if (g->c == c && g->fn == fn && g->fg == fg && g->bg == bg)
+	struct glyph *g = glyph_entry(c, fg, bg);
+	if (g->c == c && g->fg == fg && g->bg == bg)
 		return cache[g - glyphs];
 	return NULL;
 }
 
-static fbval_t *glyph_add(int c, int fn, short fg, short bg)
+static fbval_t *glyph_add(int c, short fg, short bg)
 {
-	struct glyph *g = glyph_entry(c, fn, fg, bg);
+	struct glyph *g = glyph_entry(c, fg, bg);
 	g->c = c;
 	g->fg = fg;
 	g->bg = bg;
-	g->fn = fn;
 	return cache[g - glyphs];
 }
 
@@ -136,11 +117,11 @@ static fbval_t *ch2fb(int fn, int c, short fg, short bg)
 	fbval_t *fbbits;
 	if (c < 0 || (c < 128 && (!isprint(c) || isspace(c))))
 		return NULL;
-	if ((fbbits = glyph_cache(c, fn, fg, bg)))
+	if ((fbbits = glyph_cache(c, fg, bg)))
 		return fbbits;
 	if (font_bitmap(fonts[fn], bits, c))
 		return NULL;
-	fbbits = glyph_add(c, fn, fg, bg);
+	fbbits = glyph_add(c, fg, bg);
 	bmp2fb(fbbits, bits, FN_C(fg), FN_C(bg),
 		font_rows(fonts[fn]), font_cols(fonts[fn]));
 	return fbbits;
@@ -160,10 +141,10 @@ static void fb_box(int sr, int sc, int er, int ec, fbval_t val)
 static int fnsel(int fg, int bg)
 {
 	if ((fg | bg) & FN_B)
-		return fnsets[font][2];
+		return fonts[2] ? 2 : 0;
 	if ((fg | bg) & FN_I)
-		return fnsets[font][1];
-	return fnsets[font][0];
+		return fonts[1] ? 1 : 0;
+	return 0;
 }
 
 void pad_put(int ch, int r, int c, int fg, int bg)
@@ -201,13 +182,4 @@ int pad_rows(void)
 int pad_cols(void)
 {
 	return cols;
-}
-
-void pad_font(int i)
-{
-	font = i < ARRAY_SIZE(fnpaths) ? i : 0;
-	fnrows = font_rows(fonts[fnsets[0][0]]);
-	fncols = font_cols(fonts[fnsets[0][0]]);
-	rows = fb_rows() / fnrows;
-	cols = fb_cols() / fncols;
 }

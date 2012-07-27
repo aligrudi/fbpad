@@ -21,7 +21,6 @@ m-tab		show next terminal
 m-s		create a text screenshot (SCRSHOT)
 m-y		redraw terminal
 c-m-q		quit fbpad
-m-f x		use font x in this terminal
 ==============  =======================================
 
 SETTING UP
@@ -34,12 +33,10 @@ match the framebuffer depth: unsigned char for 8-bit, short for 16-bit
 and int for 24/32-bit framebuffers.  Once these are set, you should be
 able to start fbpad without problems.
 
-Fbpad uses tinyfont files which can be created using ft2tf program
-(http://litcave.rudi.ir/).  At any moment each terminal in fbpad uses
-a fontset; i.e. a set of three, not necessarily different, fonts for
-rendering regular, italic, and bold text.  Fx macros specify the fonts in
-each fontset where the digit x is the identifier of the fontset ("m-f x"
-command modifies current terminal to use fontset x).
+Fbpad uses tinyfont files, which can be created using ft2tf program
+(http://litcave.rudi.ir/).  The FR, FI and FB macros specify the path
+of the tinyfont files for regular, italic and bold fonts.  If FI or FB
+is NULL, the regular font is used for italic or bold text.
 
 Next you may want to change the list of fbpad tags by changing TAGS.
 FGCOLOR and BGCOLOR macros specify foreground and background colors,

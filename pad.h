@@ -10,4 +10,3 @@ int pad_rows(void);
 int pad_cols(void);
 void pad_blank(int c);
 void pad_blankrow(int r, int bg);
-void pad_font(int n);

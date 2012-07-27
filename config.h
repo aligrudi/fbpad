@@ -7,12 +7,10 @@
 /* fbval_t should match framebuffer depth */
 typedef unsigned int fbval_t;
 
-/* fontsets; tinyfont files for regular, italic, and bold fonts */
-#define F0		{"/path/to/font.tf", NULL, NULL}
-#define F1		{}
-#define F2		{}
-#define F3		{}
-#define F4		{}
+/* tinyfont files for regular, italic, and bold fonts */
+#define FR		"/path/to/font.tf"
+#define FI		NULL
+#define FB		NULL
 
 #define FGCOLOR		0
 #define BGCOLOR		7
