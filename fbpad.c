@@ -37,6 +37,9 @@ static int ctag;		/* current tag */
 static int ltag;		/* the last tag */
 static int exitit;
 static int hidden;
+static int locked;
+static char pass[1024];
+static int passlen;
 
 static int readchar(void)
 {
@@ -138,6 +141,18 @@ static void showtags(void)
 static void directkey(void)
 {
 	int c = readchar();
+	if (PASS && locked) {
+		if (c == '\r') {
+			pass[passlen] = '\0';
+			if (!strcmp(PASS, pass))
+				locked = 0;
+			passlen = 0;
+			return;
+		}
+		if (isprint(c) && passlen + 1 < sizeof(pass))
+			pass[passlen++] = c;
+		return;
+	}
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
@@ -170,6 +185,10 @@ static void directkey(void)
 			return;
 		case 'y':
 			term_switch(cterm(), cterm(), 1, 0, 1);
+			return;
+		case CTRLKEY('l'):
+			locked = 1;
+			passlen = 0;
 			return;
 		default:
 			if (strchr(tags, c)) {

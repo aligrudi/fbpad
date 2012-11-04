@@ -20,6 +20,7 @@ m-o		jump to last tag
 m-tab		show next terminal
 m-s		create a text screenshot (SCRSHOT)
 m-y		redraw terminal
+c-m-l		lock the screen; use PASS to unlock
 c-m-q		quit fbpad
 ==============  =======================================
 
