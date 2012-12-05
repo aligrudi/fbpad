@@ -241,7 +241,7 @@ static int poll_all(void)
 		if (ufds[i].revents & POLLIN)
 			term_read();
 		if (ufds[i].revents & BADPOLLFLAGS) {
-			scr_free(&terms[cterm()]);
+			scr_free(&terms[term_idx[i]]);
 			term_end();
 		}
 		switch_back(term_idx[i]);
