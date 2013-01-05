@@ -40,6 +40,7 @@ static int taglock;		/* disable tag switching */
 static char pass[1024];
 static int passlen;
 static int cmdmode;		/* execute a command and exit */
+static int altfont;		/* using alternative font set */
 
 static int readchar(void)
 {
@@ -188,6 +189,14 @@ static void directkey(void)
 			term_screenshot();
 			return;
 		case 'y':
+			term_redraw(1);
+			return;
+		case 'f':
+			altfont = 1 - altfont;
+			if (altfont)
+				pad_font(FR0, FI0, FB0);
+			else
+				pad_font(FR, FI, FB);
 			term_redraw(1);
 			return;
 		case CTRLKEY('l'):

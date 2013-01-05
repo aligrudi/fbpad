@@ -132,6 +132,10 @@ static fbval_t *ch2fb(int fn, int c, short fg, short bg)
 static void fb_set(int r, int c, void *mem, int len)
 {
 	int bpp = FBM_BPP(fb_mode());
+	if (r < 0 || r >= fb_rows())
+		return;
+	if (c + len >= fb_cols())
+		len = MAX(0, fb_cols() - c);
 	memcpy(fb_mem(r) + c * bpp, mem, len * bpp);
 }
 
@@ -194,6 +198,12 @@ int pad_font(char *fr, char *fi, char *fb)
 	struct font *r = fr ? font_open(fr) : NULL;
 	if (!r)
 		return 1;
+	if (fonts[0])
+		font_free(fonts[0]);
+	if (fonts[1])
+		font_free(fonts[1]);
+	if (fonts[2])
+		font_free(fonts[2]);
 	fonts[0] = r;
 	fonts[1] = fi ? font_open(fi) : NULL;
 	fonts[2] = fb ? font_open(fb) : NULL;

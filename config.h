@@ -18,6 +18,11 @@ typedef unsigned int fbval_t;
 #define FI		NULL
 #define FB		NULL
 
+/* alternative fonts */
+#define FR0		"/path/to/font.tf"
+#define FI0		NULL
+#define FB0		NULL
+
 /* foreground and background colors */
 #define FGCOLOR		0
 #define BGCOLOR		15
