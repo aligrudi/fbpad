@@ -174,7 +174,7 @@ static void waitpty(void)
 static int readpty(void)
 {
 	if (ptycur < ptylen)
-		return ptybuf[ptycur++];
+		return (unsigned char) ptybuf[ptycur++];
 	if (!term->fd)
 		return -1;
 	ptylen = read(term->fd, ptybuf, PTYBUFSIZE);
@@ -184,7 +184,7 @@ static int readpty(void)
 	}
 	if (ptylen > 0) {
 		ptycur = 1;
-		return ptybuf[0];
+		return (unsigned char) ptybuf[0];
 	}
 	return -1;
 }
