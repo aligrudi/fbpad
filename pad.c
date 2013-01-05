@@ -4,10 +4,9 @@
 #include <string.h>
 #include "config.h"
 #include "draw.h"
-#include "font.h"
-#include "util.h"
-#include "pad.h"
+#include "fbpad.h"
 
+#define FN_C(fg)	(((fg) & FN_B ? (fg) + 8 : (fg)) & 0x0f)
 #define NCACHE		(1 << 11)
 #define MAXFBWIDTH	(1 << 12)
 

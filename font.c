@@ -3,9 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include "config.h"
-#include "font.h"
-#include "util.h"
+#include "fbpad.h"
 
 struct font {
 	int rows;

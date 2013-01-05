@@ -10,9 +10,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include "config.h"
-#include "pad.h"
-#include "util.h"
-#include "term.h"
+#include "fbpad.h"
 
 #define MODE_CURSOR		0x01
 #define MODE_WRAP		0x02
@@ -26,8 +24,10 @@
 #define MODE_INSERT		0x100
 #define MODE_WRAPREADY		0x200
 
+#define LIMIT(n, a, b)		((n) < (a) ? (a) : ((n) > (b) ? (b) : (n)))
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
 #define OFFSET(r, c)		((r) * pad_cols() + (c))
+#define LEN(a)			(sizeof(a) / sizeof((a)[0]))
 
 static struct term *term;
 static int *screen;
@@ -832,7 +832,7 @@ static void csiseq(void)
 		}
 		if (CSIP(c))
 			c = readpty();
-		if (n < ARRAY_SIZE(args))
+		if (n < LEN(args))
 			args[n++] = arg;
 	}
 	while (CSII(c))

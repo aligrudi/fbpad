@@ -2,7 +2,6 @@
 #include <string.h>
 #include "config.h"
 #include "draw.h"
-#include "scrsnap.h"
 
 #define NSCRS		((sizeof(saved) - 1) * 2)
 #define SNAPSZ		(1 << 23)

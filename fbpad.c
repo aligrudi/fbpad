@@ -1,7 +1,7 @@
 /*
  * fbpad - a small framebuffer virtual terminal
  *
- * Copyright (C) 2009-2012 Ali Gholami Rudi <ali at rudi dot ir>
+ * Copyright (C) 2009-2013 Ali Gholami Rudi <ali at rudi dot ir>
  *
  * This program is released under the modified BSD license.
  */
@@ -17,10 +17,7 @@
 #include <unistd.h>
 #include <linux/vt.h>
 #include "config.h"
-#include "pad.h"
-#include "term.h"
-#include "util.h"
-#include "scrsnap.h"
+#include "fbpad.h"
 #include "draw.h"
 
 #define CTRLKEY(x)	((x) - 96)
