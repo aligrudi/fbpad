@@ -7,6 +7,12 @@
 #define MAXCHARS	(1 << 15)	/* maximum characters on screen */
 #define MAXDOTS		(1 << 10)	/* maximum pixels in glyphs */
 
+/* isdw.c */
+#define DWCHAR		0x40000000u	/* 2nd half of a fullwidth char */
+
+int isdw(int c);
+int iszw(int c);
+
 /* term.c */
 #define TERM_HIDDEN	0
 #define TERM_VISIBLE	1

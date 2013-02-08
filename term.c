@@ -27,7 +27,6 @@
 #define LIMIT(n, a, b)		((n) < (a) ? (a) : ((n) > (b) ? (b) : (n)))
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
 #define OFFSET(r, c)		((r) * pad_cols() + (c))
-#define LEN(a)			(sizeof(a) / sizeof((a)[0]))
 
 static struct term *term;
 static int *screen;
@@ -410,7 +409,8 @@ void term_screenshot(void)
 	for (i = 0; i < pad_rows(); i++) {
 		char *s = buf;
 		for (j = 0; j < pad_cols(); j++)
-			s += writeutf8(s, screen[OFFSET(i, j)]);
+			if (~screen[OFFSET(i, j)] & DWCHAR)
+				s += writeutf8(s, screen[OFFSET(i, j)]);
 		*s++ = '\n';
 		write(fd, buf, s - buf);
 	}
@@ -654,7 +654,11 @@ static void ctlseq(void)
 		unknown("ctlseq", c);
 		break;
 	default:
-		insertchar(readutf8(c));
+		c = readutf8(c);
+		if (!iszw(c))
+			insertchar(c);
+		if (isdw(c))
+			insertchar(c | DWCHAR);
 		break;
 	}
 }
@@ -832,7 +836,7 @@ static void csiseq(void)
 		}
 		if (CSIP(c))
 			c = readpty();
-		if (n < LEN(args))
+		if (n < MAXCSIARGS)
 			args[n++] = arg;
 	}
 	while (CSII(c))
