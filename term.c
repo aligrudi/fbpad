@@ -523,7 +523,7 @@ static void kill_chars(int sc, int ec)
 {
 	int i;
 	for (i = sc; i < ec; i++)
-		draw_char(' ', row, i);
+		draw_char(0, row, i);
 	draw_cursor(1);
 }
 
@@ -573,16 +573,15 @@ static void advance(int dr, int dc, int scrl)
 
 static void insertchar(int c)
 {
-	int wrapready;
 	if (mode & MODE_WRAPREADY)
 		advance(1, -col, 1);
 	if (mode & MODE_INSERT)
 		insert_chars(1);
 	draw_char(c, row, col);
-	wrapready = col == pad_cols() - 1;
-	advance(0, 1, 1);
-	if (wrapready)
+	if (col == pad_cols() - 1)
 		mode = BIT_SET(mode, MODE_WRAPREADY, 1);
+	else
+		advance(0, 1, 1);
 }
 
 
@@ -655,6 +654,8 @@ static void ctlseq(void)
 		break;
 	default:
 		c = readutf8(c);
+		if (isdw(c) && col + 1 == pad_cols() && ~mode & MODE_WRAPREADY)
+			insertchar(0);
 		if (!iszw(c))
 			insertchar(c);
 		if (isdw(c))
