@@ -41,7 +41,7 @@ static int passlen;
 static int readchar(void)
 {
 	char b;
-	if (read(STDIN_FILENO, &b, 1) > 0)
+	if (read(0, &b, 1) > 0)
 		return (int) b;
 	return -1;
 }
@@ -218,7 +218,7 @@ static int poll_all(void)
 	int term_idx[NTERMS + 1];
 	int i;
 	int n = 1;
-	ufds[0].fd = STDIN_FILENO;
+	ufds[0].fd = 0;
 	ufds[0].events = POLLIN;
 	for (i = 0; i < NTERMS; i++) {
 		if (TERMOPEN(i)) {
@@ -249,15 +249,15 @@ static int poll_all(void)
 static void mainloop(void)
 {
 	struct termios oldtermios, termios;
-	tcgetattr(STDIN_FILENO, &termios);
+	tcgetattr(0, &termios);
 	oldtermios = termios;
 	cfmakeraw(&termios);
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &termios);
+	tcsetattr(0, TCSAFLUSH, &termios);
 	term_load(&terms[cterm()], TERM_REDRAW);
 	while (!exitit)
 		if (poll_all())
 			break;
-	tcsetattr(STDIN_FILENO, 0, &oldtermios);
+	tcsetattr(0, 0, &oldtermios);
 }
 
 static void signalreceived(int n);
@@ -278,7 +278,7 @@ static void signalreceived(int n)
 	case SIGUSR1:
 		hidden = 1;
 		term_switch(cterm(), cterm(), 0, 1, 0);
-		ioctl(STDIN_FILENO, VT_RELDISP, 1);
+		ioctl(0, VT_RELDISP, 1);
 		break;
 	case SIGUSR2:
 		hidden = 0;
@@ -301,7 +301,7 @@ static void setupsignals(void)
 	vtm.acqsig = SIGUSR2;
 	vtm.frsig = 0;
 	signalregister();
-	ioctl(STDIN_FILENO, VT_SETMODE, &vtm);
+	ioctl(0, VT_SETMODE, &vtm);
 }
 
 int main(void)
@@ -309,16 +309,15 @@ int main(void)
 	char *hide = "\x1b[?25l";
 	char *clear = "\x1b[2J\x1b[H";
 	char *show = "\x1b[?25h";
-	write(STDOUT_FILENO, clear, strlen(clear));
-	write(STDIN_FILENO, hide, strlen(hide));
+	write(1, clear, strlen(clear));
+	write(1, hide, strlen(hide));
 	if (pad_init())
 		goto failed;
 	setupsignals();
-	fcntl(STDIN_FILENO, F_SETFL,
-		fcntl(STDIN_FILENO, F_GETFL) | O_NONBLOCK);
+	fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
 	mainloop();
 	pad_free();
 failed:
-	write(STDIN_FILENO, show, strlen(show));
+	write(1, show, strlen(show));
 	return 0;
 }
