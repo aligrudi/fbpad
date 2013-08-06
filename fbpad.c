@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2009-2013 Ali Gholami Rudi <ali at rudi dot ir>
  *
- * This program is released under the modified BSD license.
+ * This program is released under the Modified BSD license.
  */
 #include <ctype.h>
 #include <errno.h>
@@ -37,6 +37,7 @@ static int hidden;
 static int locked;
 static char pass[1024];
 static int passlen;
+static int cmdmode;		/* execute a command and exit */
 
 static int readchar(void)
 {
@@ -64,7 +65,7 @@ static void term_switch(int oidx, int nidx, int show, int save, int load)
 
 static void showterm(int n)
 {
-	if (cterm() == n)
+	if (cterm() == n || cmdmode)
 		return;
 	if (ctag != n % NTAGS)
 		ltag = ctag;
@@ -243,13 +244,15 @@ static int poll_all(void)
 		if (ufds[i].revents & BADPOLLFLAGS) {
 			scr_free(&terms[term_idx[i]]);
 			term_end();
+			if (cmdmode)
+				exitit = 1;
 		}
 		switch_back(term_idx[i]);
 	}
 	return 0;
 }
 
-static void mainloop(void)
+static void mainloop(char **args)
 {
 	struct termios oldtermios, termios;
 	tcgetattr(0, &termios);
@@ -257,6 +260,10 @@ static void mainloop(void)
 	cfmakeraw(&termios);
 	tcsetattr(0, TCSAFLUSH, &termios);
 	term_load(&terms[cterm()], TERM_REDRAW);
+	if (args) {
+		cmdmode = 1;
+		exec_cmd(args);
+	}
 	while (!exitit)
 		if (poll_all())
 			break;
@@ -307,18 +314,21 @@ static void setupsignals(void)
 	ioctl(0, VT_SETMODE, &vtm);
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 	char *hide = "\x1b[?25l";
 	char *clear = "\x1b[2J\x1b[H";
 	char *show = "\x1b[?25h";
+	char **args = argv + 1;
 	write(1, clear, strlen(clear));
 	write(1, hide, strlen(hide));
 	if (pad_init())
 		goto failed;
 	setupsignals();
 	fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
-	mainloop();
+	while (args[0] && args[0][0] == '-')
+		args++;
+	mainloop(args[0] ? args : NULL);
 	pad_free();
 failed:
 	write(1, show, strlen(show));

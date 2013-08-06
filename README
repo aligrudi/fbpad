@@ -24,6 +24,12 @@ c-m-l		lock the screen; use PASS to unlock
 c-m-q		quit fbpad
 ==============  =======================================
 
+Fbpad can be instructed to execute a single program: the program and
+its arguments should passed as command line arguments of fbpad.  Fbpad
+executes this program in a terminal, disables all terminal switching
+commands, and exits as soon as the program finishes.
+
+
 SETTING UP
 ==========
 
