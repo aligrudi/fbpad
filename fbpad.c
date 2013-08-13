@@ -85,10 +85,10 @@ static struct term *mainterm(void)
 	return NULL;
 }
 
-static void exec_cmd(char *file)
+static void exec_cmd(char **args)
 {
 	if (!mainterm())
-		term_exec(file);
+		term_exec(args);
 }
 
 static int altterm(int n)
@@ -137,6 +137,9 @@ static void showtags(void)
 
 static void directkey(void)
 {
+	char *shell[32] = SHELL;
+	char *mail[32] = MAIL;
+	char *editor[32] = EDITOR;
 	int c = readchar();
 	if (PASS && locked) {
 		if (c == '\r') {
@@ -153,13 +156,13 @@ static void directkey(void)
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
-			exec_cmd(SHELL);
+			exec_cmd(shell);
 			return;
 		case 'm':
-			exec_cmd(MAIL);
+			exec_cmd(mail);
 			return;
 		case 'e':
-			exec_cmd(EDITOR);
+			exec_cmd(editor);
 			return;
 		case 'j':
 		case 'k':

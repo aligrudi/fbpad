@@ -1,8 +1,11 @@
+/* list of tags */
 #define TAGS		"xnlhtr01uiva-"
 #define TAGS_SAVED	""
-#define SHELL		"ksh"
-#define MAIL		"mailx"
-#define EDITOR		"vi"
+
+/* programs mapped to m-c, m-m, m-e */
+#define SHELL		{"sh"}
+#define EDITOR		{"vi"}
+#define MAIL		{"mailx", "-f", "+inbox"}
 
 /* fbval_t should match framebuffer depth */
 typedef unsigned int fbval_t;
@@ -12,6 +15,7 @@ typedef unsigned int fbval_t;
 #define FI		NULL
 #define FB		NULL
 
+/* foreground and background colors */
 #define FGCOLOR		0
 #define BGCOLOR		7
 

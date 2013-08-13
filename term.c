@@ -295,7 +295,7 @@ static void execvep(char *cmd, char **argv, char **envp)
 }
 
 extern char **environ;
-void term_exec(char *cmd)
+void term_exec(char **args)
 {
 	int master, slave;
 	memset(term, 0, sizeof(*term));
@@ -305,11 +305,10 @@ void term_exec(char *cmd)
 		return;
 	if (!term->pid) {
 		char *envp[MAXENV] = {"TERM=linux"};
-		char *argv[2] = {cmd};
 		envcpy(envp + 1, environ);
 		_login(slave);
 		close(master);
-		execvep(cmd, argv, envp);
+		execvep(args[0], args, envp);
 		exit(1);
 	}
 	close(slave);
