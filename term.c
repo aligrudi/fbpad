@@ -431,13 +431,16 @@ static void blank_rows(int sr, int er)
 	draw_cursor(1);
 }
 
+#define HISTROW(pos)	(term->hist + ((term->histtail + NHIST - (pos)) % NHIST) * pad_cols())
+
 static void scrl_rows(int nr)
 {
-	int nc = nr * pad_cols();
-	memmove(term->hist, term->hist + nc,
-			(LEN(term->hist) - nc) * sizeof(term->hist[0]));
-	memcpy(term->hist + LEN(term->hist) - nc, term->screen,
-			nc * sizeof(term->hist[0]));
+	int i;
+	for (i = 0; i < nr; i++) {
+		memcpy(HISTROW(0), screen + i * pad_cols(),
+				pad_cols() * sizeof(screen[0]));
+		term->histtail = (term->histtail + 1) % NHIST;
+	}
 }
 
 void term_hist(int scrl)
@@ -448,12 +451,12 @@ void term_hist(int scrl)
 	lazy_start();
 	memset(dirty, 1, sizeof(dirty));
 	for (i = 0; i < pad_rows(); i++) {
-		int off = (i - scrl) * pad_cols();
 		if (i < scrl) {
-			_scr = term->hist + LEN(term->hist) + off;
+			_scr = HISTROW(scrl - i);
 			_fgs = NULL;
 			_bgs = NULL;
 		} else {
+			int off = (i - scrl) * pad_cols();
 			_scr = term->screen + off;
 			_fgs = term->fgs + off;
 			_bgs = term->bgs + off;

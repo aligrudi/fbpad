@@ -8,7 +8,7 @@
 #define NCOLS		256		/* maximum number of screen columns */
 #define NROWS		128		/* maximum number of screen rows */
 #define NDOTS		1024		/* maximum pixels in glyphs */
-#define NHIST		32		/* scrolling history lines */
+#define NHIST		128		/* scrolling history lines */
 
 /* isdw.c */
 #define DWCHAR		0x40000000u	/* 2nd half of a fullwidth char */
@@ -33,6 +33,7 @@ struct term {
 	char fgs[NROWS * NCOLS];
 	char bgs[NROWS * NCOLS];
 	struct term_state cur, sav;
+	int histtail;			/* the next history row */
 	int fd;
 	int pid;
 	int top, bot;
