@@ -33,7 +33,7 @@ static int tops[NTAGS];		/* top terms of tags */
 static int ctag;		/* current tag */
 static int ltag;		/* the last tag */
 static int exitit;
-static int hidden;
+static int hidden;		/* do not touch the framebuffer */
 static int locked;
 static char pass[1024];
 static int passlen;
@@ -225,7 +225,7 @@ static void temp_switch(int termid)
 static void switch_back(int termid)
 {
 	if (termid != cterm())
-		term_switch(termid, cterm(), 1, 0, 0);
+		term_switch(termid, cterm(), !hidden, 0, 0);
 }
 
 static int poll_all(void)
