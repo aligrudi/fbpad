@@ -138,6 +138,7 @@ static void lazy_flush(void)
 		if (dirty[i])
 			_draw_row(i);
 	_draw_pos(row, col, 1);
+	lazy = 0;
 }
 
 static void screen_reset(int i, int n)
@@ -221,7 +222,6 @@ void term_read(void)
 	}
 	if (lazy)
 		lazy_flush();
-	lazy = 0;
 }
 
 static void term_reset(void)
@@ -448,6 +448,10 @@ void term_hist(int scrl)
 	int i, j;
 	int *_scr;
 	char *_fgs, *_bgs;
+	if (!scrl) {
+		lazy_flush();
+		return;
+	}
 	lazy_start();
 	memset(dirty, 1, sizeof(dirty));
 	for (i = 0; i < pad_rows(); i++) {
