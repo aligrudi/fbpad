@@ -53,7 +53,28 @@ static int cterm(void)
 	return tops[ctag] * NTAGS + ctag;
 }
 
-static void term_switch(int oidx, int nidx, int show, int save, int load)
+static int altterm(int n)
+{
+	return n < NTAGS ? n + NTAGS : n - NTAGS;
+}
+
+static int nextterm(void)
+{
+	int n = (cterm() + 1) % NTERMS;
+	while (n != cterm()) {
+		if (TERMOPEN(n))
+			break;
+		n = (n + 1) % NTERMS;
+	}
+	return n;
+}
+
+static struct term *mainterm(void)
+{
+	return TERMOPEN(cterm()) ? &terms[cterm()] : NULL;
+}
+
+static void switchterm(int oidx, int nidx, int show, int save, int load)
 {
 	int flags = show ? (load ? TERM_REDRAW : TERM_VISIBLE) : TERM_HIDDEN;
 	if (save && TERMOPEN(oidx) && TERMSNAP(oidx))
@@ -72,7 +93,7 @@ static void showterm(int n)
 		return;
 	if (ctag != n % NTAGS)
 		ltag = ctag;
-	term_switch(cterm(), n, !hidden, !hidden, !hidden);
+	switchterm(cterm(), n, !hidden, !hidden, !hidden);
 	ctag = n % NTAGS;
 	tops[ctag] = n / NTAGS;
 }
@@ -82,37 +103,13 @@ static void showtag(int n)
 	showterm(tops[n] * NTAGS + n);
 }
 
-static struct term *mainterm(void)
-{
-	if (TERMOPEN(cterm()))
-		return &terms[cterm()];
-	return NULL;
-}
-
-static void exec_cmd(char **args)
+static void execterm(char **args)
 {
 	if (!mainterm())
 		term_exec(args);
 }
 
-static int altterm(int n)
-{
-	return n < NTAGS ? n + NTAGS : n - NTAGS;
-}
-
-static void nextterm(void)
-{
-	int n = (cterm() + 1) % NTERMS;
-	while (n != cterm()) {
-		if (TERMOPEN(n)) {
-			showterm(n);
-			break;
-		}
-		n = (n + 1) % NTERMS;
-	}
-}
-
-static void showtags(void)
+static void listtags(void)
 {
 	int colors[] = {15, 4, 2};
 	int c = 0;
@@ -160,13 +157,13 @@ static void directkey(void)
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
-			exec_cmd(shell);
+			execterm(shell);
 			return;
 		case 'm':
-			exec_cmd(mail);
+			execterm(mail);
 			return;
 		case 'e':
-			exec_cmd(editor);
+			execterm(editor);
 			return;
 		case 'j':
 		case 'k':
@@ -176,10 +173,11 @@ static void directkey(void)
 			showtag(ltag);
 			return;
 		case 'p':
-			showtags();
+			listtags();
 			return;
 		case '\t':
-			nextterm();
+			if (nextterm() != cterm())
+				showterm(nextterm());
 			return;
 		case CTRLKEY('q'):
 			exitit = 1;
@@ -188,7 +186,7 @@ static void directkey(void)
 			term_screenshot();
 			return;
 		case 'y':
-			term_switch(cterm(), cterm(), 1, 0, 1);
+			switchterm(cterm(), cterm(), 1, 0, 1);
 			return;
 		case CTRLKEY('l'):
 			locked = 1;
@@ -211,24 +209,26 @@ static void directkey(void)
 				term_send(ESC);
 		}
 	}
+	if (histpos)
+		term_hist(0);
 	histpos = 0;
 	if (c != -1 && mainterm())
 		term_send(c);
 }
 
-static void temp_switch(int termid)
+static void peepterm(int termid)
 {
 	if (termid != cterm())
-		term_switch(cterm(), termid, 0, 0, 0);
+		switchterm(cterm(), termid, 0, 0, 0);
 }
 
-static void switch_back(int termid)
+static void peepback(int termid)
 {
 	if (termid != cterm())
-		term_switch(termid, cterm(), !hidden, 0, 0);
+		switchterm(termid, cterm(), !hidden, 0, 0);
 }
 
-static int poll_all(void)
+static int pollterms(void)
 {
 	struct pollfd ufds[NTERMS + 1];
 	int term_idx[NTERMS + 1];
@@ -252,7 +252,7 @@ static int poll_all(void)
 	for (i = 1; i < n; i++) {
 		if (!(ufds[i].revents & POLLFLAGS))
 			continue;
-		temp_switch(term_idx[i]);
+		peepterm(term_idx[i]);
 		if (ufds[i].revents & POLLIN) {
 			term_read();
 		} else {
@@ -261,7 +261,7 @@ static int poll_all(void)
 			if (cmdmode)
 				exitit = 1;
 		}
-		switch_back(term_idx[i]);
+		peepback(term_idx[i]);
 	}
 	return 0;
 }
@@ -276,10 +276,10 @@ static void mainloop(char **args)
 	term_load(&terms[cterm()], TERM_REDRAW);
 	if (args) {
 		cmdmode = 1;
-		exec_cmd(args);
+		execterm(args);
 	}
 	while (!exitit)
-		if (poll_all())
+		if (pollterms())
 			break;
 	tcsetattr(0, 0, &oldtermios);
 }
@@ -301,13 +301,13 @@ static void signalreceived(int n)
 	switch (n) {
 	case SIGUSR1:
 		hidden = 1;
-		term_switch(cterm(), cterm(), 0, 1, 0);
+		switchterm(cterm(), cterm(), 0, 1, 0);
 		ioctl(0, VT_RELDISP, 1);
 		break;
 	case SIGUSR2:
 		hidden = 0;
 		fb_cmap();
-		term_switch(cterm(), cterm(), 1, 0, 1);
+		switchterm(cterm(), cterm(), 1, 0, 1);
 		break;
 	case SIGCHLD:
 		while (waitpid(-1, NULL, WNOHANG) > 0)
@@ -316,7 +316,7 @@ static void signalreceived(int n)
 	}
 }
 
-static void setupsignals(void)
+static void signalsetup(void)
 {
 	struct vt_mode vtm;
 	vtm.mode = VT_PROCESS;
@@ -338,7 +338,7 @@ int main(int argc, char **argv)
 	write(1, hide, strlen(hide));
 	if (pad_init())
 		goto failed;
-	setupsignals();
+	signalsetup();
 	fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
 	while (args[0] && args[0][0] == '-')
 		args++;
