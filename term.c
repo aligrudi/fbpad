@@ -39,8 +39,7 @@ static int visible;
 
 /* low level drawing and lazy updating */
 
-#define MAXLINES		(1 << 8)
-static int dirty[MAXLINES];
+static int dirty[NROWS];
 static int lazy;
 
 static char fgcolor(void)
@@ -58,16 +57,17 @@ static char bgcolor(void)
 	return mode & ATTR_REV ? fg : bg;
 }
 
+/* assumes visible && !lazy */
 static void _draw_pos(int r, int c, int cursor)
 {
 	int rev = cursor && mode & MODE_CURSOR;
 	int i = OFFSET(r, c);
 	char fg = rev ? bgs[i] : fgs[i];
 	char bg = rev ? fgs[i] : bgs[i];
-	if (visible)
-		pad_put(screen[i], r, c, fg, bg);
+	pad_put(screen[i], r, c, fg, bg);
 }
 
+/* assumes visible && !lazy */
 static void _draw_row(int r)
 {
 	int i;
@@ -84,7 +84,7 @@ static int candraw(int sr, int er)
 	int i;
 	if (visible && !lazy)
 		return 1;
-	if (lazy)
+	if (visible && lazy)
 		for (i = sr; i < er; i++)
 			dirty[i] = 1;
 	return 0;
@@ -131,7 +131,7 @@ static void lazy_start(void)
 static void lazy_flush(void)
 {
 	int i;
-	if (!visible)
+	if (!visible || !lazy)
 		return;
 	_draw_pos(row, col, 0);
 	for (i = 0; i < pad_rows(); i++)
@@ -216,12 +216,11 @@ void term_read(void)
 {
 	ctlseq();
 	while (ptycur < ptylen) {
-		if (!lazy && ptylen - ptycur > 15)
+		if (visible && !lazy && ptylen - ptycur > 15)
 			lazy_start();
 		ctlseq();
 	}
-	if (lazy)
-		lazy_flush();
+	lazy_flush();
 }
 
 static void term_reset(void)
@@ -345,12 +344,15 @@ void term_save(struct term *term)
 	term->bot = bot;
 }
 
-static void term_redraw(void)
+void term_redraw(void)
 {
-	int i;
-	for (i = 0; i < pad_rows(); i++)
-		_draw_row(i);
-	_draw_pos(row, col, 1);
+	if (term->fd) {
+		lazy_start();
+		memset(dirty, 1, sizeof(dirty));
+		lazy_flush();
+	} else {
+		pad_blank(0);
+	}
 }
 
 void term_load(struct term *t, int flags)
@@ -363,12 +365,6 @@ void term_load(struct term *t, int flags)
 	visible = flags;
 	top = term->top;
 	bot = term->bot;
-	if (flags == TERM_REDRAW) {
-		if (term->fd)
-			term_redraw();
-		else
-			pad_blank(0);
-	}
 }
 
 void term_end(void)
@@ -376,7 +372,9 @@ void term_end(void)
 	if (term->fd)
 		close(term->fd);
 	memset(term, 0, sizeof(*term));
-	term_load(term, visible ? TERM_REDRAW : TERM_HIDDEN);
+	term_load(term, visible);
+	if (visible)
+		term_redraw();
 }
 
 static int writeutf8(char *dst, int c)
@@ -446,8 +444,6 @@ static void scrl_rows(int nr)
 void term_hist(int scrl)
 {
 	int i, j;
-	int *_scr;
-	char *_fgs, *_bgs;
 	if (!scrl) {
 		lazy_flush();
 		return;
@@ -455,16 +451,10 @@ void term_hist(int scrl)
 	lazy_start();
 	memset(dirty, 1, sizeof(dirty));
 	for (i = 0; i < pad_rows(); i++) {
-		if (i < scrl) {
-			_scr = HISTROW(scrl - i);
-			_fgs = NULL;
-			_bgs = NULL;
-		} else {
-			int off = (i - scrl) * pad_cols();
-			_scr = term->screen + off;
-			_fgs = term->fgs + off;
-			_bgs = term->bgs + off;
-		}
+		int off = (i - scrl) * pad_cols();
+		int *_scr = i < scrl ? HISTROW(scrl - i) : term->screen + off;
+		char *_fgs = i < scrl ? NULL : term->fgs + off;
+		char *_bgs = i < scrl ? NULL : term->bgs + off;
 		for (j = 0; j < pad_cols(); j++)
 			pad_put(_scr[j], i, j, _fgs ? _fgs[j] : BGCOLOR,
 						_bgs ? _bgs[j] : FGCOLOR);

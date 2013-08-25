@@ -17,10 +17,6 @@ int isdw(int c);
 int iszw(int c);
 
 /* term.c */
-#define TERM_HIDDEN	0
-#define TERM_VISIBLE	1
-#define TERM_REDRAW	2
-
 struct term_state {
 	int row, col;
 	int fg, bg;
@@ -48,6 +44,7 @@ void term_exec(char **args);
 void term_end(void);
 void term_screenshot(void);
 void term_hist(int pos);
+void term_redraw(void);
 
 /* pad.c */
 #define FN_I		0x10

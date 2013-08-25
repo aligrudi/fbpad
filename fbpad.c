@@ -74,17 +74,23 @@ static struct term *mainterm(void)
 	return TERMOPEN(cterm()) ? &terms[cterm()] : NULL;
 }
 
+static void histscrl(int pos)
+{
+	if (pos != histpos)
+		term_hist(pos);
+	histpos = pos;
+}
+
 static void switchterm(int oidx, int nidx, int show, int save, int load)
 {
-	int flags = show ? (load ? TERM_REDRAW : TERM_VISIBLE) : TERM_HIDDEN;
+	if (load && histpos)
+		histscrl(0);
 	if (save && TERMOPEN(oidx) && TERMSNAP(oidx))
 		scr_snap(&terms[oidx]);
 	term_save(&terms[oidx]);
-	if (show && load && TERMOPEN(nidx) && TERMSNAP(nidx))
-		flags = scr_load(&terms[nidx]) ? TERM_REDRAW : TERM_VISIBLE;
-	term_load(&terms[nidx], flags);
-	if (show && load)
-		histpos = 0;
+	term_load(&terms[nidx], show);
+	if (load && (!TERMOPEN(nidx) || !TERMSNAP(nidx) || scr_load(&terms[nidx])))
+		term_redraw();
 }
 
 static void showterm(int n)
@@ -186,19 +192,17 @@ static void directkey(void)
 			term_screenshot();
 			return;
 		case 'y':
-			switchterm(cterm(), cterm(), 1, 0, 1);
+			term_redraw();
 			return;
 		case CTRLKEY('l'):
 			locked = 1;
 			passlen = 0;
 			return;
 		case ',':
-			histpos = MIN(NHIST, histpos + pad_rows() / 2);
-			term_hist(histpos);
+			histscrl(MIN(NHIST, histpos + pad_rows() / 2));
 			return;
 		case '.':
-			histpos = MAX(0, histpos - pad_rows() / 2);
-			term_hist(histpos);
+			histscrl(MAX(0, histpos - pad_rows() / 2));
 			return;
 		default:
 			if (strchr(tags, c)) {
@@ -209,9 +213,7 @@ static void directkey(void)
 				term_send(ESC);
 		}
 	}
-	if (histpos)
-		term_hist(0);
-	histpos = 0;
+	histscrl(0);
 	if (c != -1 && mainterm())
 		term_send(c);
 }
@@ -273,7 +275,8 @@ static void mainloop(char **args)
 	oldtermios = termios;
 	cfmakeraw(&termios);
 	tcsetattr(0, TCSAFLUSH, &termios);
-	term_load(&terms[cterm()], TERM_REDRAW);
+	term_load(&terms[cterm()], 1);
+	term_redraw();
 	if (args) {
 		cmdmode = 1;
 		execterm(args);
