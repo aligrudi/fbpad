@@ -157,36 +157,34 @@ static void screen_move(int dst, int src, int n)
 
 /* terminal input buffering */
 
-#define PTYBUFSIZE		(1 << 13)
+#define PTYLEN			(1 << 16)
 
-static char ptybuf[PTYBUFSIZE];		/* always emptied in term_read() */
+static char ptybuf[PTYLEN];		/* always emptied in term_read() */
 static int ptylen;			/* buffer length */
 static int ptycur;			/* current offset */
 
-static void waitpty(void)
+static int waitpty(int us)
 {
 	struct pollfd ufds[1];
 	ufds[0].fd = term->fd;
 	ufds[0].events = POLLIN;
-	poll(ufds, 1, 100);
+	return poll(ufds, 1, us) <= 0;
 }
 
 static int readpty(void)
 {
+	int nr;
 	if (ptycur < ptylen)
 		return (unsigned char) ptybuf[ptycur++];
 	if (!term->fd)
 		return -1;
-	ptylen = read(term->fd, ptybuf, PTYBUFSIZE);
-	if (ptylen == -1 && errno == EAGAIN) {
-		waitpty();
-		ptylen = read(term->fd, ptybuf, PTYBUFSIZE);
-	}
-	if (ptylen > 0) {
-		ptycur = 1;
-		return (unsigned char) ptybuf[0];
-	}
-	return -1;
+	ptylen = 0;
+	while ((nr = read(term->fd, ptybuf + ptylen, PTYLEN - ptylen)) > 0)
+		ptylen += nr;
+	if (!ptylen && errno == EAGAIN && !waitpty(100))
+		ptylen = read(term->fd, ptybuf, PTYLEN);
+	ptycur = 1;
+	return ptylen > 0 ? (unsigned char) ptybuf[0] : -1;
 }
 
 /* term interface functions */
