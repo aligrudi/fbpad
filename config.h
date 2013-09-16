@@ -47,7 +47,7 @@ typedef unsigned int fbval_t;
 #define COLOR5		0xaa00aa
 #define COLOR13		0xff55ff
 /* cyan */
-#define COLOR6		0xaa00aa
+#define COLOR6		0x00aaaa
 #define COLOR14		0x55ffff
 /* white */
 #define COLOR7		0xaaaaaa
