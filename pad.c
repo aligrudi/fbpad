@@ -158,8 +158,11 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 {
 	int sr = fnrows * r;
 	int sc = fncols * c;
+	fbval_t *bits;
 	int i;
-	fbval_t *bits = ch2fb(fnsel(fg, bg), ch, fg, bg);
+	if ((fg & 0xfff8) == FN_B && !fonts[2])
+		fg |= 8;		/* increase intensity of no FB */
+	bits = ch2fb(fnsel(fg, bg), ch, fg, bg);
 	if (!bits)
 		bits = ch2fb(0, ch, fg, bg);
 	if (!bits)
