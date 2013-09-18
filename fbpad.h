@@ -47,8 +47,9 @@ void term_hist(int pos);
 void term_redraw(void);
 
 /* pad.c */
-#define FN_I		0x100
-#define FN_B		0x200
+#define FN_I		0x100		/* italic font */
+#define FN_B		0x200		/* bold font */
+#define FN_C		0x0ff		/* font color mask */
 
 int pad_init(void);
 void pad_free(void);

@@ -6,7 +6,6 @@
 #include "draw.h"
 #include "fbpad.h"
 
-#define FN_C(fg)	((fg) & ~(FN_I | FN_B))
 #define NCACHE		(1 << 11)
 #define MAXFBWIDTH	(1 << 12)
 
@@ -129,7 +128,7 @@ static fbval_t *ch2fb(int fn, int c, short fg, short bg)
 	if (font_bitmap(fonts[fn], bits, c))
 		return NULL;
 	fbbits = glyph_add(c, fg, bg);
-	bmp2fb(fbbits, bits, FN_C(fg), FN_C(bg),
+	bmp2fb(fbbits, bits, fg & FN_C, bg & FN_C,
 		font_rows(fonts[fn]), font_cols(fonts[fn]));
 	return fbbits;
 }
@@ -166,7 +165,7 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 	if (!bits)
 		bits = ch2fb(0, ch, fg, bg);
 	if (!bits)
-		fb_box(sr, sc, sr + fnrows, sc + fncols, color2fb(FN_C(bg)));
+		fb_box(sr, sc, sr + fnrows, sc + fncols, color2fb(bg & FN_C));
 	else
 		for (i = 0; i < fnrows; i++)
 			fb_set(sr + i, sc, bits + (i * fncols), fncols);
@@ -174,14 +173,14 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 
 void pad_blank(int c)
 {
-	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(FN_C(c)));
+	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(c & FN_C));
 }
 
 void pad_blankrow(int r, int bg)
 {
 	int sr = r * fnrows;
 	int er = r == rows - 1 ? fb_rows() : (r + 1) * fnrows;
-	fb_box(sr, 0, er, fb_cols(), color2fb(FN_C(bg)));
+	fb_box(sr, 0, er, fb_cols(), color2fb(bg & FN_C));
 }
 
 int pad_rows(void)
