@@ -24,15 +24,17 @@ struct term_state {
 };
 
 struct term {
-	int screen[NROWS * NCOLS];
-	int hist[NHIST * NCOLS];
-	short fgs[NROWS * NCOLS];
-	short bgs[NROWS * NCOLS];
-	struct term_state cur, sav;
+	int screen[NROWS * NCOLS];	/* screen content */
+	int hist[NHIST * NCOLS];	/* scrolling history */
+	short fgs[NROWS * NCOLS];	/* foreground color */
+	short bgs[NROWS * NCOLS];	/* background color */
+	int dirty[NROWS];		/* changed rows in lazy mode */
+	struct term_state cur, sav;	/* terminal saved state */
+	int fd;				/* terminal file descriptor */
 	int histtail;			/* the next history row */
-	int fd;
-	int pid;
-	int top, bot;
+	int lazy;			/* lazy mode */
+	int pid;			/* pid of the terminal program */
+	int top, bot;			/* terminal top and bot */
 };
 
 void term_load(struct term *term, int visible);
@@ -44,7 +46,7 @@ void term_exec(char **args);
 void term_end(void);
 void term_screenshot(void);
 void term_hist(int pos);
-void term_redraw(void);
+void term_redraw(int all);
 
 /* pad.c */
 #define FN_I		0x100		/* italic font */

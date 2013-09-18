@@ -89,8 +89,8 @@ static void switchterm(int oidx, int nidx, int show, int save, int load)
 		scr_snap(&terms[oidx]);
 	term_save(&terms[oidx]);
 	term_load(&terms[nidx], show);
-	if (load && (!TERMOPEN(nidx) || !TERMSNAP(nidx) || scr_load(&terms[nidx])))
-		term_redraw();
+	if (load)
+		term_redraw(!TERMOPEN(nidx) || !TERMSNAP(nidx) || scr_load(&terms[nidx]));
 }
 
 static void showterm(int n)
@@ -192,7 +192,7 @@ static void directkey(void)
 			term_screenshot();
 			return;
 		case 'y':
-			term_redraw();
+			term_redraw(1);
 			return;
 		case CTRLKEY('l'):
 			locked = 1;
@@ -276,7 +276,7 @@ static void mainloop(char **args)
 	cfmakeraw(&termios);
 	tcsetattr(0, TCSAFLUSH, &termios);
 	term_load(&terms[cterm()], 1);
-	term_redraw();
+	term_redraw(1);
 	if (args) {
 		cmdmode = 1;
 		execterm(args);
