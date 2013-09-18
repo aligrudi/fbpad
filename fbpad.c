@@ -117,7 +117,8 @@ static void execterm(char **args)
 
 static void listtags(void)
 {
-	int colors[] = {15, 4, 2};
+	/* colors for tags based on their number of terminals */
+	int colors[] = {252, FGCOLOR, FGCOLOR | FN_B};
 	int c = 0;
 	int r = pad_rows() - 1;
 	int i;
@@ -135,7 +136,7 @@ static void listtags(void)
 			nt++;
 		pad_put(i == ctag ? '(' : ' ', r, c++, FGCOLOR, BGCOLOR);
 		if (TERMSNAP(i))
-			pad_put(tags[i], r, c++, !nt ? BGCOLOR : colors[nt], 15);
+			pad_put(tags[i], r, c++, !nt ? BGCOLOR : colors[nt], colors[0]);
 		else
 			pad_put(tags[i], r, c++, colors[nt], BGCOLOR);
 		pad_put(i == ctag ? ')' : ' ', r, c++, FGCOLOR, BGCOLOR);
