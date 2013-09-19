@@ -31,10 +31,11 @@ struct term {
 	int dirty[NROWS];		/* changed rows in lazy mode */
 	struct term_state cur, sav;	/* terminal saved state */
 	int fd;				/* terminal file descriptor */
-	int histtail;			/* the next history row */
+	int hrow;			/* the next history row in hist[] */
+	int hpos;			/* scrolling history; position */
 	int lazy;			/* lazy mode */
 	int pid;			/* pid of the terminal program */
-	int top, bot;			/* terminal top and bot */
+	int top, bot;			/* terminal scrolling region */
 };
 
 void term_load(struct term *term, int visible);
@@ -45,7 +46,7 @@ void term_send(int c);
 void term_exec(char **args);
 void term_end(void);
 void term_screenshot(void);
-void term_hist(int pos);
+void term_scrl(int pos);
 void term_redraw(int all);
 
 /* pad.c */

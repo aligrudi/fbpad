@@ -38,7 +38,6 @@ static int locked;
 static char pass[1024];
 static int passlen;
 static int cmdmode;		/* execute a command and exit */
-static int histpos;		/* scrolling history */
 
 static int readchar(void)
 {
@@ -74,17 +73,8 @@ static struct term *mainterm(void)
 	return TERMOPEN(cterm()) ? &terms[cterm()] : NULL;
 }
 
-static void histscrl(int pos)
-{
-	if (pos != histpos)
-		term_hist(pos);
-	histpos = pos;
-}
-
 static void switchterm(int oidx, int nidx, int show, int save, int load)
 {
-	if (load && histpos)
-		histscrl(0);
 	if (save && TERMOPEN(oidx) && TERMSNAP(oidx))
 		scr_snap(&terms[oidx]);
 	term_save(&terms[oidx]);
@@ -201,10 +191,10 @@ static void directkey(void)
 			passlen = 0;
 			return;
 		case ',':
-			histscrl(MIN(NHIST, histpos + pad_rows() / 2));
+			term_scrl(pad_rows() / 2);
 			return;
 		case '.':
-			histscrl(MAX(0, histpos - pad_rows() / 2));
+			term_scrl(-pad_rows() / 2);
 			return;
 		default:
 			if (strchr(tags, c)) {
@@ -215,7 +205,6 @@ static void directkey(void)
 				term_send(ESC);
 		}
 	}
-	histscrl(0);
 	if (c != -1 && mainterm())
 		term_send(c);
 }

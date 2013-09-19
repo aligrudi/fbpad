@@ -121,7 +121,7 @@ static void draw_cursor(int put)
 
 static void lazy_start(void)
 {
-	memset(dirty, 0, sizeof(term->dirty));
+	memset(dirty, 0, pad_rows() * sizeof(*dirty));
 	lazy = 1;
 }
 
@@ -136,6 +136,7 @@ static void lazy_flush(void)
 	if (dirty[row])
 		_draw_pos(row, col, 1);
 	lazy = 0;
+	term->hpos = 0;
 }
 
 static void screen_reset(int i, int n)
@@ -350,14 +351,16 @@ void term_save(struct term *term)
 	term->lazy = lazy;
 }
 
+/* redraw the screen; if all is zero, update changed lines only */
 void term_redraw(int all)
 {
 	if (term->fd) {
 		if (all) {
 			lazy_start();
-			memset(dirty, 1, sizeof(term->dirty));
+			memset(dirty, 1, pad_rows() * sizeof(*dirty));
 		}
-		lazy_flush();
+		if (all || !term->hpos)
+			lazy_flush();
 	} else {
 		if (all)
 			pad_blank(0);
@@ -440,7 +443,7 @@ static void blank_rows(int sr, int er)
 	draw_cursor(1);
 }
 
-#define HISTROW(pos)	(term->hist + ((term->histtail + NHIST - (pos)) % NHIST) * pad_cols())
+#define HISTROW(pos)	(term->hist + ((term->hrow + NHIST - (pos)) % NHIST) * pad_cols())
 
 static void scrl_rows(int nr)
 {
@@ -448,24 +451,26 @@ static void scrl_rows(int nr)
 	for (i = 0; i < nr; i++) {
 		memcpy(HISTROW(0), screen + i * pad_cols(),
 				pad_cols() * sizeof(screen[0]));
-		term->histtail = (term->histtail + 1) % NHIST;
+		term->hrow = (term->hrow + 1) % NHIST;
 	}
 }
 
-void term_hist(int scrl)
+void term_scrl(int scrl)
 {
 	int i, j;
-	if (!scrl) {
+	int hpos = LIMIT(term->hpos + scrl, 0, NHIST);
+	term->hpos = hpos;
+	if (!hpos) {
 		lazy_flush();
 		return;
 	}
 	lazy_start();
-	memset(dirty, 1, sizeof(term->dirty));
+	memset(dirty, 1, pad_rows() * sizeof(*dirty));
 	for (i = 0; i < pad_rows(); i++) {
-		int off = (i - scrl) * pad_cols();
-		int *_scr = i < scrl ? HISTROW(scrl - i) : term->screen + off;
-		short *_fgs = i < scrl ? NULL : term->fgs + off;
-		short *_bgs = i < scrl ? NULL : term->bgs + off;
+		int off = (i - hpos) * pad_cols();
+		int *_scr = i < hpos ? HISTROW(hpos - i) : term->screen + off;
+		short *_fgs = i < hpos ? NULL : term->fgs + off;
+		short *_bgs = i < hpos ? NULL : term->bgs + off;
 		for (j = 0; j < pad_cols(); j++)
 			pad_put(_scr[j], i, j, _fgs ? _fgs[j] : BGCOLOR,
 						_bgs ? _bgs[j] : FGCOLOR);
