@@ -89,8 +89,9 @@ static void switchterm(int oidx, int nidx, int show, int save, int load)
 		scr_snap(&terms[oidx]);
 	term_save(&terms[oidx]);
 	term_load(&terms[nidx], show);
-	if (load)
-		term_redraw(!TERMOPEN(nidx) || !TERMSNAP(nidx) || scr_load(&terms[nidx]));
+	if (show)
+		term_redraw(load && (!TERMOPEN(nidx) || !TERMSNAP(nidx) ||
+					scr_load(&terms[nidx])));
 }
 
 static void showterm(int n)

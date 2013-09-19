@@ -359,7 +359,8 @@ void term_redraw(int all)
 		}
 		lazy_flush();
 	} else {
-		pad_blank(0);
+		if (all)
+			pad_blank(0);
 	}
 }
 
