@@ -7,7 +7,6 @@
 #include "fbpad.h"
 
 #define NCACHE		(1 << 11)
-#define MAXFBWIDTH	(1 << 12)
 
 static unsigned int cd[256] = {
 	COLOR0, COLOR1, COLOR2, COLOR3,
@@ -133,9 +132,9 @@ static fbval_t *ch2fb(int fn, int c, short fg, short bg)
 	return fbbits;
 }
 
-static void fb_box(int sr, int sc, int er, int ec, fbval_t val)
+static void fb_box(int sr, int er, int sc, int ec, fbval_t val)
 {
-	static fbval_t line[MAXFBWIDTH];
+	static fbval_t line[32 * NCOLS];
 	int cn = ec - sc;
 	int i;
 	for (i = 0; i < cn; i++)
@@ -165,22 +164,17 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 	if (!bits)
 		bits = ch2fb(0, ch, fg, bg);
 	if (!bits)
-		fb_box(sr, sc, sr + fnrows, sc + fncols, color2fb(bg & FN_C));
+		fb_box(sr, sr + fnrows, sc, sc + fncols, color2fb(bg & FN_C));
 	else
 		for (i = 0; i < fnrows; i++)
 			fb_set(sr + i, sc, bits + (i * fncols), fncols);
 }
 
-void pad_blank(int c)
+void pad_fill(int sr, int er, int sc, int ec, int c)
 {
-	fb_box(0, 0, fb_rows(), fb_cols(), color2fb(c & FN_C));
-}
-
-void pad_blankrow(int r, int bg)
-{
-	int sr = r * fnrows;
-	int er = r == rows - 1 ? fb_rows() : (r + 1) * fnrows;
-	fb_box(sr, 0, er, fb_cols(), color2fb(bg & FN_C));
+	int fber = er >= 0 ? er * fnrows : fb_rows();
+	int fbec = ec >= 0 ? ec * fncols : fb_cols();
+	fb_box(sr * fnrows, fber, sc * fncols, fbec, color2fb(c & FN_C));
 }
 
 int pad_rows(void)

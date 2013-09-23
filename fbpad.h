@@ -60,8 +60,7 @@ int pad_font(char *fr, char *fi, char *fb);
 void pad_put(int ch, int r, int c, int fg, int bg);
 int pad_rows(void);
 int pad_cols(void);
-void pad_blank(int c);
-void pad_blankrow(int r, int bg);
+void pad_fill(int sr, int er, int sc, int ec, int c);
 
 /* font.c */
 struct font *font_open(char *path);

@@ -69,13 +69,25 @@ static void _draw_pos(int r, int c, int cursor)
 /* assumes visible && !lazy */
 static void _draw_row(int r)
 {
+	int cbg, cch;		/* current background and character */
+	int fbg, fsc = -1;	/* filling background and start column */
 	int i;
-	pad_blankrow(r, bgcolor());
+	/* call pad_fill() only once for blank columns with identical backgrounds */
 	for (i = 0; i < pad_cols(); i++) {
-		int c = screen[OFFSET(r, i)];
-		if ((c && c != ' ') || bgs[OFFSET(r, i)] != bgcolor())
+		cbg = bgs[OFFSET(r, i)];
+		cch = screen[OFFSET(r, i)] ? screen[OFFSET(r, i)] : ' ';
+		if (fsc >= 0 && (cbg != fbg || (cch != ' '))) {
+			pad_fill(r, r + 1, fsc, i, fbg & FN_C);
+			fsc = -1;
+		}
+		if (cch != ' ') {
 			_draw_pos(r, i, 0);
+		} else if (fsc < 0) {
+			fsc = i;
+			fbg = cbg;
+		}
 	}
+	pad_fill(r, r + 1, fsc >= 0 ? fsc : pad_cols(), -1, cbg & FN_C);
 }
 
 static int candraw(int sr, int er)
@@ -212,7 +224,7 @@ static void term_blank(void)
 {
 	screen_reset(0, pad_rows() * pad_cols());
 	if (visible)
-		pad_blank(bgcolor());
+		pad_fill(0, -1, 0, -1, bgcolor() & FN_C);
 }
 
 static void ctlseq(void);
@@ -356,6 +368,7 @@ void term_redraw(int all)
 {
 	if (term->fd) {
 		if (all) {
+			pad_fill(pad_rows(), -1, 0, -1, BGCOLOR);
 			lazy_start();
 			memset(dirty, 1, pad_rows() * sizeof(*dirty));
 		}
@@ -363,7 +376,7 @@ void term_redraw(int all)
 			lazy_flush();
 	} else {
 		if (all)
-			pad_blank(0);
+			pad_fill(0, -1, 0, -1, 0);
 	}
 }
 
