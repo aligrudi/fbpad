@@ -43,7 +43,7 @@ static int readchar(void)
 {
 	char b;
 	if (read(0, &b, 1) > 0)
-		return (int) b;
+		return (unsigned char) b;
 	return -1;
 }
 
