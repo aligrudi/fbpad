@@ -991,10 +991,12 @@ static void csiseq(void)
 	case 'h':	/* SM		set mode */
 		for (i = 0; i < n; i++)
 			modeseq(priv == '?' ? args[i] | 0x80 : args[i], 1);
+		draw_cursor(1);
 		break;
 	case 'l':	/* RM		reset mode */
 		for (i = 0; i < n; i++)
 			modeseq(priv == '?' ? args[i] | 0x80 : args[i], 0);
+		draw_cursor(1);
 		break;
 	case 'P':	/* DCH		delete characters on current line */
 		delete_chars(LIMIT(args[0], 1, pad_cols() - col));
