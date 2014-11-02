@@ -78,7 +78,6 @@ static unsigned color2fb(int c)
 #define GCLCNT		(1 << 7)	/* glyph cache list count */
 #define GCLLEN		(1 << 4)	/* glyph cache list length */
 #define GCIDX(c)	((c) & (GCLCNT - 1))
-#define GCPOS(c)	(GCIDX(c) * GCLLEN)
 
 static fbval_t gc_mem[GCLCNT][GCLLEN][NDOTS];
 static int gc_next[GCLCNT];
