@@ -1,7 +1,7 @@
 /*
  * fbpad - a small framebuffer virtual terminal
  *
- * Copyright (C) 2009-2013 Ali Gholami Rudi <ali at rudi dot ir>
+ * Copyright (C) 2009-2014 Ali Gholami Rudi <ali at rudi dot ir>
  *
  * This program is released under the Modified BSD license.
  */
@@ -35,6 +35,7 @@ static int ltag;		/* the last tag */
 static int exitit;
 static int hidden;		/* do not touch the framebuffer */
 static int locked;
+static int taglock;		/* disable tag switching */
 static char pass[1024];
 static int passlen;
 static int cmdmode;		/* execute a command and exit */
@@ -87,6 +88,8 @@ static void switchterm(int oidx, int nidx, int show, int save, int load)
 static void showterm(int n)
 {
 	if (cterm() == n || cmdmode)
+		return;
+	if (taglock && ctag != n % NTAGS)
 		return;
 	if (ctag != n % NTAGS)
 		ltag = ctag;
@@ -189,6 +192,9 @@ static void directkey(void)
 		case CTRLKEY('l'):
 			locked = 1;
 			passlen = 0;
+			return;
+		case CTRLKEY('o'):
+			taglock = 1 - taglock;
 			return;
 		case ',':
 			term_scrl(pad_rows() / 2);
