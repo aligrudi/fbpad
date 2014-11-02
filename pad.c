@@ -6,8 +6,6 @@
 #include "draw.h"
 #include "fbpad.h"
 
-#define NCACHE		(1 << 11)
-
 static unsigned int cd[256] = {
 	COLOR0, COLOR1, COLOR2, COLOR3,
 	COLOR4, COLOR5, COLOR6, COLOR7,
@@ -76,32 +74,40 @@ static unsigned color2fb(int c)
 	return FB_VAL(CR(cd[c]), CG(cd[c]), CB(cd[c]));
 }
 
-static fbval_t cache[NCACHE][NDOTS];
+/* glyph bitmap cache */
+#define GCLCNT		(1 << 7)	/* glyph cache list count */
+#define GCLLEN		(1 << 4)	/* glyph cache list length */
+#define GCIDX(c)	((c) & (GCLCNT - 1))
+#define GCPOS(c)	(GCIDX(c) * GCLLEN)
+
+static fbval_t gc_mem[GCLCNT][GCLLEN][NDOTS];
+static int gc_next[GCLCNT];
 static struct glyph {
 	int c;
 	short fg, bg;
-} glyphs[NCACHE];
+} gc_info[GCLCNT][GCLLEN];
 
-static struct glyph *glyph_entry(int c, int fg, int bg)
+static fbval_t *gc_get(int c, short fg, short bg)
 {
-	return &glyphs[((c - 32) ^ (fg << 6) ^ (bg << 5)) & (NCACHE - 1)];
-}
-
-static fbval_t *glyph_cache(int c, short fg, short bg)
-{
-	struct glyph *g = glyph_entry(c, fg, bg);
-	if (g->c == c && g->fg == fg && g->bg == bg)
-		return cache[g - glyphs];
+	struct glyph *g = gc_info[GCIDX(c)];
+	int i;
+	for (i = 0; i < GCLLEN; i++)
+		if (g[i].c == c && g[i].fg == fg && g[i].bg == bg)
+			return gc_mem[GCIDX(c)][i];
 	return NULL;
 }
 
-static fbval_t *glyph_add(int c, short fg, short bg)
+static fbval_t *gc_put(int c, short fg, short bg)
 {
-	struct glyph *g = glyph_entry(c, fg, bg);
+	int idx = GCIDX(c);
+	int pos = gc_next[idx]++;
+	struct glyph *g = &gc_info[idx][pos];
+	if (gc_next[idx] >= GCLLEN)
+		gc_next[idx] = 0;
 	g->c = c;
 	g->fg = fg;
 	g->bg = bg;
-	return cache[g - glyphs];
+	return gc_mem[idx][pos];
 }
 
 static void bmp2fb(fbval_t *d, char *s, int fg, int bg, int nr, int nc)
@@ -122,11 +128,11 @@ static fbval_t *ch2fb(int fn, int c, short fg, short bg)
 	fbval_t *fbbits;
 	if (c < 0 || (c < 128 && (!isprint(c) || isspace(c))))
 		return NULL;
-	if ((fbbits = glyph_cache(c, fg, bg)))
+	if ((fbbits = gc_get(c, fg, bg)))
 		return fbbits;
 	if (font_bitmap(fonts[fn], bits, c))
 		return NULL;
-	fbbits = glyph_add(c, fg, bg);
+	fbbits = gc_put(c, fg, bg);
 	bmp2fb(fbbits, bits, fg & FN_C, bg & FN_C,
 		font_rows(fonts[fn]), font_cols(fonts[fn]));
 	return fbbits;
@@ -196,7 +202,7 @@ int pad_font(char *fr, char *fi, char *fb)
 			font_free(fonts[i]);
 		fonts[i] = fns[i] ? font_open(fns[i]) : NULL;
 	}
-	memset(glyphs, 0, sizeof(glyphs));
+	memset(gc_info, 0, sizeof(gc_info));
 	if (!fonts[0])
 		fprintf(stderr, "pad: bad font <%s>\n", fr);
 	return fonts[0] ? 0 : -1;
