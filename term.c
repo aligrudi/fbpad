@@ -16,7 +16,6 @@
 #define MODE_WRAP		0x02
 #define MODE_ORIGIN		0x04
 #define MODE_AUTOCR		0x08
-#define MODE_DEFAULT		(MODE_CURSOR | MODE_WRAP)
 #define ATTR_BOLD		0x10
 #define ATTR_ITALIC		0x20
 #define ATTR_REV		0x40
@@ -76,7 +75,7 @@ static void _draw_row(int r)
 	for (i = 0; i < pad_cols(); i++) {
 		cbg = bgs[OFFSET(r, i)];
 		cch = screen[OFFSET(r, i)] ? screen[OFFSET(r, i)] : ' ';
-		if (fsc >= 0 && (cbg != fbg || (cch != ' '))) {
+		if (fsc >= 0 && (cbg != fbg || cch != ' ')) {
 			pad_fill(r, r + 1, fsc, i, fbg & FN_C);
 			fsc = -1;
 		}
@@ -164,10 +163,9 @@ static void screen_reset(int i, int n)
 
 static void screen_move(int dst, int src, int n)
 {
-	if (n > 0)
-		candraw(MIN(src, dst) / pad_cols(), (MAX(src, dst) + n) / pad_cols() + 1);
-	else
-		candraw((MIN(src, dst) + n) / pad_cols(), MAX(src, dst) / pad_cols() + 1);
+	int srow = (MIN(src, dst) + (n > 0 ? 0 : n)) / pad_cols();
+	int drow = (MAX(src, dst) + (n > 0 ? n : 0)) / pad_cols() + 1;
+	candraw(srow, drow);
 	memmove(screen + dst, screen + src, n * sizeof(*screen));
 	memmove(fgs + dst, fgs + src, n * sizeof(*fgs));
 	memmove(bgs + dst, bgs + src, n * sizeof(*bgs));
@@ -244,7 +242,7 @@ static void term_reset(void)
 	row = col = 0;
 	top = 0;
 	bot = pad_rows();
-	mode = MODE_DEFAULT;
+	mode = MODE_CURSOR | MODE_WRAP;
 	fg = FGCOLOR;
 	bg = BGCOLOR;
 	term_blank();
