@@ -6,30 +6,23 @@
 #include "fbpad.h"
 
 struct font {
-	int rows;
-	int cols;
-	int n;
-	int *glyphs;
-	char *data;
+	int rows, cols;	/* glyph bitmap rows and columns */
+	int n;		/* number of font glyphs */
+	int *glyphs;	/* glyph unicode character codes */
+	char *data;	/* glyph bitmaps */
 };
 
 /*
- * tinyfont format:
+ * This tinyfont header is followed by:
  *
- * sig[8]	"tinyfont"
- * ver		0
- * n		number of glyphs
- * rows		glyph rows
- * cols		glyph cols
- *
- * glyphs[n]	unicode character numbers (int)
+ * glyphs[n]	unicode character codes (int)
  * bitmaps[n]	character bitmaps (char[rows * cols])
  */
 struct tinyfont {
-	char sig[8];
-	int ver;
-	int n;
-	int rows, cols;
+	char sig[8];	/* tinyfont signature; "tinyfont" */
+	int ver;	/* version; 0 */
+	int n;		/* number of glyphs */
+	int rows, cols;	/* glyph dimensions */
 };
 
 static void *xread(int fd, int len)
