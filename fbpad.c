@@ -77,12 +77,12 @@ static struct term *mainterm(void)
 static void switchterm(int oidx, int nidx, int show, int save, int load)
 {
 	if (save && TERMOPEN(oidx) && TERMSNAP(oidx))
-		scr_snap(&terms[oidx]);
+		scr_snap(oidx);
 	term_save(&terms[oidx]);
 	term_load(&terms[nidx], show);
 	if (show)
 		term_redraw(load && (!TERMOPEN(nidx) || !TERMSNAP(nidx) ||
-					scr_load(&terms[nidx])));
+					scr_load(nidx)));
 }
 
 static void showterm(int n)
@@ -255,7 +255,7 @@ static int pollterms(void)
 		if (ufds[i].revents & POLLIN) {
 			term_read();
 		} else {
-			scr_free(&terms[term_idx[i]]);
+			scr_free(term_idx[i]);
 			term_end();
 			if (cmdmode)
 				exitit = 1;
@@ -344,6 +344,7 @@ int main(int argc, char **argv)
 		args++;
 	mainloop(args[0] ? args : NULL);
 	pad_free();
+	scr_done();
 failed:
 	write(1, show, strlen(show));
 	return 0;

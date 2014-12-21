@@ -70,6 +70,7 @@ int font_cols(struct font *font);
 int font_bitmap(struct font *font, void *dst, int c);
 
 /* scrsnap.c */
-void scr_snap(void *owner);
-int scr_load(void *owner);
-void scr_free(void *owner);
+void scr_snap(int idx);
+int scr_load(int idx);
+void scr_free(int idx);
+void scr_done(void);
