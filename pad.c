@@ -18,7 +18,7 @@ static struct font *fonts[3];
 int pad_init(void)
 {
 	int r, g, b;
-	if (fb_init())
+	if (fb_init(FBDEV))
 		return 1;
 	if (sizeof(fbval_t) != FBM_BPP(fb_mode())) {
 		fprintf(stderr, "pad_init: fbval_t doesn't match fb depth\n");
@@ -135,6 +135,12 @@ static fbval_t *ch2fb(int fn, int c, short fg, short bg)
 	bmp2fb(fbbits, bits, fg & FN_C, bg & FN_C,
 		font_rows(fonts[fn]), font_cols(fonts[fn]));
 	return fbbits;
+}
+
+static void fb_set(int r, int c, void *mem, int len)
+{
+	int bpp = FBM_BPP(fb_mode());
+	memcpy(fb_mem(r) + c * bpp, mem, len * bpp);
 }
 
 static void fb_box(int sr, int er, int sc, int ec, fbval_t val)
