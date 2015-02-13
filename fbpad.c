@@ -1,7 +1,7 @@
 /*
  * fbpad - a small framebuffer virtual terminal
  *
- * Copyright (C) 2009-2014 Ali Gholami Rudi <ali at rudi dot ir>
+ * Copyright (C) 2009-2015 Ali Gholami Rudi <ali at rudi dot ir>
  *
  * This program is released under the Modified BSD license.
  */
@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <stdio.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -330,22 +331,30 @@ static void signalsetup(void)
 
 int main(int argc, char **argv)
 {
-	char *hide = "\x1b[?25l";
-	char *clear = "\x1b[2J\x1b[H";
+	char *hide = "\x1b[2J\x1b[H\x1b[?25l";
 	char *show = "\x1b[?25h";
 	char **args = argv + 1;
-	write(1, clear, strlen(clear));
+	if (fb_init(FBDEV)) {
+		fprintf(stderr, "fbpad: failed to initialize the framebuffer\n");
+		return 1;
+	}
+	if (sizeof(fbval_t) != FBM_BPP(fb_mode())) {
+		fprintf(stderr, "fbpad: fbval_t does not match framebuffer depth\n");
+		return 1;
+	}
+	if (pad_init()) {
+		fprintf(stderr, "fbpad: cannot find fonts\n");
+		return 1;
+	}
 	write(1, hide, strlen(hide));
-	if (pad_init())
-		goto failed;
 	signalsetup();
 	fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
 	while (args[0] && args[0][0] == '-')
 		args++;
 	mainloop(args[0] ? args : NULL);
+	write(1, show, strlen(show));
 	pad_free();
 	scr_done();
-failed:
-	write(1, show, strlen(show));
+	fb_free();
 	return 0;
 }

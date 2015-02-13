@@ -18,16 +18,8 @@ static struct font *fonts[3];
 int pad_init(void)
 {
 	int r, g, b;
-	if (fb_init(FBDEV))
+	if (pad_font(FR, FI, FB))
 		return 1;
-	if (sizeof(fbval_t) != FBM_BPP(fb_mode())) {
-		fprintf(stderr, "pad_init: fbval_t doesn't match fb depth\n");
-		return 1;
-	}
-	if (pad_font(FR, FI, FB) < 0)
-		return -1;
-	fnrows = font_rows(fonts[0]);
-	fncols = font_cols(fonts[0]);
 	rows = fb_rows() / fnrows;
 	cols = fb_cols() / fncols;
 	for (r = 0; r < 6; r++) {
@@ -52,7 +44,6 @@ void pad_free(void)
 	for (i = 0; i < 3; i++)
 		if (fonts[i])
 			font_free(fonts[i]);
-	fb_free();
 }
 
 #define CR(a)		(((a) >> 16) & 0x0000ff)
@@ -146,12 +137,11 @@ static void fb_set(int r, int c, void *mem, int len)
 static void fb_box(int sr, int er, int sc, int ec, fbval_t val)
 {
 	static fbval_t line[32 * NCOLS];
-	int cn = ec - sc;
 	int i;
-	for (i = 0; i < cn; i++)
-		line[i] = val;
+	for (i = sc; i < ec; i++)
+		line[i - sc] = val;
 	for (i = sr; i < er; i++)
-		fb_set(i, sc, line, cn);
+		fb_set(i, sc, line, ec - sc);
 }
 
 static int fnsel(int fg, int bg)
@@ -200,15 +190,17 @@ int pad_cols(void)
 
 int pad_font(char *fr, char *fi, char *fb)
 {
-	char *fns[] = {fr, fi, fb};
-	int i;
-	for (i = 0; i < 3; i++) {
-		if (fonts[i])
-			font_free(fonts[i]);
-		fonts[i] = fns[i] ? font_open(fns[i]) : NULL;
-	}
+	struct font *r, *i, *b;
 	memset(gc_info, 0, sizeof(gc_info));
-	if (!fonts[0])
+	r = fr ? font_open(fr) : NULL;
+	i = fi ? font_open(fi) : NULL;
+	b = fb ? font_open(fb) : NULL;
+	if (!r)
 		fprintf(stderr, "pad: bad font <%s>\n", fr);
-	return fonts[0] ? 0 : -1;
+	fonts[0] = r ? r : fonts[0];
+	fonts[1] = i;
+	fonts[2] = b;
+	fnrows = fonts[0] ? font_rows(fonts[0]) : 16;
+	fncols = fonts[0] ? font_cols(fonts[0]) : 16;
+	return r == NULL;
 }
