@@ -113,29 +113,16 @@ static void execterm(char **args)
 
 static void listtags(void)
 {
-	/* colors for tags based on their number of terminals */
-	int colors[] = {252, FGCOLOR, FGCOLOR | FN_B};
-	int c = 0;
-	int r = pad_rows() - 1;
+	int c = pad_cols() - 1;
+	int r = 1;
 	int i;
-	pad_put('T', r, c++, FGCOLOR, BGCOLOR);
-	pad_put('A', r, c++, FGCOLOR, BGCOLOR);
-	pad_put('G', r, c++, FGCOLOR, BGCOLOR);
-	pad_put('S', r, c++, FGCOLOR, BGCOLOR);
-	pad_put(':', r, c++, FGCOLOR, BGCOLOR);
-	pad_put(' ', r, c++, FGCOLOR, BGCOLOR);
 	for (i = 0; i < NTAGS; i++) {
-		int nt = 0;
-		if (TERMOPEN(i))
-			nt++;
-		if (TERMOPEN(altterm(i)))
-			nt++;
-		pad_put(i == ctag ? '(' : ' ', r, c++, FGCOLOR, BGCOLOR);
-		if (TERMSNAP(i))
-			pad_put(tags[i], r, c++, !nt ? BGCOLOR : colors[nt], colors[0]);
-		else
-			pad_put(tags[i], r, c++, colors[nt], BGCOLOR);
-		pad_put(i == ctag ? ')' : ' ', r, c++, FGCOLOR, BGCOLOR);
+		int fg = 8, fglow = TERMSNAP(i) ? 218 : 150;
+		int bg = i == ctag ? 193 : 225;
+		int t1 = tops[i] * NTAGS + i;
+		int t2 = (1 - tops[i]) * NTAGS + i;
+		pad_put(tags[i], r + i, c - 1, (TERMOPEN(t1) ? fg : fglow) | FN_B, bg);
+		pad_put(tags[i], r + i, c, (TERMOPEN(t2) ? fg : bg) | FN_B, bg);
 	}
 }
 
