@@ -190,17 +190,14 @@ int pad_cols(void)
 
 int pad_font(char *fr, char *fi, char *fb)
 {
-	struct font *r, *i, *b;
-	memset(gc_info, 0, sizeof(gc_info));
-	r = fr ? font_open(fr) : NULL;
-	i = fi ? font_open(fi) : NULL;
-	b = fb ? font_open(fb) : NULL;
+	struct font *r = fr ? font_open(fr) : NULL;
 	if (!r)
-		fprintf(stderr, "pad: bad font <%s>\n", fr);
-	fonts[0] = r ? r : fonts[0];
-	fonts[1] = i;
-	fonts[2] = b;
-	fnrows = fonts[0] ? font_rows(fonts[0]) : 16;
-	fncols = fonts[0] ? font_cols(fonts[0]) : 16;
-	return r == NULL;
+		return 1;
+	fonts[0] = r;
+	fonts[1] = fi ? font_open(fi) : NULL;
+	fonts[2] = fb ? font_open(fb) : NULL;
+	memset(gc_info, 0, sizeof(gc_info));
+	fnrows = font_rows(fonts[0]);
+	fncols = font_cols(fonts[0]);
+	return 0;
 }
