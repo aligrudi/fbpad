@@ -6,9 +6,9 @@ terminals through single-letter tags; each tag can hold two terminals.
 The following table indicates fbpad's key-bindings (m-k means pressing
 k, while holding the alt key).
 
-==============  =======================================
-key		command
-==============  =======================================
+==============	=======================================
+KEY		COMMAND
+==============	=======================================
 m-c		execute a shell (SHELL)
 m-m		execute mail program (MAIL)
 m-e		execute editor program (EDITOR)
@@ -25,49 +25,51 @@ c-m-o		disable/enable tag switching
 c-m-q		quit fbpad
 m-,		scroll up
 m-.		scroll down
-==============  =======================================
+==============	=======================================
 
 Fbpad can be instructed to execute a single program: the program and
-its arguments should passed as command line arguments of fbpad.  Fbpad
-executes this program in a terminal, disables all terminal switching
-commands, and exits as soon as the program finishes.
+its arguments should be passed as command line arguments of fbpad.
+Fbpad executes the specified program in a terminal, disables all
+terminal switching commands, and exits as soon as the program
+finishes.
 
 
 SETTING UP
 ==========
 
 To configure fbpad, you should edit config.h.  To get fbpad running
-you need to make sure FR points to a valid tinyfont file (for testing
+you need to make sure FR points to a valid fbpad font (for testing
 you can try http://litcave.rudi.ir/courr.tf) and SHELL to the shell
 you want fbpad to execute.  Also the type of fbval_t should match the
 framebuffer depth: unsigned char for 8-bit, short for 16-bit and int
 for 24/32-bit framebuffers.  Once these are set, you should be able to
 start fbpad without problems.
 
-Fbpad uses tinyfont files, which can be created using ft2tf program
-(http://litcave.rudi.ir/).  The FR, FI and FB macros specify the path
-of the tinyfont files for regular, italic and bold fonts.  If FI or FB
-is NULL, the regular font is used for italic or bold text.
+Fbpad fonts can be generated using fbpad_mkfn program
+(http://litcave.rudi.ir/).  The FR, FI, and FB macros specify the path
+of fbpad fonts for regular, italic, and bold fonts.  If FI or FB is
+NULL, the regular font is used for italic or bold text.
 
-Next you may want to change the list of fbpad tags by changing TAGS.
+Next, you may want to change the list of fbpad tags by changing TAGS.
 FGCOLOR and BGCOLOR macros specify foreground and background colors,
 for instance the FGCOLOR of 2 and BGCOLOR of 0 creates green on black
 terminals.  Individual colors can be customized by editing the hex RGB
 color description of COLOR* macros.  Also SCRSHOT macro specifies where
-fbpad text screenshots, as created using "m-s" command, should be saved.
+fbpad text screenshots, created by "m-s" command, should be saved.
 
-If you are want to use fbpad's scrsnap feature, you can edit TAGS_SAVED
-to change the list of saved terminals.  Framebuffer memory is saved and
+If you want to use fbpad's scrsnap feature, you can edit TAGS_SAVED to
+change the list of saved terminals.  Framebuffer memory is saved and
 reloaded for these tags, which is very convenient when you are using
 programs that change the framebuffer simultaneously, like fbpdf.
+
 
 256-COLOR MODE
 ==============
 
 Fbpad supports xterm's 256-color extension, but most programs will not
 use this extension, unless the $TERM terminfo entry declares this
-feature.  For this purpose, you need to create fbpad-256 terminfo file
-containing (ignore the two-space identation):
+feature.  For this purpose, fbpad-256 terminfo file can be created to
+contain (the two-space identation should be ignored):
 
   fbpad-256,
   	use=linux, U8#0,
@@ -76,17 +78,17 @@ containing (ignore the two-space identation):
   	setab=\E[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48;5;%p1%d%;m,
   	setaf=\E[%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m,
 
-And install it with:
+Which can be installed with tic command:
 
   $ tic -x ./fbpad-256
 
-Now you can add this line to your shell startup script:
+The following line should be added to shell's startup script:
 
   export TERM=fbpad-256
 
 Note that in order to use this feature and italic fonts in Vim, adding
 fbpad-256 terminfo is not necessary.  Including the following lines in
-your vimrc should enable them:
+the vimrc file should enable them:
 
   set t_ZH=[3m
   set t_Co=256
