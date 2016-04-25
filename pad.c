@@ -26,9 +26,10 @@ int pad_init(void)
 		for (g = 0; g < 6; g++) {
 			for (b = 0; b < 6; b++) {
 				int idx = 16 + r * 36 + g * 6 + b;
-				cd[idx] = ((r * 40 + 55) << 16) |
-						((g * 40 + 55) << 8) |
-						(b * 40 + 55);
+				int rfin = r ? (r * 40 + 55) : 0;
+				int gfin = g ? (g * 40 + 55) : 0;
+				int bfin = b ? (b * 40 + 55) : 0;
+				cd[idx] = (rfin << 16) | (gfin << 8) | (bfin);
 			}
 		}
 	}
