@@ -701,6 +701,9 @@ static void ctlseq(void)
 	case 0x0d:	/* CR		carriage return */
 		advance(0, -col, 0);
 		break;
+	case 0x9b:	/* CSI		equivalent to ESC [ */
+		csiseq();
+		break;
 	case 0x00:	/* NUL		ignored */
 	case 0x07:	/* BEL		beep */
 	case 0x7f:	/* DEL		ignored */
@@ -712,7 +715,6 @@ static void ctlseq(void)
 	case 0x13:	/* XOFF		stop transmission, ignore characters */
 	case 0x18:	/* CAN		interrupt escape sequence */
 	case 0x1a:	/* SUB		interrupt escape sequence */
-	case 0x9b:	/* CSI		equivalent to ESC [ */
 		unknown("ctlseq", c);
 		break;
 	default:
