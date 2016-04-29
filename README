@@ -37,7 +37,7 @@ finishes.
 SETTING UP
 ==========
 
-To configure fbpad, you should edit config.h.  To get fbpad running
+To configure fbpad, you should edit conf.h.  To get fbpad running
 you need to make sure FR points to a valid fbpad font (for testing
 you can try http://litcave.rudi.ir/courr.tf) and SHELL to the shell
 you want fbpad to execute.  Also the type of fbval_t should match the

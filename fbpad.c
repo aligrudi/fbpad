@@ -17,7 +17,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <linux/vt.h>
-#include "config.h"
+#include "conf.h"
 #include "fbpad.h"
 #include "draw.h"
 

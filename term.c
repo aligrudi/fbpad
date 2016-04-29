@@ -9,7 +9,7 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
-#include "config.h"
+#include "conf.h"
 #include "fbpad.h"
 
 #define MODE_CURSOR		0x01
