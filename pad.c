@@ -6,36 +6,16 @@
 #include "draw.h"
 #include "fbpad.h"
 
-static unsigned int cd[256] = {
-	COLOR0, COLOR1, COLOR2, COLOR3,
-	COLOR4, COLOR5, COLOR6, COLOR7,
-	COLOR8, COLOR9, COLOR10, COLOR11,
-	COLOR12, COLOR13, COLOR14, COLOR15};
 static int rows, cols;
 static int fnrows, fncols;
 static struct font *fonts[3];
 
 int pad_init(void)
 {
-	int r, g, b;
 	if (pad_font(FR, FI, FB))
 		return 1;
 	rows = fb_rows() / fnrows;
 	cols = fb_cols() / fncols;
-	for (r = 0; r < 6; r++) {
-		for (g = 0; g < 6; g++) {
-			for (b = 0; b < 6; b++) {
-				int idx = 16 + r * 36 + g * 6 + b;
-				int rfin = r ? (r * 40 + 55) : 0;
-				int gfin = g ? (g * 40 + 55) : 0;
-				int bfin = b ? (b * 40 + 55) : 0;
-				cd[idx] = (rfin << 16) | (gfin << 8) | (bfin);
-			}
-		}
-	}
-	for (r = 0; r < 24; r++)
-		cd[232 + r] = ((r * 10 + 8) << 16) |
-				((r * 10 + 8) << 8) | (r * 10 + 8);
 	return 0;
 }
 
@@ -54,16 +34,15 @@ void pad_free(void)
 
 static unsigned mixed_color(int fg, int bg, unsigned val)
 {
-	unsigned int fore = cd[fg], back = cd[bg];
-	unsigned char r = COLORMERGE(CR(fore), CR(back), val);
-	unsigned char g = COLORMERGE(CG(fore), CG(back), val);
-	unsigned char b = COLORMERGE(CB(fore), CB(back), val);
+	unsigned char r = COLORMERGE(CR(fg), CR(bg), val);
+	unsigned char g = COLORMERGE(CG(fg), CG(bg), val);
+	unsigned char b = COLORMERGE(CB(fg), CB(bg), val);
 	return FB_VAL(r, g, b);
 }
 
 static unsigned color2fb(int c)
 {
-	return FB_VAL(CR(cd[c]), CG(cd[c]), CB(cd[c]));
+	return FB_VAL(CR(c), CG(c), CB(c));
 }
 
 /* glyph bitmap cache */
@@ -75,10 +54,10 @@ static fbval_t gc_mem[GCLCNT][GCLLEN][NDOTS];
 static int gc_next[GCLCNT];
 static struct glyph {
 	int c;
-	short fg, bg;
+	int fg, bg;
 } gc_info[GCLCNT][GCLLEN];
 
-static fbval_t *gc_get(int c, short fg, short bg)
+static fbval_t *gc_get(int c, int fg, int bg)
 {
 	struct glyph *g = gc_info[GCIDX(c)];
 	int i;
@@ -88,7 +67,7 @@ static fbval_t *gc_get(int c, short fg, short bg)
 	return NULL;
 }
 
-static fbval_t *gc_put(int c, short fg, short bg)
+static fbval_t *gc_put(int c, int fg, int bg)
 {
 	int idx = GCIDX(c);
 	int pos = gc_next[idx]++;
@@ -113,7 +92,7 @@ static void bmp2fb(fbval_t *d, char *s, int fg, int bg, int nr, int nc)
 	}
 }
 
-static fbval_t *ch2fb(int fn, int c, short fg, short bg)
+static fbval_t *ch2fb(int fn, int c, int fg, int bg)
 {
 	char bits[NDOTS];
 	fbval_t *fbbits;
@@ -160,8 +139,6 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 	int sc = fncols * c;
 	fbval_t *bits;
 	int i;
-	if ((fg & 0xfff8) == FN_B && !fonts[2])
-		fg |= 8;		/* increase intensity of no FB */
 	bits = ch2fb(fnsel(fg, bg), ch, fg, bg);
 	if (!bits)
 		bits = ch2fb(0, ch, fg, bg);

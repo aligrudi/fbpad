@@ -1,7 +1,7 @@
 /*
- * fbpad - a small framebuffer virtual terminal
+ * FBPAD FRAMEBUFFER VIRTUAL TERMINAL
  *
- * Copyright (C) 2009-2015 Ali Gholami Rudi <ali at rudi dot ir>
+ * Copyright (C) 2009-2016 Ali Gholami Rudi <ali at rudi dot ir>
  *
  * This program is released under the Modified BSD license.
  */
@@ -113,7 +113,7 @@ static void execterm(char **args)
 static void listtags(void)
 {
 	/* colors for tags based on their number of terminals */
-	int colors[] = {252, FGCOLOR, FGCOLOR | FN_B};
+	int colors[] = {COLOR7, FGCOLOR, FGCOLOR | FN_B};
 	int c = 0;
 	int r = pad_rows() - 1;
 	int i;

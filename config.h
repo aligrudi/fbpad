@@ -19,8 +19,8 @@ typedef unsigned int fbval_t;
 #define FB		NULL
 
 /* foreground and background colors */
-#define FGCOLOR		0
-#define BGCOLOR		15
+#define FGCOLOR		COLOR0
+#define BGCOLOR		COLORF
 
 /* where to write the screen shot */
 #define SCRSHOT		"/tmp/scr"
@@ -39,19 +39,19 @@ typedef unsigned int fbval_t;
 #define COLOR9		0xff5555
 /* green */
 #define COLOR2		0x00aa00
-#define COLOR10		0x55ff55
+#define COLORA		0x55ff55
 /* yellow */
 #define COLOR3		0xaa5500
-#define COLOR11		0xffff55
+#define COLORB		0xffff55
 /* blue */
 #define COLOR4		0x0000aa
-#define COLOR12		0x5555ff
+#define COLORC		0x5555ff
 /* magenta */
 #define COLOR5		0xaa00aa
-#define COLOR13		0xff55ff
+#define COLORD		0xff55ff
 /* cyan */
 #define COLOR6		0x00aaaa
-#define COLOR14		0x55ffff
+#define COLORE		0x55ffff
 /* white */
 #define COLOR7		0xaaaaaa
-#define COLOR15		0xffffff
+#define COLORF		0xffffff

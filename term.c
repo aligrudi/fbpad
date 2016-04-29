@@ -29,7 +29,7 @@
 
 static struct term *term;
 static int *screen;
-static short *fgs, *bgs;
+static int *fgs, *bgs;
 static int *dirty;
 static int lazy;
 static int row, col;
@@ -37,6 +37,29 @@ static int fg, bg;
 static int top, bot;
 static int mode;
 static int visible;
+
+static unsigned int clr16[16] = {
+	COLOR0, COLOR1, COLOR2, COLOR3, COLOR4, COLOR5, COLOR6, COLOR7,
+	COLOR8, COLOR9, COLORA, COLORB, COLORC, COLORD, COLORE, COLORF,
+};
+
+static int clrmap(int c)
+{
+	int g = (c - 232) * 10 + 8;
+	if (c < 16) {
+		return clr16[c];
+	}
+	if (c < 232) {
+		int ri = (c - 16) / 36 ;
+		int gi = (c - 16) % 36 / 6;
+		int bi = (c - 16) % 6;
+		int rc = ri ? (ri * 40 + 55) : 0;
+		int gc = gi ? (gi * 40 + 55) : 0;
+		int bc = bi ? (bi * 40 + 55) : 0;
+		return (rc << 16) | (gc << 8) | bc;
+	}
+	return (g << 16) | (g << 8) | g;
+}
 
 /* low level drawing and lazy updating */
 
@@ -480,8 +503,8 @@ void term_scrl(int scrl)
 	for (i = 0; i < pad_rows(); i++) {
 		int off = (i - hpos) * pad_cols();
 		int *_scr = i < hpos ? HISTROW(hpos - i) : term->screen + off;
-		short *_fgs = i < hpos ? NULL : term->fgs + off;
-		short *_bgs = i < hpos ? NULL : term->bgs + off;
+		int *_fgs = i < hpos ? NULL : term->fgs + off;
+		int *_bgs = i < hpos ? NULL : term->bgs + off;
 		for (j = 0; j < pad_cols(); j++)
 			pad_put(_scr[j], i, j, _fgs ? _fgs[j] : BGCOLOR,
 						_bgs ? _bgs[j] : FGCOLOR);
@@ -572,13 +595,13 @@ static void setattr(int m)
 		break;
 	default:
 		if ((m / 10) == 3)
-			fg = m > 37 ? FGCOLOR : m - 30;
+			fg = m > 37 ? FGCOLOR : clrmap(m - 30);
 		if ((m / 10) == 4)
-			bg = m > 47 ? BGCOLOR : m - 40;
+			bg = m > 47 ? BGCOLOR : clrmap(m - 40);
 		if ((m / 10) == 9)
-			fg = 8 + m - 90;
+			fg = clrmap(8 + m - 90);
 		if ((m / 10) == 10)
-			bg = 8 + m - 100;
+			bg = clrmap(8 + m - 100);
 	}
 }
 
@@ -970,12 +993,12 @@ static void csiseq(void)
 			setattr(0);
 		for (i = 0; i < n; i++) {
 			if (args[i] == 38) {
-				fg = args[i + 2];
+				fg = clrmap(args[i + 2]);
 				i += 2;
 				continue;
 			}
 			if (args[i] == 48) {
-				bg = args[i + 2];
+				bg = clrmap(args[i + 2]);
 				i += 2;
 				continue;
 			}
