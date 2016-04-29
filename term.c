@@ -907,7 +907,7 @@ static int absrow(int r)
 /* ECMA-48 CSI sequences */
 static void csiseq(void)
 {
-	int args[MAXCSIARGS] = {0};
+	int args[MAXCSIARGS + 8] = {0};
 	int i;
 	int n = 0;
 	int c = readpty();
@@ -992,9 +992,21 @@ static void csiseq(void)
 		if (!n)
 			setattr(0);
 		for (i = 0; i < n; i++) {
+			if (args[i] == 38 && args[i + 1] == 2) {
+				fg = (args[i + 2] << 16) |
+					(args[i + 3] << 8) | args[i + 4];
+				i += 5;
+				continue;
+			}
 			if (args[i] == 38) {
 				fg = clrmap(args[i + 2]);
 				i += 2;
+				continue;
+			}
+			if (args[i] == 48 && args[i + 1] == 2) {
+				bg = (args[i + 2] << 16) |
+					(args[i + 3] << 8) | args[i + 4];
+				i += 5;
 				continue;
 			}
 			if (args[i] == 48) {
