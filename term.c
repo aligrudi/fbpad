@@ -22,6 +22,7 @@
 #define ATTR_ALL		(ATTR_BOLD | ATTR_ITALIC | ATTR_REV)
 #define MODE_INSERT		0x100
 #define MODE_WRAPREADY		0x200
+#define MODE_CLR8		0x400	/* colours 0-7 */
 
 #define LIMIT(n, a, b)		((n) < (a) ? (a) : ((n) > (b) ? (b) : (n)))
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
@@ -265,7 +266,7 @@ static void term_reset(void)
 	row = col = 0;
 	top = 0;
 	bot = pad_rows();
-	mode = MODE_CURSOR | MODE_WRAP;
+	mode = MODE_CURSOR | MODE_WRAP | MODE_CLR8;
 	fg = FGCOLOR;
 	bg = BGCOLOR;
 	term_blank();
@@ -569,6 +570,8 @@ static void set_region(int t, int b)
 
 static void setattr(int m)
 {
+	if (!m || (m / 10) == 3)
+		mode |= MODE_CLR8;
 	switch (m) {
 	case 0:
 		fg = FGCOLOR;
@@ -993,12 +996,14 @@ static void csiseq(void)
 			setattr(0);
 		for (i = 0; i < n; i++) {
 			if (args[i] == 38 && args[i + 1] == 2) {
+				mode &= ~MODE_CLR8;
 				fg = (args[i + 2] << 16) |
 					(args[i + 3] << 8) | args[i + 4];
 				i += 5;
 				continue;
 			}
 			if (args[i] == 38) {
+				mode &= ~MODE_CLR8;
 				fg = clrmap(args[i + 2]);
 				i += 2;
 				continue;
@@ -1016,6 +1021,10 @@ static void csiseq(void)
 			}
 			setattr(args[i]);
 		}
+		if (mode & MODE_CLR8 && mode & ATTR_BOLD && !FB)
+			for (i = 0; i < 8; i++)
+				if (clr16[i] == fg)
+					fg = clr16[8 + i];
 		break;
 	case 'r':	/* DECSTBM	set scrolling region to (top, bottom) rows */
 		set_region(args[0], args[1]);
