@@ -31,6 +31,9 @@ typedef unsigned int fbval_t;
 /* optimized version of fb_val() */
 #define FB_VAL(r, g, b)	fb_val((r), (g), (b))
 
+/* brighten colors 0-7 for bold text */
+#define BRIGHTEN	1
+
 /* black */
 #define COLOR0		0x000000
 #define COLOR8		0x555555
