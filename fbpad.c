@@ -1,7 +1,7 @@
 /*
  * FBPAD FRAMEBUFFER VIRTUAL TERMINAL
  *
- * Copyright (C) 2009-2016 Ali Gholami Rudi <ali at rudi dot ir>
+ * Copyright (C) 2009-2017 Ali Gholami Rudi <ali at rudi dot ir>
  *
  * This program is released under the Modified BSD license.
  */
@@ -285,20 +285,10 @@ static void mainloop(char **args)
 	tcsetattr(0, 0, &oldtermios);
 }
 
-static void signalreceived(int n);
-static void signalregister(void)
-{
-	signal(SIGUSR1, signalreceived);
-	signal(SIGUSR2, signalreceived);
-	signal(SIGCHLD, signalreceived);
-}
-
 static void signalreceived(int n)
 {
 	if (exitit)
 		return;
-	/* racy, new signals may arrive before re-registeration */
-	signalregister();
 	switch (n) {
 	case SIGUSR1:
 		hidden = 1;
@@ -325,7 +315,9 @@ static void signalsetup(void)
 	vtm.relsig = SIGUSR1;
 	vtm.acqsig = SIGUSR2;
 	vtm.frsig = 0;
-	signalregister();
+	signal(SIGUSR1, signalreceived);
+	signal(SIGUSR2, signalreceived);
+	signal(SIGCHLD, signalreceived);
 	ioctl(0, VT_SETMODE, &vtm);
 }
 
