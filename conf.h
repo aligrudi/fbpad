@@ -10,6 +10,9 @@
 #define EDITOR		{"vi"}
 #define MAIL		{"mailx", "-f", "+inbox"}
 
+/* TERM variable for launched programs */
+#define TERM        "linux"
+
 /* fbval_t should match framebuffer depth */
 typedef unsigned int fbval_t;
 

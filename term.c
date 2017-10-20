@@ -341,7 +341,7 @@ void term_exec(char **args)
 	if ((term->pid = fork()) == -1)
 		return;
 	if (!term->pid) {
-		char *envp[MAXENV] = {"TERM=linux"};
+		char *envp[MAXENV] = {"TERM=" TERM};
 		envcpy(envp + 1, environ);
 		_login(slave);
 		close(master);
