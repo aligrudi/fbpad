@@ -648,12 +648,14 @@ static void advance(int dr, int dc, int scrl)
 	if (dr && r >= bot && scrl) {
 		int n = bot - r - 1;
 		int nr = (bot - top) + n;
-		scroll_screen(top + -n, nr, n);
+		if (nr > 0)
+			scroll_screen(top + -n, nr, n);
 	}
 	if (dr && r < top && scrl) {
 		int n = top - r;
 		int nr = (bot - top) - n;
-		scroll_screen(top, nr, n);
+		if (nr > 0)
+			scroll_screen(top, nr, n);
 	}
 	r = dr ? LIMIT(r, top, bot - 1) : r;
 	c = LIMIT(c, 0, pad_cols() - 1);
