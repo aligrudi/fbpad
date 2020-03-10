@@ -1,5 +1,6 @@
 /* framebuffer device */
 #define FBDEV		"/dev/fb0"
+#define CONS_ROTATE	0		/* 0-normal, 1-90degCW, 2-180deg, 3-90degCCW */
 
 /* list of tags */
 #define TAGS		"xnlhtr01uiva-"

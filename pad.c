@@ -14,8 +14,13 @@ int pad_init(void)
 {
 	if (pad_font(FR, FI, FB))
 		return 1;
+#if CONS_ROTATE == 1 || CONS_ROTATE == 3
+	rows = fb_cols() / fnrows;
+	cols = fb_rows() / fncols;
+#else
 	rows = fb_rows() / fnrows;
 	cols = fb_cols() / fncols;
+#endif
 	return 0;
 }
 
@@ -111,7 +116,32 @@ static fbval_t *ch2fb(int fn, int c, int fg, int bg)
 static void fb_set(int r, int c, void *mem, int len)
 {
 	int bpp = FBM_BPP(fb_mode());
+	fbval_t *src = mem;
+#if CONS_ROTATE == 1
+	int stride = (fb_mem(1) - fb_mem(0)) / bpp;
+	int ru = fb_cols() - r - 1;
+	fbval_t *dst = fb_mem(c) + ru * bpp;
+	while (len--) {
+		*dst = *src++;
+		dst += stride;
+	}
+#elif CONS_ROTATE == 2
+	int ru = fb_rows() - r - 1;
+	int cu = fb_cols() - c - 1;
+	fbval_t *dst = fb_mem(ru) + cu * bpp;
+	while (len--)
+		*dst-- = *src++;
+#elif CONS_ROTATE == 3
+	int stride = (fb_mem(1) - fb_mem(0)) / bpp;
+	int cu = fb_rows() - c - 1;
+	fbval_t *dst = fb_mem(cu) + r * bpp;
+	while (len--) {
+		*dst = *src++;
+		dst -= stride;
+	}
+#else
 	memcpy(fb_mem(r) + c * bpp, mem, len * bpp);
+#endif
 }
 
 static void fb_box(int sr, int er, int sc, int ec, fbval_t val)
@@ -151,8 +181,13 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 
 void pad_fill(int sr, int er, int sc, int ec, int c)
 {
+#if CONS_ROTATE == 1 || CONS_ROTATE == 3
+	int fber = er >= 0 ? er * fnrows : fb_cols();
+	int fbec = ec >= 0 ? ec * fncols : fb_rows();
+#else
 	int fber = er >= 0 ? er * fnrows : fb_rows();
 	int fbec = ec >= 0 ? ec * fncols : fb_cols();
+#endif
 	fb_box(sr * fnrows, fber, sc * fncols, fbec, color2fb(c & FN_C));
 }
 
