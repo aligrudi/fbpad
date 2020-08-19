@@ -307,13 +307,6 @@ static void _login(int fd)
 
 #define MAXENV		(1 << 8)
 
-static void envcpy(char **d, char **s)
-{
-	while (*s)
-		*d++ = *s++;
-	*d = NULL;
-}
-
 static void execvep(char *cmd, char **argv, char **envp)
 {
 	char path[512];
@@ -341,8 +334,15 @@ void term_exec(char **args)
 	if ((term->pid = fork()) == -1)
 		return;
 	if (!term->pid) {
-		char *envp[MAXENV] = {"TERM=" TERM};
-		envcpy(envp + 1, environ);
+		char *envp[MAXENV];
+		int i = 0, j = 0;
+		while (environ[i] && j < MAXENV - 2) {
+			envp[j] = environ[i++];
+			if (!memcmp(envp[j], "TERM=", 5))
+				j++;
+		}
+		envp[j++] = "TERM=" TERM;
+		envp[j++] = NULL;
 		_login(slave);
 		close(master);
 		execvep(args[0], args, envp);
