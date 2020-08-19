@@ -324,6 +324,18 @@ static void execvep(char *cmd, char **argv, char **envp)
 	}
 }
 
+static void envcpy(char **d, char **s)
+{
+	int i = 0, j = 0;
+	while (s[i] && j < MAXENV - 2) {
+		d[j] = s[i++];
+		if (!memcmp(d[j], "TERM=", 5))
+			j++;
+	}
+	d[j++] = "TERM=" TERM;
+	d[j++] = NULL;
+}
+
 extern char **environ;
 void term_exec(char **args)
 {
@@ -335,14 +347,7 @@ void term_exec(char **args)
 		return;
 	if (!term->pid) {
 		char *envp[MAXENV];
-		int i = 0, j = 0;
-		while (environ[i] && j < MAXENV - 2) {
-			envp[j] = environ[i++];
-			if (!memcmp(envp[j], "TERM=", 5))
-				j++;
-		}
-		envp[j++] = "TERM=" TERM;
-		envp[j++] = NULL;
+		envcpy(envp, environ);
 		_login(slave);
 		close(master);
 		execvep(args[0], args, envp);
