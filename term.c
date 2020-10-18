@@ -329,11 +329,11 @@ static void envcpy(char **d, char **s)
 	int i = 0, j = 0;
 	while (s[i] && j < MAXENV - 2) {
 		d[j] = s[i++];
-		if (!memcmp(d[j], "TERM=", 5))
+		if (memcmp(d[j], "TERM=", 5))
 			j++;
 	}
 	d[j++] = "TERM=" TERM;
-	d[j++] = NULL;
+	d[j] = NULL;
 }
 
 extern char **environ;
