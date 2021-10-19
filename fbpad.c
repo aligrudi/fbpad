@@ -60,17 +60,20 @@ static int readchar(void)
 	return -1;
 }
 
+/* the current terminal */
 static int cterm(void)
 {
 	return tops[ctag] * NTAGS + ctag;
 }
 
+/* the other terminal in the same tag */
 static int aterm(int n)
 {
 	return n < NTAGS ? n + NTAGS : n - NTAGS;
 }
 
-static int fterm_next(void)
+/* the next terminal */
+static int nterm(void)
 {
 	int n = (cterm() + 1) % NTERMS;
 	while (n != cterm()) {
@@ -237,8 +240,8 @@ static void directkey(void)
 			tag_list();
 			return;
 		case '\t':
-			if (fterm_next() != cterm())
-				fterm_show(fterm_next());
+			if (nterm() != cterm())
+				fterm_show(nterm());
 			return;
 		case CTRLKEY('q'):
 			exitit = 1;
