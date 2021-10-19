@@ -98,12 +98,13 @@ static void bmp2fb(char *d, char *s, int fg, int bg, int nr, int nc)
 {
 	int i, j, k;
 	for (i = 0; i < fnrows; i++) {
+		char *p = d + i * fncols * bpp;
 		for (j = 0; j < fncols; j++) {
 			unsigned v = i < nr && j < nc ?
 				(unsigned char) s[i * nc + j] : 0;
 			unsigned c = mixed_color(fg, bg, v);
-			for (k = 0; k < bpp; k++)
-				d[i * fncols * bpp + j * bpp + k] = (c >> (k * 8)) & 0xff;
+			for (k = 0; k < bpp; k++)	/* little-endian */
+				*p++ = (c >> (k * 8)) & 0xff;
 		}
 	}
 }
@@ -132,10 +133,11 @@ static void fb_set(int r, int c, void *mem, int len)
 static char *rowbuf(unsigned c, int len)
 {
 	static char row[32 * NCOLS];
+	char *p = row;
 	int i, k;
 	for (i = 0; i < len; i++)
-		for (k = 0; k < bpp; k++)
-			row[i * bpp + k] = (c >> (k * 8)) & 0xff;
+		for (k = 0; k < bpp; k++)	/* little-endian */
+			*p++ = (c >> (k * 8)) & 0xff;
 	return row;
 }
 
