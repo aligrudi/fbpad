@@ -6,6 +6,7 @@
 #include "draw.h"
 #include "fbpad.h"
 
+static int fbroff, fbcoff, fbrows, fbcols;
 static int rows, cols;
 static int fnrows, fncols;
 static int bpp;
@@ -18,7 +19,18 @@ int pad_init(void)
 	rows = fb_rows() / fnrows;
 	cols = fb_cols() / fncols;
 	bpp = FBM_BPP(fb_mode());
+	pad_conf(0, 0, fb_rows(), fb_cols());
 	return 0;
+}
+
+void pad_conf(int roff, int coff, int _rows, int _cols)
+{
+	fbroff = roff;
+	fbcoff = coff;
+	fbrows = _rows;
+	fbcols = _cols;
+	rows = fbrows / fnrows;
+	cols = fbcols / fncols;
 }
 
 void pad_free(void)
@@ -114,7 +126,7 @@ static char *ch2fb(int fn, int c, int fg, int bg)
 
 static void fb_set(int r, int c, void *mem, int len)
 {
-	memcpy(fb_mem(r) + c * bpp, mem, len * bpp);
+	memcpy(fb_mem(fbroff + r) + (fbcoff + c) * bpp, mem, len * bpp);
 }
 
 static char *rowbuf(unsigned c, int len)
@@ -133,6 +145,20 @@ static void fb_box(int sr, int er, int sc, int ec, unsigned val)
 	int i;
 	for (i = sr; i < er; i++)
 		fb_set(i, sc, row, ec - sc);
+}
+
+void pad_border(unsigned c)
+{
+	char *row = rowbuf(c, fbcols);
+	int i;
+	if (fbroff == 0 || fbcoff == 0)
+		return;
+	fb_set(-1, -1, row, fbcols + 2);
+	fb_set(fbrows, -1, row, fbcols + 2);
+	for (i = 0; i < fbrows; i++)
+		fb_set(i, -1, row, 1);
+	for (i = 0; i < fbrows; i++)
+		fb_set(i, fbcols, row, 1);
 }
 
 static int fnsel(int fg, int bg)
@@ -162,8 +188,8 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 
 void pad_fill(int sr, int er, int sc, int ec, int c)
 {
-	int fber = er >= 0 ? er * fnrows : fb_rows();
-	int fbec = ec >= 0 ? ec * fncols : fb_cols();
+	int fber = er >= 0 ? er * fnrows : fbrows;
+	int fbec = ec >= 0 ? ec * fncols : fbcols;
 	fb_box(sr * fnrows, fber, sc * fncols, fbec, color2fb(c & FN_C));
 }
 

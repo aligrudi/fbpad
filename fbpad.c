@@ -1,7 +1,7 @@
 /*
  * FBPAD FRAMEBUFFER VIRTUAL TERMINAL
  *
- * Copyright (C) 2009-2018 Ali Gholami Rudi <ali at rudi dot ir>
+ * Copyright (C) 2009-2021 Ali Gholami Rudi <ali at rudi dot ir>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -41,6 +41,7 @@
 static char tags[] = TAGS;
 static struct term terms[NTERMS];
 static int tops[NTAGS];		/* top terms of tags */
+static int split[NTAGS];	/* terms are shown together */
 static int ctag;		/* current tag */
 static int ltag;		/* the last tag */
 static int exitit;
@@ -64,12 +65,12 @@ static int cterm(void)
 	return tops[ctag] * NTAGS + ctag;
 }
 
-static int altterm(int n)
+static int aterm(int n)
 {
 	return n < NTAGS ? n + NTAGS : n - NTAGS;
 }
 
-static int nextterm(void)
+static int fterm_next(void)
 {
 	int n = (cterm() + 1) % NTERMS;
 	while (n != cterm()) {
@@ -80,23 +81,50 @@ static int nextterm(void)
 	return n;
 }
 
-static struct term *mainterm(void)
+static struct term *fterm_main(void)
 {
 	return TERMOPEN(cterm()) ? &terms[cterm()] : NULL;
 }
 
-static void switchterm(int oidx, int nidx, int show, int save, int load)
+static int fterm_visible(int termid)
 {
-	if (save && TERMOPEN(oidx) && TERMSNAP(oidx))
-		scr_snap(oidx);
+	return !hidden && (cterm() == termid ||
+			(ctag == (termid % NTAGS) && split[ctag]));
+}
+
+static void fterm_conf(int idx)
+{
+	int hrows = (fb_rows() - 4) / 2;
+	int hcols = (fb_cols() - 4) / 2;
+	int tag = idx % NTAGS;
+	int top = idx < NTAGS;
+	if (split[tag] == 0)
+		pad_conf(0, 0, fb_rows(), fb_cols());
+	if (split[tag] == 1)
+		pad_conf(top ? 1 : hrows + 3, 1, hrows, fb_cols() - 2);
+	if (split[tag] == 2)
+		pad_conf(1, top ? 1 : hcols + 3, fb_rows() - 2, hcols);
+}
+
+static void fterm_switch(int oidx, int nidx, int show, int save, int load)
+{
+	int otag = oidx % NTAGS;
+	int ntag = nidx % NTAGS;
+	if (save && TERMOPEN(oidx) && TERMSNAP(oidx) && otag != ntag)
+		scr_snap(split[otag] ? otag : oidx);
 	term_save(&terms[oidx]);
+	if (show && split[otag] && otag == ntag)
+		pad_border(0);
+	fterm_conf(nidx);
 	term_load(&terms[nidx], show);
 	if (show)
 		term_redraw(load && (!TERMOPEN(nidx) || !TERMSNAP(nidx) ||
-					scr_load(nidx)));
+				(otag != ntag && scr_load(split[ntag] ? ntag : nidx))));
+	if (show && split[ntag])
+		pad_border(0xff0000);
 }
 
-static void showterm(int n)
+static void fterm_show(int n)
 {
 	if (cterm() == n || cmdmode)
 		return;
@@ -104,23 +132,44 @@ static void showterm(int n)
 		return;
 	if (ctag != n % NTAGS)
 		ltag = ctag;
-	switchterm(cterm(), n, !hidden, !hidden, !hidden);
+	if (ctag == n % NTAGS) {
+		if (split[n % NTAGS])
+			fterm_switch(cterm(), n, !hidden, 0, 0);
+		else
+			fterm_switch(cterm(), n, !hidden, !hidden, !hidden);
+	} else {
+		fterm_switch(cterm(), n, !hidden, !hidden, !hidden);
+		if (split[n % NTAGS]) {
+			fterm_switch(n, aterm(n), !hidden, 0, !hidden);
+			fterm_switch(aterm(n), n, !hidden, 0, 0);
+		}
+	}
 	ctag = n % NTAGS;
 	tops[ctag] = n / NTAGS;
 }
 
-static void showtag(int n)
+static void tag_split(int n)
 {
-	showterm(tops[n] * NTAGS + n);
+	split[ctag] = n;
+	scr_free(ctag);
+	scr_free(aterm(ctag));
+	if (n)
+		fterm_switch(cterm(), aterm(cterm()), !hidden, 0, !hidden);
+	fterm_switch(n ? aterm(cterm()) : cterm(), cterm(), !hidden, 0, !hidden);
 }
 
-static void execterm(char **args)
+static void tag_show(int n)
 {
-	if (!mainterm())
+	fterm_show(tops[n] * NTAGS + n);
+}
+
+static void fterm_exec(char **args)
+{
+	if (!fterm_main())
 		term_exec(args);
 }
 
-static void listtags(void)
+static void tag_list(void)
 {
 	/* colors for tags based on their number of terminals */
 	int colors[] = {COLOR7, FGCOLOR, FGCOLOR | FN_B};
@@ -137,7 +186,7 @@ static void listtags(void)
 		int nt = 0;
 		if (TERMOPEN(i))
 			nt++;
-		if (TERMOPEN(altterm(i)))
+		if (TERMOPEN(aterm(i)))
 			nt++;
 		pad_put(i == ctag ? '(' : ' ', r, c++, FGCOLOR, BGCOLOR);
 		if (TERMSNAP(i))
@@ -169,27 +218,27 @@ static void directkey(void)
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
-			execterm(shell);
+			fterm_exec(shell);
 			return;
 		case 'm':
-			execterm(mail);
+			fterm_exec(mail);
 			return;
 		case 'e':
-			execterm(editor);
+			fterm_exec(editor);
 			return;
 		case 'j':
 		case 'k':
-			showterm(altterm(cterm()));
+			fterm_show(aterm(cterm()));
 			return;
 		case 'o':
-			showtag(ltag);
+			tag_show(ltag);
 			return;
 		case 'p':
-			listtags();
+			tag_list();
 			return;
 		case '\t':
-			if (nextterm() != cterm())
-				showterm(nextterm());
+			if (fterm_next() != cterm())
+				fterm_show(fterm_next());
 			return;
 		case CTRLKEY('q'):
 			exitit = 1;
@@ -213,29 +262,35 @@ static void directkey(void)
 		case '.':
 			term_scrl(-pad_rows() / 2);
 			return;
+		case '=':
+			tag_split(split[ctag] == 1 ? 2 : 1);
+			return;
+		case '-':
+			tag_split(0);
+			return;
 		default:
 			if (strchr(tags, c)) {
-				showtag(strchr(tags, c) - tags);
+				tag_show(strchr(tags, c) - tags);
 				return;
 			}
-			if (mainterm())
+			if (fterm_main())
 				term_send(ESC);
 		}
 	}
-	if (c != -1 && mainterm())
+	if (c != -1 && fterm_main())
 		term_send(c);
 }
 
 static void peepterm(int termid)
 {
 	if (termid != cterm())
-		switchterm(cterm(), termid, 0, 0, 0);
+		fterm_switch(cterm(), termid, fterm_visible(termid), 0, 0);
 }
 
 static void peepback(int termid)
 {
 	if (termid != cterm())
-		switchterm(termid, cterm(), !hidden, 0, 0);
+		fterm_switch(termid, cterm(), fterm_visible(termid), 0, 0);
 }
 
 static int pollterms(void)
@@ -287,7 +342,7 @@ static void mainloop(char **args)
 	term_redraw(1);
 	if (args) {
 		cmdmode = 1;
-		execterm(args);
+		fterm_exec(args);
 	}
 	while (!exitit)
 		if (pollterms())
@@ -302,13 +357,13 @@ static void signalreceived(int n)
 	switch (n) {
 	case SIGUSR1:
 		hidden = 1;
-		switchterm(cterm(), cterm(), 0, 1, 0);
+		fterm_switch(cterm(), cterm(), 0, 1, 0);
 		ioctl(0, VT_RELDISP, 1);
 		break;
 	case SIGUSR2:
 		hidden = 0;
 		fb_cmap();
-		switchterm(cterm(), cterm(), 1, 0, 1);
+		fterm_switch(cterm(), cterm(), 1, 0, 1);
 		break;
 	case SIGCHLD:
 		while (waitpid(-1, NULL, WNOHANG) > 0)

@@ -26,8 +26,8 @@ struct term_state {
 struct term {
 	int screen[NROWS * NCOLS];	/* screen content */
 	int hist[NHIST * NCOLS];	/* scrolling history */
-	int fgs[NROWS * NCOLS];	/* foreground color */
-	int bgs[NROWS * NCOLS];	/* background color */
+	int fgs[NROWS * NCOLS];		/* foreground color */
+	int bgs[NROWS * NCOLS];		/* background color */
 	int dirty[NROWS];		/* changed rows in lazy mode */
 	struct term_state cur, sav;	/* terminal saved state */
 	int fd;				/* terminal file descriptor */
@@ -36,6 +36,7 @@ struct term {
 	int lazy;			/* lazy mode */
 	int pid;			/* pid of the terminal program */
 	int top, bot;			/* terminal scrolling region */
+	int rows, cols;
 };
 
 void term_load(struct term *term, int visible);
@@ -56,11 +57,13 @@ void term_redraw(int all);
 
 int pad_init(void);
 void pad_free(void);
+void pad_conf(int row, int col, int rows, int cols);
 int pad_font(char *fr, char *fi, char *fb);
 void pad_put(int ch, int r, int c, int fg, int bg);
 int pad_rows(void);
 int pad_cols(void);
 void pad_fill(int sr, int er, int sc, int ec, int c);
+void pad_border(unsigned c);
 
 /* font.c */
 struct font *font_open(char *path);

@@ -288,16 +288,21 @@ static int _openpty(int *master, int *slave)
 	return 0;
 }
 
-static void _login(int fd)
+static void tio_setsize(int fd)
 {
 	struct winsize winp;
 	winp.ws_col = pad_cols();
 	winp.ws_row = pad_rows();
 	winp.ws_xpixel = 0;
 	winp.ws_ypixel = 0;
+	ioctl(fd, TIOCSWINSZ, &winp);
+}
+
+static void tio_login(int fd)
+{
 	setsid();
 	ioctl(fd, TIOCSCTTY, NULL);
-	ioctl(fd, TIOCSWINSZ, &winp);
+	tio_setsize(fd);
 	dup2(fd, 0);
 	dup2(fd, 1);
 	dup2(fd, 2);
@@ -348,13 +353,15 @@ void term_exec(char **args)
 	if (!term->pid) {
 		char *envp[MAXENV];
 		envcpy(envp, environ);
-		_login(slave);
+		tio_login(slave);
 		close(master);
 		execvep(args[0], args, envp);
 		exit(1);
 	}
 	close(slave);
 	term->fd = master;
+	term->rows = pad_rows();
+	term->cols = pad_cols();
 	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);
 	fcntl(term->fd, F_SETFL, fcntl(term->fd, F_GETFL) | O_NONBLOCK);
 	term_reset();
@@ -394,6 +401,17 @@ void term_save(struct term *term)
 void term_redraw(int all)
 {
 	if (term->fd) {
+		if (term->rows != pad_rows() || term->cols != pad_cols()) {
+			tio_setsize(term->fd);
+			if (bot == term->rows)
+				bot = pad_rows();
+			term->rows = pad_rows();
+			term->cols = pad_cols();
+			top = MIN(top, term->rows);
+			bot = MIN(bot, term->rows);
+			row = MIN(row, term->rows - 1);
+			col = MIN(col, term->cols - 1);
+		}
 		if (all) {
 			pad_fill(pad_rows(), -1, 0, -1, BGCOLOR);
 			lazy_start();
@@ -1145,7 +1163,7 @@ static void modeseq(int c, int set)
 	case 0x11:	/* SATM		selected area transfer mode */
 	case 0x12:	/* TSM		tabulation stop mode */
 	case 0x13:	/* EBM		editing boundary mode */
-/* DEC Private Modes: "?NUM" -> (NUM | 0x80) */
+	/* DEC Private Modes: "?NUM" -> (NUM | 0x80) */
 	case 0x80:	/* IGN		Error (Ignored) */
 	case 0x81:	/* DECCKM	Cursorkeys application (set); Cursorkeys normal (reset) */
 	case 0x82:	/* DECANM	ANSI (set); VT52 (reset) */
