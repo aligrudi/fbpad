@@ -13,5 +13,6 @@ unsigned fb_mode(void);
 void *fb_mem(int r);
 int fb_rows(void);
 int fb_cols(void);
+char *fb_dev(void);
 void fb_cmap(void);
 unsigned fb_val(int r, int g, int b);

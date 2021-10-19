@@ -14,6 +14,7 @@
 
 static struct fb_var_screeninfo vinfo;	/* linux-specific FB structure */
 static struct fb_fix_screeninfo finfo;	/* linux-specific FB structure */
+static char fbdev[1024];		/* FB device */
 static int fd;				/* FB device file descriptor */
 static void *fb;			/* mmap()ed FB memory */
 static int bpp;				/* bytes per pixel */
@@ -94,6 +95,7 @@ int fb_init(char *dev)
 		*geom = '\0';
 		sscanf(geom + 1, "%dx%d%d%d", &xres, &yres, &xoff, &yoff);
 	}
+	snprintf(fbdev, sizeof(fbdev), "%s", dev);
 	fd = open(path, O_RDWR);
 	if (fd < 0)
 		goto failed;
@@ -141,4 +143,9 @@ void *fb_mem(int r)
 unsigned fb_val(int r, int g, int b)
 {
 	return ((r >> rr) << rl) | ((g >> gr) << gl) | ((b >> br) << bl);
+}
+
+char *fb_dev(void)
+{
+	return fbdev;
 }

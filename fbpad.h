@@ -64,6 +64,7 @@ int pad_rows(void);
 int pad_cols(void);
 void pad_fill(int sr, int er, int sc, int ec, int c);
 void pad_border(unsigned c);
+char *pad_fbdev(void);
 
 /* font.c */
 struct font *font_open(char *path);

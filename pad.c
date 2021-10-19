@@ -216,3 +216,11 @@ int pad_font(char *fr, char *fi, char *fb)
 	fncols = font_cols(fonts[0]);
 	return 0;
 }
+
+char *pad_fbdev(void)
+{
+	static char fbdev[1024];
+	snprintf(fbdev, sizeof(fbdev), "FBDEV=%s:%dx%d%+d%+d",
+		fb_dev(), fbcols, fbrows, fbcoff, fbroff);
+	return fbdev;
+}

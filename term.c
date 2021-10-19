@@ -329,16 +329,23 @@ static void execvep(char *cmd, char **argv, char **envp)
 	}
 }
 
-static void envcpy(char **d, char **s)
+static void envcpy(char **d, char **s, int len)
 {
-	int i = 0, j = 0;
-	while (s[i] && j < MAXENV - 2) {
-		d[j] = s[i++];
-		if (memcmp(d[j], "TERM=", 5))
-			j++;
+	int i = 0;
+	for (i = 0; i < MAXENV - 3 && s[i]; i++)
+		d[i] = s[i];
+	d[i] = NULL;
+}
+
+static void envset(char **d, char *env)
+{
+	int i;
+	int len = strchr(env, '=') - env;
+	for (i = 0; d[i]; i++) {
+		if (memcmp(d[i], env, len))
+			break;
 	}
-	d[j++] = "TERM=" TERM;
-	d[j] = NULL;
+	d[i] = env;
 }
 
 extern char **environ;
@@ -351,8 +358,10 @@ void term_exec(char **args)
 	if ((term->pid = fork()) == -1)
 		return;
 	if (!term->pid) {
-		char *envp[MAXENV];
-		envcpy(envp, environ);
+		char *envp[MAXENV] = {NULL};
+		envcpy(envp, environ, MAXENV - 2);
+		envset(envp, "TERM=" TERM);
+		envset(envp, pad_fbdev());
 		tio_login(slave);
 		close(master);
 		execvep(args[0], args, envp);
