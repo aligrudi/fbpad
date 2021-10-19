@@ -340,10 +340,6 @@ int main(int argc, char **argv)
 		fprintf(stderr, "fbpad: failed to initialize the framebuffer\n");
 		return 1;
 	}
-	if (sizeof(fbval_t) != FBM_BPP(fb_mode())) {
-		fprintf(stderr, "fbpad: fbval_t does not match framebuffer depth\n");
-		return 1;
-	}
 	if (pad_init()) {
 		fprintf(stderr, "fbpad: cannot find fonts\n");
 		return 1;

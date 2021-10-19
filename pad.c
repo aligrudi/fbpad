@@ -8,6 +8,7 @@
 
 static int rows, cols;
 static int fnrows, fncols;
+static int bpp;
 static struct font *fonts[3];
 
 int pad_init(void)
@@ -16,6 +17,7 @@ int pad_init(void)
 		return 1;
 	rows = fb_rows() / fnrows;
 	cols = fb_cols() / fncols;
+	bpp = FBM_BPP(fb_mode());
 	return 0;
 }
 
@@ -50,14 +52,14 @@ static unsigned color2fb(int c)
 #define GCLLEN		(1 << 4)	/* glyph cache list length */
 #define GCIDX(c)	((c) & (GCLCNT - 1))
 
-static fbval_t gc_mem[GCLCNT][GCLLEN][NDOTS];
+static char gc_mem[GCLCNT][GCLLEN][NDOTS * 4];
 static int gc_next[GCLCNT];
 static struct glyph {
 	int c;
 	int fg, bg;
 } gc_info[GCLCNT][GCLLEN];
 
-static fbval_t *gc_get(int c, int fg, int bg)
+static char *gc_get(int c, int fg, int bg)
 {
 	struct glyph *g = gc_info[GCIDX(c)];
 	int i;
@@ -67,7 +69,7 @@ static fbval_t *gc_get(int c, int fg, int bg)
 	return NULL;
 }
 
-static fbval_t *gc_put(int c, int fg, int bg)
+static char *gc_put(int c, int fg, int bg)
 {
 	int idx = GCIDX(c);
 	int pos = gc_next[idx]++;
@@ -80,22 +82,24 @@ static fbval_t *gc_put(int c, int fg, int bg)
 	return gc_mem[idx][pos];
 }
 
-static void bmp2fb(fbval_t *d, char *s, int fg, int bg, int nr, int nc)
+static void bmp2fb(char *d, char *s, int fg, int bg, int nr, int nc)
 {
-	int i, j;
+	int i, j, k;
 	for (i = 0; i < fnrows; i++) {
 		for (j = 0; j < fncols; j++) {
 			unsigned v = i < nr && j < nc ?
 				(unsigned char) s[i * nc + j] : 0;
-			d[i * fncols + j] = mixed_color(fg, bg, v);
+			unsigned c = mixed_color(fg, bg, v);
+			for (k = 0; k < bpp; k++)
+				d[i * fncols * bpp + j * bpp + k] = (c >> (k * 8)) & 0xff;
 		}
 	}
 }
 
-static fbval_t *ch2fb(int fn, int c, int fg, int bg)
+static char *ch2fb(int fn, int c, int fg, int bg)
 {
-	char bits[NDOTS];
-	fbval_t *fbbits;
+	char bits[NDOTS * 4];
+	char *fbbits;
 	if (c < 0 || (c < 128 && (!isprint(c) || isspace(c))))
 		return NULL;
 	if ((fbbits = gc_get(c, fg, bg)))
@@ -110,18 +114,25 @@ static fbval_t *ch2fb(int fn, int c, int fg, int bg)
 
 static void fb_set(int r, int c, void *mem, int len)
 {
-	int bpp = FBM_BPP(fb_mode());
 	memcpy(fb_mem(r) + c * bpp, mem, len * bpp);
 }
 
-static void fb_box(int sr, int er, int sc, int ec, fbval_t val)
+static char *rowbuf(unsigned c, int len)
 {
-	static fbval_t line[32 * NCOLS];
+	static char row[32 * NCOLS];
+	int i, k;
+	for (i = 0; i < len; i++)
+		for (k = 0; k < bpp; k++)
+			row[i * bpp + k] = (c >> (k * 8)) & 0xff;
+	return row;
+}
+
+static void fb_box(int sr, int er, int sc, int ec, unsigned val)
+{
+	char *row = rowbuf(val, ec - sc);
 	int i;
-	for (i = sc; i < ec; i++)
-		line[i - sc] = val;
 	for (i = sr; i < er; i++)
-		fb_set(i, sc, line, ec - sc);
+		fb_set(i, sc, row, ec - sc);
 }
 
 static int fnsel(int fg, int bg)
@@ -137,7 +148,7 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 {
 	int sr = fnrows * r;
 	int sc = fncols * c;
-	fbval_t *bits;
+	char *bits;
 	int i;
 	bits = ch2fb(fnsel(fg, bg), ch, fg, bg);
 	if (!bits)
@@ -146,7 +157,7 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 		fb_box(sr, sr + fnrows, sc, sc + fncols, color2fb(bg & FN_C));
 	else
 		for (i = 0; i < fnrows; i++)
-			fb_set(sr + i, sc, bits + (i * fncols), fncols);
+			fb_set(sr + i, sc, bits + (i * fncols * bpp), fncols);
 }
 
 void pad_fill(int sr, int er, int sc, int ec, int c)

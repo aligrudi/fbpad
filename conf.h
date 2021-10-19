@@ -13,9 +13,6 @@
 /* TERM variable for launched programs */
 #define TERM        "linux"
 
-/* fbval_t should match framebuffer depth */
-typedef unsigned int fbval_t;
-
 /* tinyfont files for regular, italic, and bold fonts */
 #define FR		"/path/to/font.tf"
 #define FI		NULL
