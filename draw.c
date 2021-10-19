@@ -19,6 +19,7 @@ static void *fb;			/* mmap()ed FB memory */
 static int bpp;				/* bytes per pixel */
 static int nr, ng, nb;			/* color levels */
 static int rl, rr, gl, gr, bl, br;	/* shifts per color */
+static int xres, yres, xoff, yoff;	/* drawing region */
 
 static int fb_len(void)
 {
@@ -87,7 +88,13 @@ static void init_colors(void)
 
 int fb_init(char *dev)
 {
-	fd = open(dev, O_RDWR);
+	char *path = dev ? dev : FBDEV;
+	char *geom = dev ? strchr(dev, ':') : NULL;
+	if (geom) {
+		*geom = '\0';
+		sscanf(geom + 1, "%dx%d%d%d", &xres, &yres, &xoff, &yoff);
+	}
+	fd = open(path, O_RDWR);
 	if (fd < 0)
 		goto failed;
 	if (ioctl(fd, FBIOGET_VSCREENINFO, &vinfo) < 0)
@@ -118,17 +125,17 @@ void fb_free(void)
 
 int fb_rows(void)
 {
-	return vinfo.yres;
+	return yres ? yres : vinfo.yres;
 }
 
 int fb_cols(void)
 {
-	return vinfo.xres;
+	return xres ? xres : vinfo.xres;
 }
 
 void *fb_mem(int r)
 {
-	return fb + (r + vinfo.yoffset) * finfo.line_length + vinfo.xoffset * bpp;
+	return fb + (r + vinfo.yoffset + yoff) * finfo.line_length + (vinfo.xoffset + xoff) * bpp;
 }
 
 unsigned fb_val(int r, int g, int b)

@@ -1,4 +1,5 @@
 /* fbpad's framebuffer interface */
+#define FBDEV		"/dev/fb0"
 
 /* fb_mode() interpretation */
 #define FBM_BPP(m)	(((m) >> 16) & 0x0f)	/* bytes per pixel (4 bits) */
