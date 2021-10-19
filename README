@@ -25,6 +25,8 @@ c-m-o		disable/enable tag switching
 c-m-q		quit fbpad
 m-,		scroll up
 m-.		scroll down
+m-=		split horizontally/vertically
+m--		unsplit
 ==============	=======================================
 
 Fbpad can be instructed to execute a single program: the program and
