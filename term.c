@@ -406,12 +406,31 @@ void term_save(struct term *term)
 	term->lazy = lazy;
 }
 
+static void resizeupdate(int or, int oc, int nr,  int nc)
+{
+	int dr = row >= nr ? row - nr + 1 : 0;
+	int i, j;
+	screen_move(0, dr * oc, nr * oc);
+	i = nc <= oc ? 0 : nr - 1;
+	while (i >= 0 && i < nr) {
+		for (j = 0; j < nc; j++) {
+			int di = i * nc + j;
+			int si = i < or && j < oc ? i * oc + j : -1;
+			term->screen[di] = si >= 0 ? term->screen[si] : 0;
+			term->fgs[di] = si >= 0 ? term->fgs[si] : fgcolor();
+			term->bgs[di] = si >= 0 ? term->bgs[si] : bgcolor();
+		}
+		i = nc <= oc ? i + 1 : i - 1;
+	}
+}
+
 /* redraw the screen; if all is zero, update changed lines only */
 void term_redraw(int all)
 {
 	if (term->fd) {
 		if (term->rows != pad_rows() || term->cols != pad_cols()) {
 			tio_setsize(term->fd);
+			resizeupdate(term->rows, term->cols, pad_rows(), pad_cols());
 			if (bot == term->rows)
 				bot = pad_rows();
 			term->rows = pad_rows();
