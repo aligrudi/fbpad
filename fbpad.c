@@ -89,12 +89,6 @@ static struct term *fterm_main(void)
 	return TERMOPEN(cterm()) ? &terms[cterm()] : NULL;
 }
 
-static int fterm_visible(int termid)
-{
-	return !hidden && (cterm() == termid ||
-			(ctag == (termid % NTAGS) && split[ctag]));
-}
-
 static void fterm_conf(int idx)
 {
 	int hrows = (fb_rows() - 4) / 2;
@@ -113,7 +107,8 @@ static void fterm_switch(int oidx, int nidx, int show, int save, int load)
 {
 	int otag = oidx % NTAGS;
 	int ntag = nidx % NTAGS;
-	if (save && TERMOPEN(oidx) && TERMSNAP(oidx) && otag != ntag)
+	int bothvisible = otag == ntag && split[otag];
+	if (save && TERMOPEN(oidx) && TERMSNAP(oidx) && !bothvisible)
 		scr_snap(split[otag] ? otag : oidx);
 	term_save(&terms[oidx]);
 	if (show && split[otag] && otag == ntag)
@@ -122,7 +117,7 @@ static void fterm_switch(int oidx, int nidx, int show, int save, int load)
 	term_load(&terms[nidx], show);
 	if (show)
 		term_redraw(load && (!TERMOPEN(nidx) || !TERMSNAP(nidx) ||
-				(otag != ntag && scr_load(split[ntag] ? ntag : nidx))));
+				(!bothvisible && scr_load(split[ntag] ? ntag : nidx))));
 	if (show && split[ntag])
 		pad_border(0xff0000);
 }
@@ -286,14 +281,15 @@ static void directkey(void)
 
 static void peepterm(int termid)
 {
+	int visible = !hidden && ctag == (termid % NTAGS) && split[ctag];
 	if (termid != cterm())
-		fterm_switch(cterm(), termid, fterm_visible(termid), 0, 0);
+		fterm_switch(cterm(), termid, visible, 0, 0);
 }
 
 static void peepback(int termid)
 {
 	if (termid != cterm())
-		fterm_switch(termid, cterm(), fterm_visible(termid), 0, 0);
+		fterm_switch(termid, cterm(), !hidden, 0, 0);
 }
 
 static int pollterms(void)
