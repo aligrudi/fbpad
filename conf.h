@@ -1,8 +1,5 @@
-/* framebuffer device */
-#define FBDEV		"/dev/fb0"
-
 /* list of tags */
-#define TAGS		"xnlhtr01uiva-"
+#define TAGS		"xnlhtr01uiva "
 #define TAGS_SAVED	""
 
 /* programs mapped to m-c, m-m, m-e */
