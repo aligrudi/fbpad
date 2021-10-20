@@ -149,11 +149,8 @@ static void fterm_show(int n)
 static void tag_split(int n)
 {
 	split[ctag] = n;
-	scr_free(ctag);
-	scr_free(aterm(ctag));
-	if (n)
-		fterm_switch(cterm(), aterm(cterm()), !hidden, 0, -!hidden);
-	fterm_switch(n ? aterm(cterm()) : cterm(), cterm(), !hidden, 0, -!hidden);
+	fterm_switch(cterm(), aterm(cterm()), !hidden, 0, -!hidden);
+	fterm_switch(aterm(cterm()), cterm(), !hidden, !hidden, -!hidden);
 }
 
 static void tag_show(int n)
