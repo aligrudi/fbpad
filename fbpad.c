@@ -116,7 +116,7 @@ static void fterm_switch(int oidx, int nidx, int show, int save, int load)
 	fterm_conf(nidx);
 	term_load(&terms[nidx], show);
 	if (show)
-		term_redraw(load && (!TERMOPEN(nidx) || !TERMSNAP(nidx) ||
+		term_redraw(load && (load < 0 || !TERMOPEN(nidx) || !TERMSNAP(nidx) ||
 				(!bothvisible && scr_load(split[ntag] ? ntag : nidx))));
 	if (show && split[ntag])
 		pad_border(0xff0000);
@@ -152,8 +152,8 @@ static void tag_split(int n)
 	scr_free(ctag);
 	scr_free(aterm(ctag));
 	if (n)
-		fterm_switch(cterm(), aterm(cterm()), !hidden, 0, !hidden);
-	fterm_switch(n ? aterm(cterm()) : cterm(), cterm(), !hidden, 0, !hidden);
+		fterm_switch(cterm(), aterm(cterm()), !hidden, 0, -!hidden);
+	fterm_switch(n ? aterm(cterm()) : cterm(), cterm(), !hidden, 0, -!hidden);
 }
 
 static void tag_show(int n)
