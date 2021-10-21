@@ -29,11 +29,10 @@ m-=		split tag horizontally/vertically
 m--		unsplit tag
 ==============	=======================================
 
-Fbpad can be instructed to execute a single program: the program and
-its arguments should be passed as command line arguments of fbpad.
-Fbpad executes the specified program in a terminal, disables all
-terminal switching commands, and exits as soon as the program
-finishes.
+To execute only a single program in fbpad, the program and its
+arguments should be passed as command line arguments of fbpad.  Fbpad
+executes the specified program in a terminal, disables all terminal
+switching commands, and exits as soon as the program finishes.
 
 Programs like fbpdf, fbvnc, and fbff read the FBDEV environment
 variable, which can specify the framebuffer device and its drawing
@@ -61,7 +60,7 @@ FGCOLOR and BGCOLOR macros specify foreground and background colors,
 for instance the FGCOLOR of 2 and BGCOLOR of 0 creates green on black
 terminals.  Individual colors can be customized by editing the hex RGB
 color description of COLOR* macros.  Also SCRSHOT macro specifies where
-fbpad text screenshots, created by "m-s" command, should be saved.
+fbpad text screenshots, created by "m-s" command, must be saved.
 
 If you want to use fbpad's scrsnap feature, you can edit TAGS_SAVED to
 change the list of saved terminals.  Framebuffer memory is saved and
