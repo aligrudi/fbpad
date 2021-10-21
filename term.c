@@ -310,8 +310,6 @@ static void tio_login(int fd)
 		close(fd);
 }
 
-#define MAXENV		(1 << 8)
-
 static void execvep(char *cmd, char **argv, char **envp)
 {
 	char path[512];
@@ -332,7 +330,7 @@ static void execvep(char *cmd, char **argv, char **envp)
 static void envcpy(char **d, char **s, int len)
 {
 	int i = 0;
-	for (i = 0; i < MAXENV - 3 && s[i]; i++)
+	for (i = 0; i < len - 1 && s[i]; i++)
 		d[i] = s[i];
 	d[i] = NULL;
 }
@@ -358,8 +356,8 @@ void term_exec(char **args)
 	if ((term->pid = fork()) == -1)
 		return;
 	if (!term->pid) {
-		char *envp[MAXENV] = {NULL};
-		envcpy(envp, environ, MAXENV - 2);
+		char *envp[256] = {NULL};
+		envcpy(envp, environ, LEN(envp) - 2);
 		envset(envp, "TERM=" TERM);
 		envset(envp, pad_fbdev());
 		tio_login(slave);
