@@ -177,7 +177,7 @@ static void tag_list(void)
 	pad_put('S', r, c++, FGCOLOR, BGCOLOR);
 	pad_put(':', r, c++, FGCOLOR, BGCOLOR);
 	pad_put(' ', r, c++, FGCOLOR, BGCOLOR);
-	for (i = 0; i < NTAGS; i++) {
+	for (i = 0; i < NTAGS && c + 2 < pad_cols(); i++) {
 		int nt = 0;
 		if (TERMOPEN(i))
 			nt++;
