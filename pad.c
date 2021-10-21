@@ -151,7 +151,7 @@ static void fb_box(int sr, int er, int sc, int ec, unsigned val)
 
 void pad_border(unsigned c)
 {
-	char *row = rowbuf(c, fbcols + 2);
+	char *row = rowbuf(color2fb(c & FN_C), fbcols + 2);
 	int i;
 	if (fbroff == 0 || fbcoff == 0)
 		return;
