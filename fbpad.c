@@ -167,29 +167,32 @@ static void fterm_exec(char **args)
 static void tag_list(void)
 {
 	/* colors for tags based on their number of terminals */
-	int colors[] = {COLOR7, FGCOLOR, FGCOLOR | FN_B};
+	int fg = 0x96cb5c, bg = 0x516f7b;
+	int colors[] = {0x173f4f, fg, 0x68cbc0 | FN_B};
 	int c = 0;
 	int r = pad_rows() - 1;
 	int i;
-	pad_put('T', r, c++, FGCOLOR, BGCOLOR);
-	pad_put('A', r, c++, FGCOLOR, BGCOLOR);
-	pad_put('G', r, c++, FGCOLOR, BGCOLOR);
-	pad_put('S', r, c++, FGCOLOR, BGCOLOR);
-	pad_put(':', r, c++, FGCOLOR, BGCOLOR);
-	pad_put(' ', r, c++, FGCOLOR, BGCOLOR);
+	pad_put('T', r, c++, fg | FN_B, bg);
+	pad_put('A', r, c++, fg | FN_B, bg);
+	pad_put('G', r, c++, fg | FN_B, bg);
+	pad_put('S', r, c++, fg | FN_B, bg);
+	pad_put(':', r, c++, fg | FN_B, bg);
+	pad_put(' ', r, c++, fg | FN_B, bg);
 	for (i = 0; i < NTAGS && c + 2 < pad_cols(); i++) {
 		int nt = 0;
 		if (TERMOPEN(i))
 			nt++;
 		if (TERMOPEN(aterm(i)))
 			nt++;
-		pad_put(i == ctag ? '(' : ' ', r, c++, FGCOLOR, BGCOLOR);
+		pad_put(i == ctag ? '(' : ' ', r, c++, fg, bg);
 		if (TERMSNAP(i))
-			pad_put(tags[i], r, c++, !nt ? BGCOLOR : colors[nt], colors[0]);
+			pad_put(tags[i], r, c++, !nt ? bg : colors[nt], colors[0]);
 		else
-			pad_put(tags[i], r, c++, colors[nt], BGCOLOR);
-		pad_put(i == ctag ? ')' : ' ', r, c++, FGCOLOR, BGCOLOR);
+			pad_put(tags[i], r, c++, colors[nt], bg);
+		pad_put(i == ctag ? ')' : ' ', r, c++, fg, bg);
 	}
+	for (; c < pad_cols(); c++)
+		pad_put(' ', r, c, fg, bg);
 }
 
 static void directkey(void)
