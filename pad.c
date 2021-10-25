@@ -149,18 +149,14 @@ static void fb_box(int sr, int er, int sc, int ec, unsigned val)
 		fb_set(i, sc, row, ec - sc);
 }
 
-void pad_border(unsigned c)
+void pad_border(unsigned c, int wid)
 {
-	char *row = rowbuf(color2fb(c & FN_C), fbcols + 2);
-	int i;
-	if (fbroff == 0 || fbcoff == 0)
+	if (fbroff < wid || fbcoff < wid)
 		return;
-	fb_set(-1, -1, row, fbcols + 2);
-	fb_set(fbrows, -1, row, fbcols + 2);
-	for (i = 0; i < fbrows; i++)
-		fb_set(i, -1, row, 1);
-	for (i = 0; i < fbrows; i++)
-		fb_set(i, fbcols, row, 1);
+	fb_box(-wid, 0, -wid, fbcols + wid, c);
+	fb_box(fbrows, fbrows + wid, -wid, fbcols + wid, c);
+	fb_box(-wid, fbrows + wid, -wid, 0, c);
+	fb_box(-wid, fbrows + wid, fbcols, fbcols + wid, c);
 }
 
 static int fnsel(int fg, int bg)

@@ -89,18 +89,21 @@ static struct term *fterm_main(void)
 	return TERMOPEN(cterm()) ? &terms[cterm()] : NULL;
 }
 
+#define BRWID		2
+#define BRCLR		0xff0000
+
 static void fterm_conf(int idx)
 {
-	int hrows = (fb_rows() - 4) / 2;
-	int hcols = (fb_cols() - 4) / 2;
+	int hrows = (fb_rows() - 4 * BRWID) / 2;
+	int hcols = (fb_cols() - 4 * BRWID) / 2;
 	int tag = idx % NTAGS;
 	int top = idx < NTAGS;
 	if (split[tag] == 0)
 		pad_conf(0, 0, fb_rows(), fb_cols());
 	if (split[tag] == 1)
-		pad_conf(top ? 1 : hrows + 3, 1, hrows, fb_cols() - 2);
+		pad_conf(top ? BRWID : hrows + 3 * BRWID, BRWID, hrows, fb_cols() - 2 * BRWID);
 	if (split[tag] == 2)
-		pad_conf(1, top ? 1 : hcols + 3, fb_rows() - 2, hcols);
+		pad_conf(BRWID, top ? BRWID : hcols + 3 * BRWID, fb_rows() - 2 * BRWID, hcols);
 }
 
 static void fterm_switch(int oidx, int nidx, int show, int save, int load)
@@ -112,14 +115,14 @@ static void fterm_switch(int oidx, int nidx, int show, int save, int load)
 		scr_snap(split[otag] ? otag : oidx);
 	term_save(&terms[oidx]);
 	if (show && split[otag] && otag == ntag)
-		pad_border(0);
+		pad_border(0, BRWID);
 	fterm_conf(nidx);
 	term_load(&terms[nidx], show);
 	if (show)
 		term_redraw(load && (load < 0 || !TERMOPEN(nidx) || !TERMSNAP(nidx) ||
 				(!bothvisible && scr_load(split[ntag] ? ntag : nidx))));
 	if (show && split[ntag])
-		pad_border(0xff0000);
+		pad_border(BRCLR, BRWID);
 }
 
 static void fterm_show(int n)
