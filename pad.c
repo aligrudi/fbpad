@@ -151,12 +151,13 @@ static void fb_box(int sr, int er, int sc, int ec, unsigned val)
 
 void pad_border(unsigned c, int wid)
 {
+	int v = color2fb(c & FN_C);
 	if (fbroff < wid || fbcoff < wid)
 		return;
-	fb_box(-wid, 0, -wid, fbcols + wid, c);
-	fb_box(fbrows, fbrows + wid, -wid, fbcols + wid, c);
-	fb_box(-wid, fbrows + wid, -wid, 0, c);
-	fb_box(-wid, fbrows + wid, fbcols, fbcols + wid, c);
+	fb_box(-wid, 0, -wid, fbcols + wid, v);
+	fb_box(fbrows, fbrows + wid, -wid, fbcols + wid, v);
+	fb_box(-wid, fbrows + wid, -wid, 0, v);
+	fb_box(-wid, fbrows + wid, fbcols, fbcols + wid, v);
 }
 
 static int fnsel(int fg, int bg)
