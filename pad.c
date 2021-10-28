@@ -223,3 +223,15 @@ char *pad_fbdev(void)
 		fb_dev(), fbcols, fbrows, fbcoff, fbroff);
 	return fbdev;
 }
+
+/* character height */
+int pad_crows(void)
+{
+	return fnrows;
+}
+
+/* character width */
+int pad_ccols(void)
+{
+	return fncols;
+}

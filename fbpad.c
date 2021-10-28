@@ -94,16 +94,20 @@ static struct term *fterm_main(void)
 
 static void fterm_conf(int idx)
 {
-	int hrows = (fb_rows() - 4 * BRWID) / 2;
-	int hcols = (fb_cols() - 4 * BRWID) / 2;
+	int h1 = fb_rows() / 2 / pad_crows() * pad_crows();
+	int h2 = fb_rows() - h1 - 4 * BRWID;
+	int w1 = fb_cols() / 2 / pad_ccols() * pad_ccols();
+	int w2 = fb_cols() - w1 - 4 * BRWID;
 	int tag = idx % NTAGS;
 	int top = idx < NTAGS;
 	if (split[tag] == 0)
 		pad_conf(0, 0, fb_rows(), fb_cols());
 	if (split[tag] == 1)
-		pad_conf(top ? BRWID : hrows + 3 * BRWID, BRWID, hrows, fb_cols() - 2 * BRWID);
+		pad_conf(top ? BRWID : h1 + 3 * BRWID, BRWID,
+			top ? h1 : h2, fb_cols() - 2 * BRWID);
 	if (split[tag] == 2)
-		pad_conf(BRWID, top ? BRWID : hcols + 3 * BRWID, fb_rows() - 2 * BRWID, hcols);
+		pad_conf(BRWID, top ? BRWID : w1 + 3 * BRWID,
+			fb_rows() - 2 * BRWID, top ? w1 : w2);
 }
 
 static void fterm_switch(int oidx, int nidx, int show, int save, int load)
