@@ -407,17 +407,15 @@ void term_save(struct term *term)
 static void resizeupdate(int or, int oc, int nr,  int nc)
 {
 	int dr = row >= nr ? row - nr + 1 : 0;
-	int i, j;
+	int i = nc <= oc ? 0 : nr * nc - 1;
 	screen_move(0, dr * oc, nr * oc);
-	i = nc <= oc ? 0 : nr - 1;
-	while (i >= 0 && i < nr) {
-		for (j = 0; j < nc; j++) {
-			int di = i * nc + j;
-			int si = i < or && j < oc ? i * oc + j : -1;
-			term->screen[di] = si >= 0 ? term->screen[si] : 0;
-			term->fgs[di] = si >= 0 ? term->fgs[si] : fgcolor();
-			term->bgs[di] = si >= 0 ? term->bgs[si] : bgcolor();
-		}
+	while (i >= 0 && i < nr * nc) {
+		int r = i / nc;
+		int c = i % nc;
+		int j = r < or && c < oc ? r * oc + c : -1;
+		term->screen[i] = j >= 0 ? term->screen[j] : 0;
+		term->fgs[i] = j >= 0 ? term->fgs[j] : fgcolor();
+		term->bgs[i] = j >= 0 ? term->bgs[j] : bgcolor();
 		i = nc <= oc ? i + 1 : i - 1;
 	}
 }
