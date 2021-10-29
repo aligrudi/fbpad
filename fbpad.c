@@ -66,6 +66,12 @@ static int cterm(void)
 	return tops[ctag] * NTAGS + ctag;
 }
 
+/* tag's active terminal */
+static int tterm(int n)
+{
+	return tops[n] * NTAGS + n;
+}
+
 /* the other terminal in the same tag */
 static int aterm(int n)
 {
@@ -84,7 +90,8 @@ static int nterm(void)
 	return n;
 }
 
-static struct term *fterm_main(void)
+/* term struct of cterm() */
+static struct term *tmain(void)
 {
 	return TERMOPEN(cterm()) ? &terms[cterm()] : NULL;
 }
@@ -92,7 +99,7 @@ static struct term *fterm_main(void)
 #define BRWID		2
 #define BRCLR		0xff0000
 
-static void fterm_conf(int idx)
+static void t_conf(int idx)
 {
 	int h1 = fb_rows() / 2 / pad_crows() * pad_crows();
 	int h2 = fb_rows() - h1 - 4 * BRWID;
@@ -110,26 +117,42 @@ static void fterm_conf(int idx)
 			fb_rows() - 2 * BRWID, top ? w1 : w2);
 }
 
-static void fterm_switch(int oidx, int nidx, int show, int save, int load)
+static void t_hide(int idx, int save)
+{
+	if (save && TERMOPEN(idx) && TERMSNAP(idx))
+		scr_snap(idx);
+	term_save(&terms[idx]);
+}
+
+/* show=0 (hidden), show=1 (visible), show=2 (load), show=3 (redraw) */
+static int t_show(int idx, int show)
+{
+	t_conf(idx);
+	term_load(&terms[idx], show > 0);
+	if (show == 2)	/* redraw if scr_load() fails */
+		show += !TERMOPEN(idx) || !TERMSNAP(idx) || scr_load(idx);
+	if (show > 0)
+		term_redraw(show == 3);
+	return show;
+}
+
+/* switch active terminal; hide oidx and show nidx */
+static int t_hideshow(int oidx, int save, int nidx, int show)
 {
 	int otag = oidx % NTAGS;
 	int ntag = nidx % NTAGS;
-	int bothvisible = otag == ntag && split[otag];
-	if (save && TERMOPEN(oidx) && TERMSNAP(oidx) && !bothvisible)
-		scr_snap(split[otag] ? otag : oidx);
-	term_save(&terms[oidx]);
+	int ret;
+	t_hide(oidx, save);
 	if (show && split[otag] && otag == ntag)
 		pad_border(0, BRWID);
-	fterm_conf(nidx);
-	term_load(&terms[nidx], show);
-	if (show)
-		term_redraw(load && (load < 0 || !TERMOPEN(nidx) || !TERMSNAP(nidx) ||
-				(!bothvisible && scr_load(split[ntag] ? ntag : nidx))));
+	ret = t_show(nidx, show);
 	if (show && split[ntag])
 		pad_border(BRCLR, BRWID);
+	return ret;
 }
 
-static void fterm_show(int n)
+/* set cterm() */
+static void t_set(int n)
 {
 	if (cterm() == n || cmdmode)
 		return;
@@ -139,39 +162,34 @@ static void fterm_show(int n)
 		ltag = ctag;
 	if (ctag == n % NTAGS) {
 		if (split[n % NTAGS])
-			fterm_switch(cterm(), n, !hidden, 0, 0);
+			t_hideshow(cterm(), 0, n, 1);
 		else
-			fterm_switch(cterm(), n, !hidden, !hidden, !hidden);
+			t_hideshow(cterm(), 1, n, 2);
 	} else {
-		fterm_switch(cterm(), n, !hidden, !hidden, !hidden);
+		int draw = t_hideshow(cterm(), 1, n, 2);
 		if (split[n % NTAGS]) {
-			fterm_switch(n, aterm(n), !hidden, 0, !hidden);
-			fterm_switch(aterm(n), n, !hidden, 0, 0);
+			t_hideshow(n, 0, aterm(n), draw == 2 ? 1 : 2);
+			t_hideshow(aterm(n), 0, n, 1);
 		}
 	}
 	ctag = n % NTAGS;
 	tops[ctag] = n / NTAGS;
 }
 
-static void tag_split(int n)
+static void t_split(int n)
 {
 	split[ctag] = n;
-	fterm_switch(cterm(), aterm(cterm()), !hidden, 0, -!hidden);
-	fterm_switch(aterm(cterm()), cterm(), !hidden, !hidden, -!hidden);
+	t_hideshow(cterm(), 0, aterm(cterm()), 3);
+	t_hideshow(aterm(cterm()), 1, cterm(), 3);
 }
 
-static void tag_show(int n)
+static void t_exec(char **args)
 {
-	fterm_show(tops[n] * NTAGS + n);
-}
-
-static void fterm_exec(char **args)
-{
-	if (!fterm_main())
+	if (!tmain())
 		term_exec(args);
 }
 
-static void tag_list(void)
+static void listtags(void)
 {
 	/* colors for tags based on their number of terminals */
 	int fg = 0x96cb5c, bg = 0x516f7b;
@@ -223,27 +241,27 @@ static void directkey(void)
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
-			fterm_exec(shell);
+			t_exec(shell);
 			return;
 		case 'm':
-			fterm_exec(mail);
+			t_exec(mail);
 			return;
 		case 'e':
-			fterm_exec(editor);
+			t_exec(editor);
 			return;
 		case 'j':
 		case 'k':
-			fterm_show(aterm(cterm()));
+			t_set(aterm(cterm()));
 			return;
 		case 'o':
-			tag_show(ltag);
+			t_set(tterm(ltag));
 			return;
 		case 'p':
-			tag_list();
+			listtags();
 			return;
 		case '\t':
 			if (nterm() != cterm())
-				fterm_show(nterm());
+				t_set(nterm());
 			return;
 		case CTRLKEY('q'):
 			exitit = 1;
@@ -268,21 +286,21 @@ static void directkey(void)
 			term_scrl(-pad_rows() / 2);
 			return;
 		case '=':
-			tag_split(split[ctag] == 1 ? 2 : 1);
+			t_split(split[ctag] == 1 ? 2 : 1);
 			return;
 		case '-':
-			tag_split(0);
+			t_split(0);
 			return;
 		default:
 			if (strchr(tags, c)) {
-				tag_show(strchr(tags, c) - tags);
+				t_set(tterm(strchr(tags, c) - tags));
 				return;
 			}
-			if (fterm_main())
+			if (tmain())
 				term_send(ESC);
 		}
 	}
-	if (c != -1 && fterm_main())
+	if (c != -1 && tmain())
 		term_send(c);
 }
 
@@ -290,13 +308,13 @@ static void peepterm(int termid)
 {
 	int visible = !hidden && ctag == (termid % NTAGS) && split[ctag];
 	if (termid != cterm())
-		fterm_switch(cterm(), termid, visible, 0, 0);
+		t_hideshow(cterm(), 0, termid, visible);
 }
 
 static void peepback(int termid)
 {
 	if (termid != cterm())
-		fterm_switch(termid, cterm(), !hidden, 0, 0);
+		t_hideshow(termid, 0, cterm(), !hidden);
 }
 
 static int pollterms(void)
@@ -348,7 +366,7 @@ static void mainloop(char **args)
 	term_redraw(1);
 	if (args) {
 		cmdmode = 1;
-		fterm_exec(args);
+		t_exec(args);
 	}
 	while (!exitit)
 		if (pollterms())
@@ -363,13 +381,16 @@ static void signalreceived(int n)
 	switch (n) {
 	case SIGUSR1:
 		hidden = 1;
-		fterm_switch(cterm(), cterm(), 0, 1, 0);
+		t_hide(cterm(), 1);
 		ioctl(0, VT_RELDISP, 1);
 		break;
 	case SIGUSR2:
 		hidden = 0;
 		fb_cmap();
-		fterm_switch(cterm(), cterm(), 1, 0, 1);
+		if (t_show(cterm(), 2) == 3 && split[ctag]) {
+			t_hideshow(cterm(), 0, aterm(cterm()), 3);
+			t_hideshow(aterm(cterm()), 0, cterm(), 1);
+		}
 		break;
 	case SIGCHLD:
 		while (waitpid(-1, NULL, WNOHANG) > 0)
