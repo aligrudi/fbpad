@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -418,7 +419,7 @@ int main(int argc, char **argv)
 	char *hide = "\x1b[2J\x1b[H\x1b[?25l";
 	char *show = "\x1b[?25h";
 	char **args = argv + 1;
-	if (fb_init(FBDEV)) {
+	if (fb_init(getenv("FBDEV"))) {
 		fprintf(stderr, "fbpad: failed to initialize the framebuffer\n");
 		return 1;
 	}

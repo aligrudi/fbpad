@@ -95,7 +95,7 @@ int fb_init(char *dev)
 		*geom = '\0';
 		sscanf(geom + 1, "%dx%d%d%d", &xres, &yres, &xoff, &yoff);
 	}
-	snprintf(fbdev, sizeof(fbdev), "%s", dev);
+	snprintf(fbdev, sizeof(fbdev), "%s", path);
 	fd = open(path, O_RDWR);
 	if (fd < 0)
 		goto failed;
