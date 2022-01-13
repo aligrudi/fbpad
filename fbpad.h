@@ -5,7 +5,6 @@
 #define LEN(a)		(sizeof(a) / sizeof((a)[0]))
 
 #define ESC		27		/* escape code */
-#define NDOTS		1024		/* maximum pixels in glyphs */
 #define NHIST		128		/* scrolling history lines */
 
 /* isdw.c */
