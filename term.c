@@ -28,6 +28,28 @@
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
 #define OFFSET(r, c)		((r) * pad_cols() + (c))
 
+struct term_state {
+	int row, col;
+	int fg, bg;
+	int mode;
+};
+
+struct term {
+	int *screen;			/* screen content */
+	int *hist;			/* scrolling history */
+	int *fgs;			/* foreground color */
+	int *bgs;			/* background color */
+	int *dirty;			/* changed rows in lazy mode */
+	struct term_state cur, sav;	/* terminal saved state */
+	int fd;				/* terminal file descriptor */
+	int hrow;			/* the next history row in hist[] */
+	int hpos;			/* scrolling history; position */
+	int lazy;			/* lazy mode */
+	int pid;			/* pid of the terminal program */
+	int top, bot;			/* terminal scrolling region */
+	int rows, cols;
+};
+
 static struct term *term;
 static int *screen;
 static int *fgs, *bgs;
@@ -229,6 +251,53 @@ static int readpty(void)
 
 /* term interface functions */
 
+static void term_zero(struct term *term)
+{
+	memset(term->screen, 0, pad_rows() * pad_cols() * sizeof(term->screen[0]));
+	memset(term->hist, 0, NHIST * pad_cols() * sizeof(term->hist[0]));
+	memset(term->fgs, 0, pad_rows() * pad_cols() * sizeof(term->fgs[0]));
+	memset(term->bgs, 0, pad_rows() * pad_cols() * sizeof(term->bgs[0]));
+	memset(term->dirty, 0, pad_rows() * sizeof(term->dirty[0]));
+	memset(&term->cur, 0, sizeof(term->cur));
+	memset(&term->sav, 0, sizeof(term->sav));
+	term->fd = 0;
+	term->hrow = 0;
+	term->hpos = 0;
+	term->lazy = 0;
+	term->pid = 0;
+	term->top = 0;
+	term->bot = 0;
+	term->rows = 0;
+	term->cols = 0;
+}
+
+struct term *term_make(void)
+{
+	struct term *term = malloc(sizeof(*term));
+	term->screen = malloc(pad_rows() * pad_cols() * sizeof(term->screen[0]));
+	term->hist = malloc(NHIST * pad_cols() * sizeof(term->hist[0]));
+	term->fgs = malloc(pad_rows() * pad_cols() * sizeof(term->fgs[0]));
+	term->bgs = malloc(pad_rows() * pad_cols() * sizeof(term->bgs[0]));
+	term->dirty = malloc(pad_rows() * sizeof(term->dirty[0]));
+	term_zero(term);
+	return term;
+}
+
+void term_free(struct term *term)
+{
+	free(term->screen);
+	free(term->hist);
+	free(term->fgs);
+	free(term->bgs);
+	free(term->dirty);
+	free(term);
+}
+
+int term_fd(struct term *term)
+{
+	return term->fd;
+}
+
 void term_send(int c)
 {
 	char b = c;
@@ -350,7 +419,7 @@ extern char **environ;
 void term_exec(char **args)
 {
 	int master, slave;
-	memset(term, 0, sizeof(*term));
+	term_zero(term);
 	if (_openpty(&master, &slave) == -1)
 		return;
 	if ((term->pid = fork()) == -1)
@@ -372,7 +441,7 @@ void term_exec(char **args)
 	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);
 	fcntl(term->fd, F_SETFL, fcntl(term->fd, F_GETFL) | O_NONBLOCK);
 	term_reset();
-	memset(term->hist, 0, sizeof(term->hist));
+	memset(term->hist, 0, NHIST * pad_cols() * sizeof(term->hist[0]));
 }
 
 static void misc_save(struct term_state *state)
@@ -467,7 +536,7 @@ void term_end(void)
 {
 	if (term->fd)
 		close(term->fd);
-	memset(term, 0, sizeof(*term));
+	term_zero(term);
 	term_load(term, visible);
 	if (visible)
 		term_redraw(1);
@@ -1170,13 +1239,14 @@ static void modeseq(int c, int set)
 	case 0x04:	/* IRM		insertion/replacement mode (always reset) */
 		mode = BIT_SET(mode, MODE_INSERT, set);
 		break;
-	case 0x00:	/* IGN		Error (Ignored) */
+	case 0x00:	/* IGN		error (ignored) */
 	case 0x01:	/* GATM		guarded-area transfer mode (ignored) */
 	case 0x02:	/* KAM		keyboard action mode (always reset) */
 	case 0x03:	/* CRM		control representation mode (always reset) */
 	case 0x05:	/* SRTM		status-reporting transfer mode */
 	case 0x06:	/* ERM		erasure mode (always set) */
 	case 0x07:	/* VEM		vertical editing mode (ignored) */
+	case 0x08:	/* BDSM		bi-directional support mode */
 	case 0x0a:	/* HEM		horizontal editing mode */
 	case 0x0b:	/* PUM		positioning unit mode */
 	case 0x0c:	/* SRM		send/receive mode (echo on/off) */
@@ -1188,16 +1258,16 @@ static void modeseq(int c, int set)
 	case 0x12:	/* TSM		tabulation stop mode */
 	case 0x13:	/* EBM		editing boundary mode */
 	/* DEC Private Modes: "?NUM" -> (NUM | 0x80) */
-	case 0x80:	/* IGN		Error (Ignored) */
-	case 0x81:	/* DECCKM	Cursorkeys application (set); Cursorkeys normal (reset) */
+	case 0x80:	/* IGN		error (ignored) */
+	case 0x81:	/* DECCKM	cursorkeys application (set); cursorkeys normal (reset) */
 	case 0x82:	/* DECANM	ANSI (set); VT52 (reset) */
 	case 0x83:	/* DECCOLM	132 columns (set); 80 columns (reset) */
-	case 0x84:	/* DECSCLM	Jump scroll (set); Smooth scroll (reset) */
-	case 0x85:	/* DECSCNM	Reverse screen (set); Normal screen (reset) */
-	case 0x88:	/* DECARM	Auto Repeat */
-	case 0x89:	/* DECINLM	Interlace */
-	case 0x92:	/* DECPFF	Send FF to printer after print screen (set); No char after PS (reset) */
-	case 0x93:	/* DECPEX	Print screen: prints full screen (set); prints scroll region (reset) */
+	case 0x84:	/* DECSCLM	jump scroll (set); smooth scroll (reset) */
+	case 0x85:	/* DECSCNM	reverse screen (set); normal screen (reset) */
+	case 0x88:	/* DECARM	auto repeat */
+	case 0x89:	/* DECINLM	interlace */
+	case 0x92:	/* DECPFF	send FF to printer after print screen (set); no char after PS (reset) */
+	case 0x93:	/* DECPEX	print screen: prints full screen (set); prints scroll region (reset) */
 	default:
 		unknown("modeseq", c);
 		break;

@@ -5,8 +5,6 @@
 #define LEN(a)		(sizeof(a) / sizeof((a)[0]))
 
 #define ESC		27		/* escape code */
-#define NCOLS		256		/* maximum number of screen columns */
-#define NROWS		128		/* maximum number of screen rows */
 #define NDOTS		1024		/* maximum pixels in glyphs */
 #define NHIST		128		/* scrolling history lines */
 
@@ -16,31 +14,11 @@
 int isdw(int c);
 int iszw(int c);
 
-/* term.c */
-struct term_state {
-	int row, col;
-	int fg, bg;
-	int mode;
-};
-
-struct term {
-	int screen[NROWS * NCOLS];	/* screen content */
-	int hist[NHIST * NCOLS];	/* scrolling history */
-	int fgs[NROWS * NCOLS];		/* foreground color */
-	int bgs[NROWS * NCOLS];		/* background color */
-	int dirty[NROWS];		/* changed rows in lazy mode */
-	struct term_state cur, sav;	/* terminal saved state */
-	int fd;				/* terminal file descriptor */
-	int hrow;			/* the next history row in hist[] */
-	int hpos;			/* scrolling history; position */
-	int lazy;			/* lazy mode */
-	int pid;			/* pid of the terminal program */
-	int top, bot;			/* terminal scrolling region */
-	int rows, cols;
-};
-
+struct term *term_make(void);
+void term_free(struct term *term);
 void term_load(struct term *term, int visible);
 void term_save(struct term *term);
+int term_fd(struct term *term);
 
 void term_read(void);
 void term_send(int c);
