@@ -199,7 +199,7 @@ static void lazy_flush(void)
 static void screen_reset(int i, int n)
 {
 	int c;
-	candraw(i / pad_cols(), (i + n) / pad_cols() + 1);
+	candraw(i / pad_cols(), (i + n) / pad_cols());
 	memset(screen + i, 0, n * sizeof(*screen));
 	for (c = 0; c < n; c++)
 		fgs[i + c] = fg;
@@ -210,7 +210,7 @@ static void screen_reset(int i, int n)
 static void screen_move(int dst, int src, int n)
 {
 	int srow = (MIN(src, dst) + (n > 0 ? 0 : n)) / pad_cols();
-	int drow = (MAX(src, dst) + (n > 0 ? n : 0)) / pad_cols() + 1;
+	int drow = (MAX(src, dst) + (n > 0 ? n : 0)) / pad_cols();
 	candraw(srow, drow);
 	memmove(screen + dst, screen + src, n * sizeof(*screen));
 	memmove(fgs + dst, fgs + src, n * sizeof(*fgs));
