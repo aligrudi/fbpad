@@ -13,12 +13,13 @@
 int isdw(int c);
 int iszw(int c);
 
+/* term.c */
 struct term *term_make(void);
 void term_free(struct term *term);
 void term_load(struct term *term, int visible);
 void term_save(struct term *term);
 int term_fd(struct term *term);
-
+/* operations on the loaded terminal */
 void term_read(void);
 void term_send(int c);
 void term_exec(char **args);
