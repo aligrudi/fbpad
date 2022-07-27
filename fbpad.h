@@ -19,6 +19,9 @@ void term_free(struct term *term);
 void term_load(struct term *term, int visible);
 void term_save(struct term *term);
 int term_fd(struct term *term);
+void term_signal(struct term *term);
+void term_hide(struct term *term);
+void term_show(struct term *term);
 /* operations on the loaded terminal */
 void term_read(void);
 void term_send(int c);

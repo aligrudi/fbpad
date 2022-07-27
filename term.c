@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -48,6 +49,7 @@ struct term {
 	int pid;			/* pid of the terminal program */
 	int top, bot;			/* terminal scrolling region */
 	int rows, cols;
+	int signal;			/* send SIGUSR1 and SIGUSR2 */
 };
 
 static struct term *term;
@@ -471,6 +473,23 @@ void term_save(struct term *term)
 	term->top = top;
 	term->bot = bot;
 	term->lazy = lazy;
+}
+
+void term_hide(struct term *term)
+{
+	if (term->pid > 0 && term->signal)
+		kill(term->pid, SIGUSR1);
+}
+
+void term_show(struct term *term)
+{
+	if (term->pid > 0 && term->signal)
+		kill(term->pid, SIGUSR2);
+}
+
+void term_signal(struct term *term)
+{
+	term->signal = 1;
 }
 
 static void resizeupdate(int or, int oc, int nr,  int nc)

@@ -120,6 +120,8 @@ static void t_conf(int idx)
 
 static void t_hide(int idx, int save)
 {
+	if (save && TERMOPEN(idx))
+		term_hide(terms[idx]);
 	if (save && TERMOPEN(idx) && TERMSNAP(idx))
 		scr_snap(idx);
 	term_save(terms[idx]);
@@ -134,6 +136,8 @@ static int t_show(int idx, int show)
 		show += !TERMOPEN(idx) || !TERMSNAP(idx) || scr_load(idx);
 	if (show > 0)
 		term_redraw(show == 3);
+	if ((show == 2 || show == 3) && TERMOPEN(idx))
+		term_show(terms[idx]);
 	return show;
 }
 
@@ -243,6 +247,10 @@ static void directkey(void)
 		switch ((c = readchar())) {
 		case 'c':
 			t_exec(shell);
+			return;
+		case ';':
+			t_exec(shell);
+			term_signal(tmain());
 			return;
 		case 'm':
 			t_exec(mail);
