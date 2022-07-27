@@ -1105,6 +1105,14 @@ static void csiseq(void)
 		if (row >= top && row < bot)
 			delete_lines(MAX(1, args[0]));
 		break;
+	case 'S':	/* SU		scroll up */
+		i = MAX(1, args[0]);
+		scroll_screen(i, pad_rows() - i, -i);
+		break;
+	case 'T':	/* SD		scroll down */
+		i = MAX(1, args[0]);
+		scroll_screen(0, pad_rows() - i, i);
+		break;
 	case 'd':	/* VPA		move to row (current column) */
 		move_cursor(absrow(MAX(1, args[0]) - 1), col);
 		break;
