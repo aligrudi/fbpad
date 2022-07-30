@@ -271,6 +271,7 @@ static void term_zero(struct term *term)
 	term->bot = 0;
 	term->rows = 0;
 	term->cols = 0;
+	term->signal = 0;
 }
 
 struct term *term_make(void)
