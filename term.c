@@ -479,13 +479,13 @@ void term_save(struct term *term)
 void term_hide(struct term *term)
 {
 	if (term->pid > 0 && term->signal)
-		kill(term->pid, SIGUSR1);
+		kill(-term->pid, SIGUSR1);
 }
 
 void term_show(struct term *term)
 {
 	if (term->pid > 0 && term->signal)
-		kill(term->pid, SIGUSR2);
+		kill(-term->pid, SIGUSR2);
 }
 
 void term_signal(struct term *term)
