@@ -1,7 +1,7 @@
 FBPAD
 =====
 
-Fbpad is a small linux framebuffer virtual terminal.  It manages many
+Fbpad is a small Linux framebuffer virtual terminal.  It manages many
 terminals through single-letter tags; each tag can hold two terminals.
 The following table indicates fbpad's key-bindings (m-k means pressing
 k, while holding the alt key).
@@ -27,6 +27,7 @@ m-,		scroll up
 m-.		scroll down
 m-=		split tag horizontally/vertically
 m--		unsplit tag
+m-;		like m-c but with switching signals
 ==============	=======================================
 
 To execute only a single program in fbpad, the program and its
