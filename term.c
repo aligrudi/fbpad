@@ -429,9 +429,12 @@ void term_exec(char **args)
 		return;
 	if (!term->pid) {
 		char *envp[256] = {NULL};
+		char pgid[32];
+		snprintf(pgid, sizeof(pgid), "TERM_PGID=%d", getpid());
 		envcpy(envp, environ, LEN(envp) - 2);
 		envset(envp, "TERM=" TERM);
 		envset(envp, pad_fbdev());
+		envset(envp, pgid);
 		tio_login(slave);
 		close(master);
 		execvep(args[0], args, envp);
