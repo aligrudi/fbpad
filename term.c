@@ -419,7 +419,7 @@ static void envset(char **d, char *env)
 }
 
 extern char **environ;
-void term_exec(char **args)
+void term_exec(char **args, int swsig)
 {
 	int master, slave;
 	term_zero(term);
@@ -431,10 +431,11 @@ void term_exec(char **args)
 		char *envp[256] = {NULL};
 		char pgid[32];
 		snprintf(pgid, sizeof(pgid), "TERM_PGID=%d", getpid());
-		envcpy(envp, environ, LEN(envp) - 2);
+		envcpy(envp, environ, LEN(envp) - 3);
 		envset(envp, "TERM=" TERM);
 		envset(envp, pad_fbdev());
-		envset(envp, pgid);
+		if (swsig)
+			envset(envp, pgid);
 		tio_login(slave);
 		close(master);
 		execvep(args[0], args, envp);
@@ -444,6 +445,7 @@ void term_exec(char **args)
 	term->fd = master;
 	term->rows = pad_rows();
 	term->cols = pad_cols();
+	term->signal = swsig;
 	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);
 	fcntl(term->fd, F_SETFL, fcntl(term->fd, F_GETFL) | O_NONBLOCK);
 	term_reset();

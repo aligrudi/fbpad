@@ -188,10 +188,10 @@ static void t_split(int n)
 	t_hideshow(aterm(cterm()), 1, cterm(), 3);
 }
 
-static void t_exec(char **args)
+static void t_exec(char **args, int swsig)
 {
 	if (!tmain())
-		term_exec(args);
+		term_exec(args, swsig);
 }
 
 static void listtags(void)
@@ -246,17 +246,16 @@ static void directkey(void)
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
-			t_exec(shell);
+			t_exec(shell, 0);
 			return;
 		case ';':
-			t_exec(shell);
-			term_signal(tmain());
+			t_exec(shell, 1);
 			return;
 		case 'm':
-			t_exec(mail);
+			t_exec(mail, 0);
 			return;
 		case 'e':
-			t_exec(editor);
+			t_exec(editor, 0);
 			return;
 		case 'j':
 		case 'k':
@@ -375,7 +374,7 @@ static void mainloop(char **args)
 	term_redraw(1);
 	if (args) {
 		cmdmode = 1;
-		t_exec(args);
+		t_exec(args, 0);
 	}
 	while (!exitit)
 		if (pollterms())
