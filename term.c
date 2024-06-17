@@ -569,23 +569,26 @@ void term_end(void)
 static int writeutf8(char *dst, int c)
 {
 	char *d = dst;
-	int l;
-	if (c > 0xffff) {
-		*d++ = 0xf0 | (c >> 18);
-		l = 3;
-	} else if (c > 0x7ff) {
-		*d++ = 0xe0 | (c >> 12);
-		l = 2;
-	} else if (c > 0x7f) {
-		*d++ = 0xc0 | (c >> 6);
-		l = 1;
-	} else {
+	if (c < 0x80) {
 		*d++ = c > 0 ? c : ' ';
-		l = 0;
+		return 1;
 	}
-	while (l--)
-		*d++ = 0x80 | ((c >> (l * 6)) & 0x3f);
-	return d - dst;
+	if (c < 0x800) {
+		*d++ = 0xc0 | (c >> 6);
+		*d++ = 0x80 | (c & 0x3f);
+		return 2;
+	}
+	if (c < 0xffff) {
+		*d++ = 0xe0 | (c >> 12);
+		*d++ = 0x80 | ((c >> 6) & 0x3f);
+		*d++ = 0x80 | (c & 0x3f);
+		return 3;
+	}
+	*d++ = 0xf0 | (c >> 18);
+	*d++ = 0x80 | ((c >> 12) & 0x3f);
+	*d++ = 0x80 | ((c >> 6) & 0x3f);
+	*d++ = 0x80 | (c & 0x3f);
+	return 4;
 }
 
 void term_screenshot(void)
@@ -833,16 +836,19 @@ static void modeseq(int c, int set);
 
 static int readutf8(int c)
 {
-	int result;
-	int l = 1;
-	if (~c & 0xc0)
+	int c1, c2, c3;
+	if (~c & 0xc0)		/* ASCII or invalid */
 		return c;
-	while (l < 6 && c & (0x40 >> l))
-		l++;
-	result = (0x3f >> l) & c;
-	while (l--)
-		result = (result << 6) | (readpty() & 0x3f);
-	return result;
+	c1 = readpty();
+	if (~c & 0x20)
+		return ((c & 0x1f) << 6) | (c1 & 0x3f);
+	c2 = readpty();
+	if (~c & 0x10)
+		return ((c & 0x0f) << 12) | ((c1 & 0x3f) << 6) | (c2 & 0x3f);
+	c3 = readpty();
+	if (~c & 0x08)
+		return ((c & 0x07) << 18) | ((c1 & 0x3f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
+	return c;
 }
 
 #define unknown(ctl, c)
