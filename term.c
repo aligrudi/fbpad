@@ -591,10 +591,10 @@ static int writeutf8(char *dst, int c)
 	return 4;
 }
 
-void term_screenshot(void)
+void term_screenshot(char *path)
 {
 	char buf[1 << 11];
-	int fd = open(SCRSHOT, O_CREAT | O_TRUNC | O_WRONLY, 0600);
+	int fd = open(path, O_CREAT | O_TRUNC | O_WRONLY, 0600);
 	int i, j;
 	for (i = 0; i < pad_rows(); i++) {
 		char *s = buf;

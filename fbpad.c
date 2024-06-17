@@ -275,7 +275,7 @@ static void directkey(void)
 			exitit = 1;
 			return;
 		case 's':
-			term_screenshot();
+			term_screenshot(SCRSHOT);
 			return;
 		case 'y':
 			term_redraw(1);
