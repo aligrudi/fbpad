@@ -15,12 +15,11 @@
 #define FI		NULL
 #define FB		NULL
 
-/* foreground and background colors */
-#define FGCOLOR		COLOR0
-#define BGCOLOR		COLORF
-
 /* where to write the screen shot */
 #define SCRSHOT		"/tmp/scr"
+
+/* file from which to read terminal colours */
+#define CLRFILE		"/tmp/clr"
 
 /* lock command password; NULL disables locking */
 #define PASS		NULL
@@ -30,6 +29,10 @@
 
 /* brighten colors 0-7 for bold text */
 #define BRIGHTEN	1
+
+/* foreground and background colors */
+#define FGCOLOR		COLOR0
+#define BGCOLOR		COLORF
 
 /* black */
 #define COLOR0		0x000000

@@ -25,6 +25,15 @@
 #define MODE_WRAPREADY		0x200
 #define MODE_CLR8		0x400	/* colours 0-7 */
 
+#define CLR_MK(fg, bg)		((fg) | ((bg) << 10))
+#define CLR_FG(c)		((c) & 0x3ff)
+#define CLR_BG(c)		(((c) >> 10) & 0x3ff)
+#define CLR_M(c)		((c) & (CLR_B | CLR_I))
+#define CLR_B			FN_B
+#define CLR_I			FN_I
+#define FG			0x100
+#define BG			0x101
+
 #define LIMIT(n, a, b)		((n) < (a) ? (a) : ((n) > (b) ? (b) : (n)))
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
 #define OFFSET(r, c)		((r) * pad_cols() + (c))
@@ -38,8 +47,7 @@ struct term_state {
 struct term {
 	int *screen;			/* screen content */
 	int *hist;			/* scrolling history */
-	int *fgs;			/* foreground color */
-	int *bgs;			/* background color */
+	int *clr;			/* foreground/background color */
 	int *dirty;			/* changed rows in lazy mode */
 	struct term_state cur, sav;	/* terminal saved state */
 	int fd;				/* terminal file descriptor */
@@ -54,7 +62,7 @@ struct term {
 
 static struct term *term;
 static int *screen;
-static int *fgs, *bgs;
+static int *clr;
 static int *dirty;
 static int lazy;
 static int row, col;
@@ -62,6 +70,8 @@ static int fg, bg;
 static int top, bot;
 static int mode;
 static int visible;
+static int clrfg = FGCOLOR;
+static int clrbg = BGCOLOR;
 
 static unsigned int clr16[16] = {
 	COLOR0, COLOR1, COLOR2, COLOR3, COLOR4, COLOR5, COLOR6, COLOR7,
@@ -71,9 +81,12 @@ static unsigned int clr16[16] = {
 static int clrmap(int c)
 {
 	int g = (c - 232) * 10 + 8;
-	if (c < 16) {
+	if (c < 16)
 		return clr16[c];
-	}
+	if (c == FG)
+		return clrfg;
+	if (c == BG)
+		return clrbg;
 	if (c < 232) {
 		int ri = (c - 16) / 36 ;
 		int gi = (c - 16) % 36 / 6;
@@ -88,19 +101,14 @@ static int clrmap(int c)
 
 /* low level drawing and lazy updating */
 
-static int fgcolor(void)
+static int color(void)
 {
-	int c = mode & ATTR_REV ? bg : fg;
+	int c = mode & ATTR_REV ? CLR_MK(bg, fg) : CLR_MK(fg, bg);
 	if (mode & ATTR_BOLD)
-		c |= FN_B;
+		c |= CLR_B;
 	if (mode & ATTR_ITALIC)
-		c |= FN_I;
+		c |= CLR_I;
 	return c;
-}
-
-static int bgcolor(void)
-{
-	return mode & ATTR_REV ? fg : bg;
 }
 
 /* assumes visible && !lazy */
@@ -108,9 +116,9 @@ static void _draw_pos(int r, int c, int cursor)
 {
 	int rev = cursor && mode & MODE_CURSOR;
 	int i = OFFSET(r, c);
-	int fg = rev ? bgs[i] : fgs[i];
-	int bg = rev ? fgs[i] : bgs[i];
-	pad_put(screen[i], r, c, fg, bg);
+	int fg = rev ? CLR_BG(clr[i]) : CLR_FG(clr[i]);
+	int bg = rev ? CLR_FG(clr[i]) : CLR_BG(clr[i]);
+	pad_put(screen[i], r, c, CLR_M(clr[i]) | clrmap(fg), clrmap(bg));
 }
 
 /* assumes visible && !lazy */
@@ -121,10 +129,10 @@ static void _draw_row(int r)
 	int i;
 	/* call pad_fill() only once for blank columns with identical backgrounds */
 	for (i = 0; i < pad_cols(); i++) {
-		cbg = bgs[OFFSET(r, i)];
+		cbg = CLR_BG(clr[OFFSET(r, i)]);
 		cch = screen[OFFSET(r, i)] ? screen[OFFSET(r, i)] : ' ';
 		if (fsc >= 0 && (cbg != fbg || cch != ' ')) {
-			pad_fill(r, r + 1, fsc, i, fbg & FN_C);
+			pad_fill(r, r + 1, fsc, i, clrmap(fbg));
 			fsc = -1;
 		}
 		if (cch != ' ') {
@@ -134,7 +142,7 @@ static void _draw_row(int r)
 			fbg = cbg;
 		}
 	}
-	pad_fill(r, r + 1, fsc >= 0 ? fsc : pad_cols(), -1, cbg & FN_C);
+	pad_fill(r, r + 1, fsc >= 0 ? fsc : pad_cols(), -1, clrmap(cbg));
 }
 
 static int candraw(int sr, int er)
@@ -166,8 +174,7 @@ static void draw_char(int ch, int r, int c)
 {
 	int i = OFFSET(r, c);
 	screen[i] = ch;
-	fgs[i] = fgcolor();
-	bgs[i] = bgcolor();
+	clr[i] = color();
 	if (candraw(r, r + 1))
 		_draw_pos(r, c, 0);
 }
@@ -204,9 +211,7 @@ static void screen_reset(int i, int n)
 	candraw(i / pad_cols(), (i + n) / pad_cols());
 	memset(screen + i, 0, n * sizeof(*screen));
 	for (c = 0; c < n; c++)
-		fgs[i + c] = fg;
-	for (c = 0; c < n; c++)
-		bgs[i + c] = bg;
+		clr[i + c] = CLR_MK(fg, bg);
 }
 
 static void screen_move(int dst, int src, int n)
@@ -215,8 +220,7 @@ static void screen_move(int dst, int src, int n)
 	int drow = (MAX(src, dst) + (n > 0 ? n : 0)) / pad_cols();
 	candraw(srow, drow);
 	memmove(screen + dst, screen + src, n * sizeof(*screen));
-	memmove(fgs + dst, fgs + src, n * sizeof(*fgs));
-	memmove(bgs + dst, bgs + src, n * sizeof(*bgs));
+	memmove(clr + dst, clr + src, n * sizeof(*clr));
 }
 
 /* terminal input buffering */
@@ -257,8 +261,7 @@ static void term_zero(struct term *term)
 {
 	memset(term->screen, 0, pad_rows() * pad_cols() * sizeof(term->screen[0]));
 	memset(term->hist, 0, NHIST * pad_cols() * sizeof(term->hist[0]));
-	memset(term->fgs, 0, pad_rows() * pad_cols() * sizeof(term->fgs[0]));
-	memset(term->bgs, 0, pad_rows() * pad_cols() * sizeof(term->bgs[0]));
+	memset(term->clr, 0, pad_rows() * pad_cols() * sizeof(term->clr[0]));
 	memset(term->dirty, 0, pad_rows() * sizeof(term->dirty[0]));
 	memset(&term->cur, 0, sizeof(term->cur));
 	memset(&term->sav, 0, sizeof(term->sav));
@@ -279,8 +282,7 @@ struct term *term_make(void)
 	struct term *term = malloc(sizeof(*term));
 	term->screen = malloc(pad_rows() * pad_cols() * sizeof(term->screen[0]));
 	term->hist = malloc(NHIST * pad_cols() * sizeof(term->hist[0]));
-	term->fgs = malloc(pad_rows() * pad_cols() * sizeof(term->fgs[0]));
-	term->bgs = malloc(pad_rows() * pad_cols() * sizeof(term->bgs[0]));
+	term->clr = malloc(pad_rows() * pad_cols() * sizeof(term->clr[0]));
 	term->dirty = malloc(pad_rows() * sizeof(term->dirty[0]));
 	term_zero(term);
 	return term;
@@ -290,8 +292,7 @@ void term_free(struct term *term)
 {
 	free(term->screen);
 	free(term->hist);
-	free(term->fgs);
-	free(term->bgs);
+	free(term->clr);
 	free(term->dirty);
 	free(term);
 }
@@ -318,7 +319,7 @@ static void term_blank(void)
 {
 	screen_reset(0, pad_rows() * pad_cols());
 	if (visible)
-		pad_fill(0, -1, 0, -1, bgcolor() & FN_C);
+		pad_fill(0, -1, 0, -1, clrmap(CLR_BG(color())));
 }
 
 static void ctlseq(void);
@@ -339,8 +340,8 @@ static void term_reset(void)
 	top = 0;
 	bot = pad_rows();
 	mode = MODE_CURSOR | MODE_WRAP | MODE_CLR8;
-	fg = FGCOLOR;
-	bg = BGCOLOR;
+	fg = FG;
+	bg = BG;
 	term_blank();
 }
 
@@ -507,8 +508,7 @@ static void resizeupdate(int or, int oc, int nr,  int nc)
 		int c = dst % nc;
 		int src = dr + r < or && c < oc ? (dr + r) * oc + c : -1;
 		term->screen[dst] = src >= 0 ? term->screen[src] : 0;
-		term->fgs[dst] = src >= 0 ? term->fgs[src] : fgcolor();
-		term->bgs[dst] = src >= 0 ? term->bgs[src] : bgcolor();
+		term->clr[dst] = src >= 0 ? term->clr[src] : color();
 		dst = nc <= oc ? dst + 1 : dst - 1;
 	}
 }
@@ -530,7 +530,7 @@ void term_redraw(int all)
 			col = MIN(col, term->cols - 1);
 		}
 		if (all) {
-			pad_fill(pad_rows(), -1, 0, -1, BGCOLOR);
+			pad_fill(pad_rows(), -1, 0, -1, clrbg);
 			lazy_start();
 			memset(dirty, 1, pad_rows() * sizeof(*dirty));
 		}
@@ -547,8 +547,7 @@ void term_load(struct term *t, int flags)
 	term = t;
 	misc_load(&term->cur);
 	screen = term->screen;
-	fgs = term->fgs;
-	bgs = term->bgs;
+	clr = term->clr;
 	visible = flags;
 	top = term->top;
 	bot = term->bot;
@@ -607,6 +606,18 @@ void term_screenshot(char *path)
 	close(fd);
 }
 
+void term_colors(char *path)
+{
+	FILE *fp = fopen(path, "r");
+	if (fp != NULL) {
+		int i;
+		fscanf(fp, "%x %x", &clrfg, &clrbg);
+		for (i = 0; i < 16; i++)
+			fscanf(fp, "%x", &clr16[i]);
+		fclose(fp);
+	}
+}
+
 /* high-level drawing functions */
 
 static void empty_rows(int sr, int er)
@@ -647,11 +658,11 @@ void term_scrl(int scrl)
 	for (i = 0; i < pad_rows(); i++) {
 		int off = (i - hpos) * pad_cols();
 		int *_scr = i < hpos ? HISTROW(hpos - i) : term->screen + off;
-		int *_fgs = i < hpos ? NULL : term->fgs + off;
-		int *_bgs = i < hpos ? NULL : term->bgs + off;
+		int *_clr = i < hpos ? NULL : term->clr + off;
 		for (j = 0; j < pad_cols(); j++)
-			pad_put(_scr[j], i, j, _fgs ? _fgs[j] : BGCOLOR,
-						_bgs ? _bgs[j] : FGCOLOR);
+			pad_put(_scr[j], i, j,
+				clrmap(_clr ? CLR_M(_clr[j]) | CLR_FG(_clr[j]) : BG),
+				clrmap(_clr ? CLR_BG(_clr[j]) : FG));
 	}
 }
 
@@ -717,8 +728,8 @@ static void setattr(int m)
 		mode |= MODE_CLR8;
 	switch (m) {
 	case 0:
-		fg = FGCOLOR;
-		bg = BGCOLOR;
+		fg = FG;
+		bg = BG;
 		mode &= ~ATTR_ALL;
 		break;
 	case 1:
@@ -741,13 +752,13 @@ static void setattr(int m)
 		break;
 	default:
 		if ((m / 10) == 3)
-			fg = m > 37 ? FGCOLOR : clrmap(m - 30);
+			fg = m > 37 ? FG : m - 30;
 		if ((m / 10) == 4)
-			bg = m > 47 ? BGCOLOR : clrmap(m - 40);
+			bg = m > 47 ? BG : m - 40;
 		if ((m / 10) == 9)
-			fg = clrmap(8 + m - 90);
+			fg = 8 + m - 90;
 		if ((m / 10) == 10)
-			bg = clrmap(8 + m - 100);
+			bg = 8 + m - 100;
 	}
 }
 
@@ -1160,7 +1171,7 @@ static void csiseq(void)
 			}
 			if (args[i] == 38) {
 				mode &= ~MODE_CLR8;
-				fg = clrmap(args[i + 2]);
+				fg = args[i + 2];
 				i += 2;
 				continue;
 			}
@@ -1171,7 +1182,7 @@ static void csiseq(void)
 				continue;
 			}
 			if (args[i] == 48) {
-				bg = clrmap(args[i + 2]);
+				bg = args[i + 2];
 				i += 2;
 				continue;
 			}

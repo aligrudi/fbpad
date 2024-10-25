@@ -1,7 +1,7 @@
 /*
  * FBPAD FRAMEBUFFER VIRTUAL TERMINAL
  *
- * Copyright (C) 2009-2021 Ali Gholami Rudi <ali at rudi dot ir>
+ * Copyright (C) 2009-2024 Ali Gholami Rudi <ali at rudi dot ir>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -278,6 +278,10 @@ static void directkey(void)
 			term_screenshot(SCRSHOT);
 			return;
 		case 'y':
+			term_redraw(1);
+			return;
+		case CTRLKEY('e'):
+			term_colors(CLRFILE);
 			term_redraw(1);
 			return;
 		case CTRLKEY('l'):
