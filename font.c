@@ -85,9 +85,9 @@ int font_bitmap(struct font *font, void *dst, int c)
 
 void font_free(struct font *font)
 {
-	if (font->data)
+	if (font && font->data)
 		free(font->data);
-	if (font->glyphs)
+	if (font && font->glyphs)
 		free(font->glyphs);
 	free(font);
 }

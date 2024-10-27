@@ -20,7 +20,7 @@ m-o		jump to the previous tag
 m-tab		show the next terminal
 m-s		create a text screenshot (SCRSHOT)
 m-y		redraw the terminal
-c-m-e		read terminal colors (CLRFILE)
+c-m-e		reload the fonts and terminal colors (CLRFILE)
 c-m-l		lock the screen; use PASS to unlock
 c-m-o		disable/enable tag switching
 c-m-q		quit fbpad

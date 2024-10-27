@@ -282,6 +282,7 @@ static void directkey(void)
 			return;
 		case CTRLKEY('e'):
 			term_colors(CLRFILE);
+			pad_font(FR, FI, FB);
 			term_redraw(1);
 			return;
 		case CTRLKEY('l'):

@@ -14,11 +14,14 @@ static struct font *fonts[3];
 
 static int gc_init(void);
 static void gc_free(void);
+static void gc_refresh(void);
 
 int pad_init(void)
 {
 	if (pad_font(FR, FI, FB))
 		return 1;
+	fnrows = font_rows(fonts[0]);
+	fncols = font_cols(fonts[0]);
 	if (gc_init())
 		return 1;
 	rows = fb_rows() / fnrows;
@@ -40,11 +43,10 @@ void pad_conf(int roff, int coff, int _rows, int _cols)
 
 void pad_free(void)
 {
-	int i;
 	gc_free();
-	for (i = 0; i < 3; i++)
-		if (fonts[i])
-			font_free(fonts[i]);
+	font_free(fonts[0]);
+	font_free(fonts[1]);
+	font_free(fonts[2]);
 }
 
 #define CR(a)		(((a) >> 16) & 0x0000ff)
@@ -112,6 +114,12 @@ static char *gc_put(int c, int fg, int bg)
 	return gc_mem + idx * GCGLEN;
 }
 
+static void gc_refresh(void)
+{
+	memset(gc_next, 0, sizeof(gc_next));
+	memset(gc_glyph, 0, sizeof(gc_glyph));
+}
+
 static void bmp2fb(char *d, char *s, int fg, int bg, int nr, int nc)
 {
 	int i, j, k;
@@ -122,7 +130,7 @@ static void bmp2fb(char *d, char *s, int fg, int bg, int nr, int nc)
 				(unsigned char) s[i * nc + j] : 0;
 			unsigned c = mixed_color(fg, bg, v);
 			for (k = 0; k < bpp; k++)	/* little-endian */
-				*p++ = (c >> (k * 8)) & 0xff;
+				*p++ = (c >> (k << 3)) & 0xff;
 		}
 	}
 }
@@ -225,11 +233,13 @@ int pad_font(char *fr, char *fi, char *fb)
 	struct font *r = fr ? font_open(fr) : NULL;
 	if (!r)
 		return 1;
+	font_free(fonts[0]);
+	font_free(fonts[1]);
+	font_free(fonts[2]);
 	fonts[0] = r;
 	fonts[1] = fi ? font_open(fi) : NULL;
 	fonts[2] = fb ? font_open(fb) : NULL;
-	fnrows = font_rows(fonts[0]);
-	fncols = font_cols(fonts[0]);
+	gc_refresh();
 	return 0;
 }
 
