@@ -659,10 +659,10 @@ void term_scrl(int scrl)
 		int off = (i - hpos) * pad_cols();
 		int *_scr = i < hpos ? HISTROW(hpos - i) : term->screen + off;
 		int *_clr = i < hpos ? NULL : term->clr + off;
-		for (j = 0; j < pad_cols(); j++)
-			pad_put(_scr[j], i, j,
-				clrmap(_clr ? CLR_M(_clr[j]) | CLR_FG(_clr[j]) : BG),
-				clrmap(_clr ? CLR_BG(_clr[j]) : FG));
+		for (j = 0; j < pad_cols(); j++) {
+			int c = _clr ? _clr[j] : CLR_MK(BG, FG);
+			pad_put(_scr[j], i, j, CLR_M(c) | clrmap(CLR_FG(c)), clrmap(CLR_BG(c)));
+		}
 	}
 }
 
