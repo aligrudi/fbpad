@@ -281,9 +281,8 @@ static void directkey(void)
 			term_redraw(1);
 			return;
 		case CTRLKEY('e'):
-			term_colors(CLRFILE);
-			pad_font(FR, FI, FB);
-			term_redraw(1);
+			if (!term_colors(CLRFILE))
+				term_redraw(1);
 			return;
 		case CTRLKEY('l'):
 			locked = 1;

@@ -606,16 +606,27 @@ void term_screenshot(char *path)
 	close(fd);
 }
 
-void term_colors(char *path)
+int term_colors(char *path)
 {
+	char t[256];
 	FILE *fp = fopen(path, "r");
-	if (fp != NULL) {
-		int i;
-		fscanf(fp, "%x %x", &clrfg, &clrbg);
-		for (i = 0; i < 16; i++)
-			fscanf(fp, "%x", &clr16[i]);
-		fclose(fp);
+	if (fp == NULL)
+		return 1;
+	while (fscanf(fp, "%31s", t) == 1) {
+		if (!strcmp("color", t)) {
+			fscanf(fp, "%x %x", &clrfg, &clrbg);
+		} else if (!strcmp("color16", t)) {
+			int i;
+			for (i = 0; i < 16; i++)
+				fscanf(fp, "%x", &clr16[i]);
+		} else if (!strcmp("font", t)) {
+			char fr[256], fi[256], fb[256];
+			if (fscanf(fp, "%255s %255s %255s", fr, fi, fb) == 3)
+				pad_font(fr, fi, fb);
+		}
+		fgets(t, sizeof(t), fp);
 	}
+	return 0;
 }
 
 /* high-level drawing functions */

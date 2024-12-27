@@ -18,7 +18,7 @@
 /* where to write the screen shot */
 #define SCRSHOT		"/tmp/scr"
 
-/* file from which to read terminal colours */
+/* file from which to read terminal font and colour options */
 #define CLRFILE		"/tmp/clr"
 
 /* lock command password; NULL disables locking */
