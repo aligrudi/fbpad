@@ -1,7 +1,7 @@
 /*
  * FBPAD FRAMEBUFFER VIRTUAL TERMINAL
  *
- * Copyright (C) 2009-2024 Ali Gholami Rudi <ali at rudi dot ir>
+ * Copyright (C) 2009-2025 Ali Gholami Rudi <ali at rudi dot ir>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -142,16 +142,19 @@ static int t_show(int idx, int show)
 }
 
 /* switch active terminal; hide oidx and show nidx */
-static int t_hideshow(int oidx, int save, int nidx, int show)
+/* + save: whether to save terminal contents for oidx */
+/* + show: same as in t_show() */
+/* + perm: whether it is a permanent switch */
+static int t_hideshow(int oidx, int save, int nidx, int show, int perm)
 {
 	int otag = oidx % NTAGS;
 	int ntag = nidx % NTAGS;
 	int ret;
 	t_hide(oidx, save);
-	if (show && split[otag] && otag == ntag)
+	if (show && split[otag] && otag == ntag && perm)
 		pad_border(0, BRWID);
 	ret = t_show(nidx, show);
-	if (show && split[ntag])
+	if (show && split[ntag] && perm)
 		pad_border(BRCLR, BRWID);
 	return ret;
 }
@@ -167,14 +170,14 @@ static void t_set(int n)
 		ltag = ctag;
 	if (ctag == n % NTAGS) {
 		if (split[n % NTAGS])
-			t_hideshow(cterm(), 0, n, 1);
+			t_hideshow(cterm(), 0, n, 1, 1);
 		else
-			t_hideshow(cterm(), 1, n, 2);
+			t_hideshow(cterm(), 1, n, 2, 1);
 	} else {
-		int draw = t_hideshow(cterm(), 1, n, 2);
+		int draw = t_hideshow(cterm(), 1, n, 2, 1);
 		if (split[n % NTAGS]) {
-			t_hideshow(n, 0, aterm(n), draw == 2 ? 1 : 2);
-			t_hideshow(aterm(n), 0, n, 1);
+			t_hideshow(n, 0, aterm(n), draw == 2 ? 1 : 2, 0);
+			t_hideshow(aterm(n), 0, n, 1, 1);
 		}
 	}
 	ctag = n % NTAGS;
@@ -184,8 +187,8 @@ static void t_set(int n)
 static void t_split(int n)
 {
 	split[ctag] = n;
-	t_hideshow(cterm(), 0, aterm(cterm()), 3);
-	t_hideshow(aterm(cterm()), 1, cterm(), 3);
+	t_hideshow(cterm(), 0, aterm(cterm()), 3, 0);
+	t_hideshow(aterm(cterm()), 1, cterm(), 3, 1);
 }
 
 static void t_exec(char **args, int swsig)
@@ -320,13 +323,13 @@ static void peepterm(int termid)
 {
 	int visible = !hidden && ctag == (termid % NTAGS) && split[ctag];
 	if (termid != cterm())
-		t_hideshow(cterm(), 0, termid, visible);
+		t_hideshow(cterm(), 0, termid, visible, 0);
 }
 
 static void peepback(int termid)
 {
 	if (termid != cterm())
-		t_hideshow(termid, 0, cterm(), !hidden);
+		t_hideshow(termid, 0, cterm(), !hidden, 1);
 }
 
 static int pollterms(void)
@@ -400,8 +403,8 @@ static void signalreceived(int n)
 		hidden = 0;
 		fb_cmap();
 		if (t_show(cterm(), 2) == 3 && split[ctag]) {
-			t_hideshow(cterm(), 0, aterm(cterm()), 3);
-			t_hideshow(aterm(cterm()), 0, cterm(), 1);
+			t_hideshow(cterm(), 0, aterm(cterm()), 3, 0);
+			t_hideshow(aterm(cterm()), 0, cterm(), 1, 1);
 		}
 		break;
 	case SIGCHLD:
