@@ -69,6 +69,24 @@ change the list of saved terminals.  Framebuffer memory is saved and
 reloaded for these tags, which is very convenient when you are using
 programs that change the framebuffer simultaneously, like fbpdf.
 
+CLRFILE
+=======
+
+If CLRFILE is set, fbpad fonts and colors can be changed using c-m-e.
+This is an example:
+
+  # Foreground and background colors
+  color   ffefef 333333
+
+  # Basic 16-color palette
+  color16 000000 ff5f87 00d787 cdcd00 00afff ff87df 00cdcd e5e5e5
+          7f7f7f ff0000 00ff00 ffff00 5c5cff ff00ff 00ffff ffffff
+
+  # Cursor color
+  cursor  444444 ffbb55
+
+  # Fonts: regular, italic, bold
+  font    /path/to/0.tf /path/to/1.tf /path/to/2.tf
 
 256-COLOR MODE
 ==============
