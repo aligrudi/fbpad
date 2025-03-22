@@ -72,6 +72,8 @@ static int mode;
 static int visible;
 static int clrfg = FGCOLOR;
 static int clrbg = BGCOLOR;
+static int cursorfg = -1;
+static int cursorbg = -1;
 
 static unsigned int clr16[16] = {
 	COLOR0, COLOR1, COLOR2, COLOR3, COLOR4, COLOR5, COLOR6, COLOR7,
@@ -114,11 +116,14 @@ static int color(void)
 /* assumes visible && !lazy */
 static void _draw_pos(int r, int c, int cursor)
 {
-	int rev = cursor && mode & MODE_CURSOR;
 	int i = OFFSET(r, c);
-	int fg = rev ? CLR_BG(clr[i]) : CLR_FG(clr[i]);
-	int bg = rev ? CLR_FG(clr[i]) : CLR_BG(clr[i]);
-	pad_put(screen[i], r, c, CLR_M(clr[i]) | clrmap(fg), clrmap(bg));
+	int fg = clrmap(CLR_FG(clr[i]));
+	int bg = clrmap(CLR_BG(clr[i]));
+	if (cursor && mode & MODE_CURSOR) {
+		fg = cursorfg >= 0 ? cursorfg : clrmap(CLR_BG(clr[i]));
+		bg = cursorbg >= 0 ? cursorbg : clrmap(CLR_FG(clr[i]));
+	}
+	pad_put(screen[i], r, c, CLR_M(clr[i]) | fg, bg);
 }
 
 /* assumes visible && !lazy */
@@ -623,6 +628,8 @@ int term_colors(char *path)
 			char fr[256], fi[256], fb[256];
 			if (fscanf(fp, "%255s %255s %255s", fr, fi, fb) == 3)
 				pad_font(fr, fi, fb);
+		} else if (!strcmp("cursor", t)) {
+			fscanf(fp, "%x %x", &cursorfg, &cursorbg);
 		}
 		fgets(t, sizeof(t), fp);
 	}
