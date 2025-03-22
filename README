@@ -85,6 +85,9 @@ This is an example:
   # Cursor color
   cursor  444444 ffbb55
 
+  # Border color and width
+  border  ffbb55 3
+
   # Fonts: regular, italic, bold
   font    /path/to/0.tf /path/to/1.tf /path/to/2.tf
 
