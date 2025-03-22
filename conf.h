@@ -24,9 +24,6 @@
 /* lock command password; NULL disables locking */
 #define PASS		NULL
 
-/* optimized version of fb_val() */
-#define FB_VAL(r, g, b)	fb_val((r), (g), (b))
-
 /* brighten colors 0-7 for bold text */
 #define BRIGHTEN	1
 

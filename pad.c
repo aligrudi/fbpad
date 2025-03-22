@@ -54,17 +54,21 @@ void pad_free(void)
 #define CB(a)		((a) & 0x0000ff)
 #define COLORMERGE(f, b, c)		((b) + (((f) - (b)) * (c) >> 8u))
 
-static unsigned mixed_color(int fg, int bg, unsigned val)
+/* this can be optimised based on framebuffer pixel format */
+static void fb_set(char *d, unsigned r, unsigned g, unsigned b)
+{
+	unsigned c = fb_val(r, g, b);
+	int i;
+	for (i = 0; i < bpp; i++)
+		d[i] = (c >> (i << 3)) & 0xff;
+}
+
+static void fb_mixed(char *d, int fg, int bg, unsigned val)
 {
 	unsigned char r = COLORMERGE(CR(fg), CR(bg), val);
 	unsigned char g = COLORMERGE(CG(fg), CG(bg), val);
 	unsigned char b = COLORMERGE(CB(fg), CB(bg), val);
-	return FB_VAL(r, g, b);
-}
-
-static unsigned color2fb(int c)
-{
-	return FB_VAL(CR(c), CG(c), CB(c));
+	fb_set(d, r, g, b);
 }
 
 /* glyph bitmap cache: use CGLCNT lists of size CGLLEN each */
@@ -122,15 +126,13 @@ static void gc_refresh(void)
 
 static void bmp2fb(char *d, char *s, int fg, int bg, int nr, int nc)
 {
-	int i, j, k;
+	int i, j;
 	for (i = 0; i < fnrows; i++) {
 		char *p = d + i * fncols * bpp;
 		for (j = 0; j < fncols; j++) {
 			unsigned v = i < nr && j < nc ?
 				(unsigned char) s[i * nc + j] : 0;
-			unsigned c = mixed_color(fg, bg, v);
-			for (k = 0; k < bpp; k++)	/* little-endian */
-				*p++ = (c >> (k << 3)) & 0xff;
+			fb_mixed(p + j * bpp, fg, bg, v);
 		}
 	}
 }
@@ -151,39 +153,34 @@ static char *ch2fb(int fn, int c, int fg, int bg)
 	return fbbits;
 }
 
-static void fb_set(int r, int c, void *mem, int len)
+static void fb_cpy(int r, int c, void *mem, int len)
 {
 	memcpy(fb_mem(fbroff + r) + (fbcoff + c) * bpp, mem, len * bpp);
 }
 
-static char *rowbuf(unsigned c, int len)
+static void fb_box(int sr, int er, int sc, int ec, int clr)
 {
 	static char row[32 * 1024];
-	char *p = row;
-	int i, k;
-	for (i = 0; i < len; i++)
-		for (k = 0; k < bpp; k++)	/* little-endian */
-			*p++ = (c >> (k * 8)) & 0xff;
-	return row;
-}
-
-static void fb_box(int sr, int er, int sc, int ec, unsigned val)
-{
-	char *row = rowbuf(val, ec - sc);
+	static int rowclr;
+	static int rowwid;
 	int i;
+	if (rowclr != clr || rowwid < ec - sc) {
+		fb_set(row, CR(clr), CG(clr), CB(clr));
+		for (i = 1; i < ec - sc; i++)
+			memcpy(row + i * bpp, row, bpp);
+	}
 	for (i = sr; i < er; i++)
-		fb_set(i, sc, row, ec - sc);
+		fb_cpy(i, sc, row, ec - sc);
 }
 
 void pad_border(unsigned c, int wid)
 {
-	int v = color2fb(c & FN_C);
 	if (fbroff < wid || fbcoff < wid)
 		return;
-	fb_box(-wid, 0, -wid, fbcols + wid, v);
-	fb_box(fbrows, fbrows + wid, -wid, fbcols + wid, v);
-	fb_box(-wid, fbrows + wid, -wid, 0, v);
-	fb_box(-wid, fbrows + wid, fbcols, fbcols + wid, v);
+	fb_box(-wid, 0, -wid, fbcols + wid, c & FN_C);
+	fb_box(fbrows, fbrows + wid, -wid, fbcols + wid, c & FN_C);
+	fb_box(-wid, fbrows + wid, -wid, 0, c & FN_C);
+	fb_box(-wid, fbrows + wid, fbcols, fbcols + wid, c & FN_C);
 }
 
 static int fnsel(int fg, int bg)
@@ -205,17 +202,17 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 	if (!bits)
 		bits = ch2fb(0, ch, fg, bg);
 	if (!bits)
-		fb_box(sr, sr + fnrows, sc, sc + fncols, color2fb(bg & FN_C));
+		fb_box(sr, sr + fnrows, sc, sc + fncols, bg & FN_C);
 	else
 		for (i = 0; i < fnrows; i++)
-			fb_set(sr + i, sc, bits + (i * fncols * bpp), fncols);
+			fb_cpy(sr + i, sc, bits + (i * fncols * bpp), fncols);
 }
 
 void pad_fill(int sr, int er, int sc, int ec, int c)
 {
 	int fber = er >= 0 ? er * fnrows : fbrows;
 	int fbec = ec >= 0 ? ec * fncols : fbcols;
-	fb_box(sr * fnrows, fber, sc * fncols, fbec, color2fb(c & FN_C));
+	fb_box(sr * fnrows, fber, sc * fncols, fbec, c & FN_C);
 }
 
 int pad_rows(void)
