@@ -97,25 +97,23 @@ static struct term *tmain(void)
 	return TERMOPEN(cterm()) ? terms[cterm()] : NULL;
 }
 
-#define BRWID		2
-#define BRCLR		0xff0000
-
 static void t_conf(int idx)
 {
+	int brwid = term_borderwd();
 	int h1 = fb_rows() / 2 / pad_crows() * pad_crows();
-	int h2 = fb_rows() - h1 - 4 * BRWID;
+	int h2 = fb_rows() - h1 - 4 * brwid;
 	int w1 = fb_cols() / 2 / pad_ccols() * pad_ccols();
-	int w2 = fb_cols() - w1 - 4 * BRWID;
+	int w2 = fb_cols() - w1 - 4 * brwid;
 	int tag = idx % NTAGS;
 	int top = idx < NTAGS;
 	if (split[tag] == 0)
 		pad_conf(0, 0, fb_rows(), fb_cols());
 	if (split[tag] == 1)
-		pad_conf(top ? BRWID : h1 + 3 * BRWID, BRWID,
-			top ? h1 : h2, fb_cols() - 2 * BRWID);
+		pad_conf(top ? brwid : h1 + 3 * brwid, brwid,
+			top ? h1 : h2, fb_cols() - 2 * brwid);
 	if (split[tag] == 2)
-		pad_conf(BRWID, top ? BRWID : w1 + 3 * BRWID,
-			fb_rows() - 2 * BRWID, top ? w1 : w2);
+		pad_conf(brwid, top ? brwid : w1 + 3 * brwid,
+			fb_rows() - 2 * brwid, top ? w1 : w2);
 }
 
 static void t_hide(int idx, int save)
@@ -152,10 +150,10 @@ static int t_hideshow(int oidx, int save, int nidx, int show, int perm)
 	int ret;
 	t_hide(oidx, save);
 	if (show && split[otag] && otag == ntag && perm)
-		pad_border(0, BRWID);
+		pad_border(0, term_borderwd());
 	ret = t_show(nidx, show);
 	if (show && split[ntag] && perm)
-		pad_border(BRCLR, BRWID);
+		pad_border(term_borderfg(), term_borderwd());
 	return ret;
 }
 

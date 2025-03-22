@@ -30,6 +30,8 @@ void term_screenshot(char *path);
 void term_scrl(int pos);
 void term_redraw(int all);
 int term_colors(char *path);
+int term_borderwd(void);
+int term_borderfg(void);
 
 /* pad.c */
 #define FN_I		0x01000000	/* italic font */

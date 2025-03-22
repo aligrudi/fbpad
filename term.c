@@ -74,6 +74,8 @@ static int clrfg = FGCOLOR;
 static int clrbg = BGCOLOR;
 static int cursorfg = -1;
 static int cursorbg = -1;
+static int borderfg = 0xff0000;
+static int borderwd = 2;
 
 static unsigned int clr16[16] = {
 	COLOR0, COLOR1, COLOR2, COLOR3, COLOR4, COLOR5, COLOR6, COLOR7,
@@ -630,10 +632,22 @@ int term_colors(char *path)
 				pad_font(fr, fi, fb);
 		} else if (!strcmp("cursor", t)) {
 			fscanf(fp, "%x %x", &cursorfg, &cursorbg);
+		} else if (!strcmp("border", t)) {
+			fscanf(fp, "%x %d", &borderfg, &borderwd);
 		}
 		fgets(t, sizeof(t), fp);
 	}
 	return 0;
+}
+
+int term_borderwd(void)
+{
+	return borderwd;
+}
+
+int term_borderfg(void)
+{
+	return borderfg;
 }
 
 /* high-level drawing functions */
