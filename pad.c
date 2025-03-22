@@ -168,6 +168,8 @@ static void fb_box(int sr, int er, int sc, int ec, int clr)
 		fb_set(row, CR(clr), CG(clr), CB(clr));
 		for (i = 1; i < ec - sc; i++)
 			memcpy(row + i * bpp, row, bpp);
+		rowclr = clr;
+		rowwid = ec - sc;
 	}
 	for (i = sr; i < er; i++)
 		fb_cpy(i, sc, row, ec - sc);
