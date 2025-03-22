@@ -120,3 +120,18 @@ the vimrc file should enable them:
 
   set t_ZH=[3m
   set t_Co=256
+
+PERFORMANCE
+===========
+
+To improve text rendering performance in fbpad, you may redefine
+fb_set() in pad.c based on the color depth and encoding of your
+framebuffer.  For instance, if using a 32-bit little-endian RGB
+framebuffer, you may redefine it as follows:
+
+  static void fb_set(char *d, unsigned r, unsigned g, unsigned b)
+  {
+	d[0] = b;
+	d[1] = g;
+	d[2] = r;
+  }
