@@ -37,12 +37,12 @@
 #define NTAGS		(sizeof(tags) - 1)
 #define NTERMS		(NTAGS * 2)
 #define TERMOPEN(i)	(term_fd(terms[i]))
-#define TERMSNAP(i)	(strchr(TAGS_SAVED, tags[(i) % NTAGS]))
 
 static char tags[] = TAGS;
 static struct term *terms[NTERMS];
 static int tops[NTAGS];		/* top terms of tags */
 static int split[NTAGS];	/* terms are shown together */
+static int saved[NTAGS];	/* saved tags */
 static int ctag;		/* current tag */
 static int ltag;		/* the last tag */
 static int exitit;
@@ -120,7 +120,7 @@ static void t_hide(int idx, int save)
 {
 	if (save && TERMOPEN(idx))
 		term_hide(terms[idx]);
-	if (save && TERMOPEN(idx) && TERMSNAP(idx))
+	if (save && saved[idx] && TERMOPEN(idx))
 		scr_snap(idx);
 	term_save(terms[idx]);
 }
@@ -131,7 +131,7 @@ static int t_show(int idx, int show)
 	t_conf(idx);
 	term_load(terms[idx], show > 0);
 	if (show == 2)	/* redraw if scr_load() fails */
-		show += !TERMOPEN(idx) || !TERMSNAP(idx) || scr_load(idx);
+		show += !TERMOPEN(idx) || !saved[idx] || scr_load(idx);
 	if (show > 0)
 		term_redraw(show == 3);
 	if ((show == 2 || show == 3) && TERMOPEN(idx))
@@ -216,7 +216,7 @@ static void listtags(void)
 		if (TERMOPEN(aterm(i)))
 			nt++;
 		pad_put(i == ctag ? '(' : ' ', r, c++, fg, bg);
-		if (TERMSNAP(i))
+		if (saved[i])
 			pad_put(tags[i], r, c++, !nt ? bg : colors[nt], colors[0]);
 		else
 			pad_put(tags[i], r, c++, colors[nt], bg);
@@ -253,9 +253,13 @@ static void directkey(void)
 			t_exec(shell, 1);
 			return;
 		case 'm':
+			if (TERMOPEN(cterm()))
+				saved[ctag] = 1;
 			t_exec(mail, 0);
 			return;
 		case 'e':
+			if (TERMOPEN(cterm()))
+				saved[ctag] = 0;
 			t_exec(editor, 0);
 			return;
 		case 'j':
@@ -447,6 +451,8 @@ int main(int argc, char **argv)
 	fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
 	while (args[0] && args[0][0] == '-')
 		args++;
+	for (i = 0; i < NTAGS; i++)
+		saved[i] = strchr(TAGS_SAVED, tags[i % NTAGS]) != NULL;
 	mainloop(args[0] ? args : NULL);
 	write(1, show, strlen(show));
 	for (i = 0; i < NTERMS; i++)
