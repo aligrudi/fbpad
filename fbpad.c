@@ -120,7 +120,7 @@ static void t_hide(int idx, int save)
 {
 	if (save && TERMOPEN(idx))
 		term_hide(terms[idx]);
-	if (save && saved[idx] && TERMOPEN(idx))
+	if (save && saved[idx % NTAGS] && TERMOPEN(idx))
 		scr_snap(idx);
 	term_save(terms[idx]);
 }
@@ -131,7 +131,7 @@ static int t_show(int idx, int show)
 	t_conf(idx);
 	term_load(terms[idx], show > 0);
 	if (show == 2)	/* redraw if scr_load() fails */
-		show += !TERMOPEN(idx) || !saved[idx] || scr_load(idx);
+		show += !TERMOPEN(idx) || !saved[idx % NTAGS] || scr_load(idx);
 	if (show > 0)
 		term_redraw(show == 3);
 	if ((show == 2 || show == 3) && TERMOPEN(idx))
