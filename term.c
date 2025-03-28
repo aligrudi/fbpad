@@ -420,7 +420,7 @@ static void envset(char **d, char *env)
 	int i;
 	int len = strchr(env, '=') - env;
 	for (i = 0; d[i]; i++) {
-		if (memcmp(d[i], env, len))
+		if (memcmp(d[i], env, len) == 0)
 			break;
 	}
 	d[i] = env;
