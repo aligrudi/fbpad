@@ -29,10 +29,12 @@ int scr_load(int idx)
 {
 	int rowsz = FBM_BPP(fb_mode()) * fb_cols();
 	int i;
-	if (idx < NSCRS && scrs[idx])
+	if (idx < NSCRS && scrs[idx]) {
 		for (i = 0; i < fb_rows(); i++)
 			memcpy(fb_mem(i), scrs[idx] + i * rowsz, rowsz);
-	return 0;
+		return 0;
+	}
+	return 1;
 }
 
 void scr_done(void)
