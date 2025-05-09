@@ -64,13 +64,13 @@ static int readchar(void)
 /* the current terminal */
 static int cterm(void)
 {
-	return tops[ctag] * NTAGS + ctag;
+	return tops[ctag] ? NTAGS + ctag : ctag;
 }
 
 /* tag's active terminal */
 static int tterm(int n)
 {
-	return tops[n] * NTAGS + n;
+	return tops[n] ? NTAGS + n : n;
 }
 
 /* the other terminal in the same tag */
@@ -178,8 +178,8 @@ static void t_set(int n)
 			t_hideshow(aterm(n), 0, n, 1, 1);
 		}
 	}
-	ctag = n % NTAGS;
-	tops[ctag] = n / NTAGS;
+	ctag = n >= NTAGS ? n - NTAGS : n;
+	tops[ctag] = n >= NTAGS;
 }
 
 static void t_split(int n)
@@ -258,8 +258,11 @@ static void directkey(void)
 			t_exec(mail, 0);
 			return;
 		case 'e':
-			if (TERMOPEN(cterm()))
+			if (TERMOPEN(cterm())) {
 				saved[ctag] = 0;
+				scr_free(ctag);
+				scr_free(aterm(ctag));
+			}
 			t_exec(editor, 0);
 			return;
 		case 'j':
