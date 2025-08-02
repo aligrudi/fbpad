@@ -1221,9 +1221,8 @@ static void csiseq(void)
 			setattr(args[i]);
 		}
 		if (mode & MODE_CLR8 && mode & ATTR_BOLD && BRIGHTEN)
-			for (i = 0; i < 8; i++)
-				if (clr16[i] == fg)
-					fg = clr16[8 + i];
+			if (fg < 8)
+				fg += 8;
 		break;
 	case 'r':	/* DECSTBM	set scrolling region to (top, bottom) rows */
 		set_region(args[0], args[1]);
