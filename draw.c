@@ -27,12 +27,10 @@ static int fb_len(void)
 	return finfo.line_length * vinfo.yres_virtual;
 }
 
-static void fb_cmap_save(int save)
+static void fb_cmap(int save)
 {
 	static unsigned short red[NLEVELS], green[NLEVELS], blue[NLEVELS];
 	struct fb_cmap cmap;
-	if (finfo.visual == FB_VISUAL_TRUECOLOR)
-		return;
 	cmap.start = 0;
 	cmap.len = MAX(nr, MAX(ng, nb));
 	cmap.red = red;
@@ -42,29 +40,34 @@ static void fb_cmap_save(int save)
 	ioctl(fd, save ? FBIOGETCMAP : FBIOPUTCMAP, &cmap);
 }
 
-void fb_cmap(void)
+void fb_enter(void)
 {
 	unsigned short red[NLEVELS], green[NLEVELS], blue[NLEVELS];
 	struct fb_cmap cmap;
 	int i;
+	ioctl(fd, FBIOPUT_VSCREENINFO, &vinfo);
 	if (finfo.visual == FB_VISUAL_TRUECOLOR)
 		return;
-
+	fb_cmap(1);
 	for (i = 0; i < nr; i++)
 		red[i] = (65535 / (nr - 1)) * i;
 	for (i = 0; i < ng; i++)
 		green[i] = (65535 / (ng - 1)) * i;
 	for (i = 0; i < nb; i++)
 		blue[i] = (65535 / (nb - 1)) * i;
-
 	cmap.start = 0;
 	cmap.len = MAX(nr, MAX(ng, nb));
 	cmap.red = red;
 	cmap.green = green;
 	cmap.blue = blue;
 	cmap.transp = NULL;
-
 	ioctl(fd, FBIOPUTCMAP, &cmap);
+}
+
+void fb_leave(void)
+{
+	if (finfo.visual != FB_VISUAL_TRUECOLOR)
+		fb_cmap(0);
 }
 
 unsigned fb_mode(void)
@@ -109,8 +112,7 @@ int fb_init(char *dev)
 	if (fb == MAP_FAILED)
 		goto failed;
 	init_colors();
-	fb_cmap_save(1);
-	fb_cmap();
+	fb_enter();
 	return 0;
 failed:
 	perror("fb_init()");
@@ -120,7 +122,7 @@ failed:
 
 void fb_free(void)
 {
-	fb_cmap_save(0);
+	fb_leave();
 	munmap(fb, fb_len());
 	close(fd);
 }

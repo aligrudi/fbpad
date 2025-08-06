@@ -402,11 +402,12 @@ static void signalreceived(int n)
 	case SIGUSR1:
 		hidden = 1;
 		t_hide(cterm(), 1);
+		fb_leave();
 		ioctl(0, VT_RELDISP, 1);
 		break;
 	case SIGUSR2:
 		hidden = 0;
-		fb_cmap();
+		fb_enter();
 		if (t_show(cterm(), 2) == 3 && split[ctag]) {
 			t_hideshow(cterm(), 0, aterm(cterm()), 3, 0);
 			t_hideshow(aterm(cterm()), 0, cterm(), 1, 1);

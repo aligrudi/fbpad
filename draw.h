@@ -8,11 +8,12 @@
 
 /* main functions */
 int fb_init(char *dev);
+void fb_enter(void);
+void fb_leave(void);
 void fb_free(void);
 unsigned fb_mode(void);
 void *fb_mem(int r);
 int fb_rows(void);
 int fb_cols(void);
 char *fb_dev(void);
-void fb_cmap(void);
 unsigned fb_val(int r, int g, int b);
