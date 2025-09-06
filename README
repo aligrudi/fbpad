@@ -3,8 +3,8 @@ FBPAD
 
 Fbpad is a small Linux framebuffer virtual terminal.  It manages many
 terminals through single-letter tags; each tag can hold two terminals.
-The following table indicates fbpad's key-bindings (m-k means pressing
-k, while holding the alt key).
+The following table lists fbpad's key-bindings (m-k means pressing k,
+while holding the alt key).
 
 ==============	=======================================
 KEY		COMMAND
@@ -31,10 +31,10 @@ m--		unsplit tag
 m-;		like m-c but with switching signals
 ==============	=======================================
 
-To execute only a single program in fbpad, the program and its
-arguments should be passed as command line arguments of fbpad.  Fbpad
-executes the specified program in a terminal, disables all terminal
-switching commands, and exits as soon as the program finishes.
+To execute a single program in fbpad, the program and its arguments
+can be passed as command line arguments of fbpad.  Fbpad executes the
+specified program in a terminal, disables all terminal switching
+commands, and exits as soon as the program finishes.
 
 Programs like fbpdf, fbvnc, and fbff read the FBDEV environment
 variable, which can specify the framebuffer device and its drawing
@@ -46,28 +46,29 @@ corresponding framebuffer region.
 SETTING UP
 ==========
 
-To configure fbpad, you should edit conf.h.  To get fbpad running you
-need to make sure FR points to a valid fbpad font (for testing you can
-try http://litcave.rudi.ir/courr.tf) and SHELL to the shell you want
-fbpad to execute.  Once these are set, you should be able to start
-fbpad without problems.
+Fbpad can be configured by editing the conf.h header.  To start fbpad,
+FR must point to a valid fbpad font (for testing you can try
+http://litcave.rudi.ir/courr.tf), and SHELL to the shell you want
+fbpad to execute.  Once these are set, fbpad can be started without
+problems.
 
 Fbpad fonts can be generated using fbpad_mkfn program
 (http://litcave.rudi.ir/).  The FR, FI, and FB macros specify the path
 of fbpad fonts for regular, italic, and bold fonts.  If FI or FB is
 NULL, the regular font is used for italic or bold text.
 
-Next, you may want to change the list of fbpad tags by changing TAGS.
-FGCOLOR and BGCOLOR macros specify foreground and background colors,
-for instance the FGCOLOR of 2 and BGCOLOR of 0 creates green on black
-terminals.  Individual colors can be customized by editing the hex RGB
-color description of COLOR* macros.  Also SCRSHOT macro specifies where
-fbpad text screenshots, created by "m-s" command, must be saved.
+Next, you may want to change the list of fbpad tags by changing the
+TAGS macro.  The FGCOLOR and BGCOLOR macros specify the foreground and
+background colors.  Individual colors can be customized by editing the
+hex RGB color description of COLOR* macros.  Also SCRSHOT macro
+specifies where fbpad text screenshots, created by "m-s" command, must
+be saved.
 
-If you want to use fbpad's scrsnap feature, you can edit TAGS_SAVED to
-change the list of saved terminals.  Framebuffer memory is saved and
-reloaded for these tags, which is very convenient when you are using
-programs that change the framebuffer simultaneously, like fbpdf.
+If you want to use fbpad's scrsnap feature, you can edit TAGS_SAVED
+to change the list of saved tags.  Framebuffer memory is saved and
+reloaded for terminals in these tags, which is very convenient when
+you are using programs that modify the framebuffer simultaneously,
+like fbpdf.
 
 CLRFILE
 =======
