@@ -44,10 +44,11 @@ static int tops[NTAGS];		/* top terms of tags */
 static int split[NTAGS];	/* terms are shown together */
 static int saved[NTAGS];	/* saved tags */
 static int ctag;		/* current tag */
-static int ltag;		/* the last tag */
-static int exitit;
+static int ltag;		/* last tag */
+static int exitit;		/* exit fbpad if set */
+static int confirm;		/* wait for exit confirmation */
 static int hidden;		/* do not touch the framebuffer */
-static int locked;
+static int locked;		/* fbpad is locked; wait for PASS */
 static int taglock;		/* disable tag switching */
 static char pass[1024];
 static int passlen;
@@ -244,6 +245,11 @@ static void directkey(void)
 			pass[passlen++] = c;
 		return;
 	}
+	if (confirm) {
+		exitit = c == QUITKEY;
+		confirm = 0;
+		return;
+	}
 	if (c == ESC) {
 		switch ((c = readchar())) {
 		case 'c':
@@ -280,7 +286,10 @@ static void directkey(void)
 				t_set(nterm());
 			return;
 		case CTRLKEY('q'):
-			exitit = 1;
+			if (QUITKEY)
+				confirm = 1;
+			else
+				exitit = 1;
 			return;
 		case 's':
 			term_screenshot(SCRSHOT);
