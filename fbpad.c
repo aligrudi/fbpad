@@ -1,7 +1,7 @@
 /*
  * FBPAD FRAMEBUFFER VIRTUAL TERMINAL
  *
- * Copyright (C) 2009-2025 Ali Gholami Rudi <ali at rudi dot ir>
+ * Copyright (C) 2009-2026 Ali Gholami Rudi <ali at rudi dot ir>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -440,6 +440,7 @@ static void signalsetup(void)
 	signal(SIGUSR1, signalreceived);
 	signal(SIGUSR2, signalreceived);
 	signal(SIGCHLD, signalreceived);
+	signal(SIGPIPE, SIG_IGN);
 	ioctl(0, VT_SETMODE, &vtm);
 }
 
