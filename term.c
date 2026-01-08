@@ -45,6 +45,8 @@ struct term_state {
 };
 
 struct term {
+	char send[256];			/* send buffer */
+	int send_n;			/* number of buffered bytes in send[] */
 	int *screen;			/* screen content */
 	int *hist;			/* scrolling history */
 	int *clr;			/* foreground/background color */
@@ -238,11 +240,11 @@ static char ptybuf[PTYLEN];		/* always emptied in term_read() */
 static int ptylen;			/* buffer length */
 static int ptycur;			/* current offset */
 
-static int waitpty(int us)
+static int waitpty(int out, int us)
 {
 	struct pollfd ufds[1];
 	ufds[0].fd = term->fd;
-	ufds[0].events = POLLIN;
+	ufds[0].events = out ? POLLOUT : POLLIN;
 	return poll(ufds, 1, us) <= 0;
 }
 
@@ -256,7 +258,7 @@ static int readpty(void)
 	ptylen = 0;
 	while ((nr = read(term->fd, ptybuf + ptylen, PTYLEN - ptylen)) > 0)
 		ptylen += nr;
-	if (!ptylen && errno == EAGAIN && !waitpty(100))
+	if (!ptylen && errno == EAGAIN && !waitpty(0, 100))
 		ptylen = read(term->fd, ptybuf, PTYLEN);
 	ptycur = 1;
 	return ptylen > 0 ? (unsigned char) ptybuf[0] : -1;
@@ -287,10 +289,16 @@ static void term_zero(struct term *term)
 struct term *term_make(void)
 {
 	struct term *term = malloc(sizeof(*term));
+	if (!term)
+		return NULL;
 	term->screen = malloc(pad_rows() * pad_cols() * sizeof(term->screen[0]));
 	term->hist = malloc(NHIST * pad_cols() * sizeof(term->hist[0]));
 	term->clr = malloc(pad_rows() * pad_cols() * sizeof(term->clr[0]));
 	term->dirty = malloc(pad_rows() * sizeof(term->dirty[0]));
+	if (!term->screen || !term->hist || !term->clr || !term->dirty) {
+		term_free(term);
+		return NULL;
+	}
 	term_zero(term);
 	return term;
 }
@@ -309,17 +317,37 @@ int term_fd(struct term *term)
 	return term->fd;
 }
 
+static int term_flush(void)
+{
+	int nr;
+	if (term->send_n && (nr = write(term->fd, term->send, term->send_n)) > 0) {
+		if (term->send_n > nr)
+			memmove(term->send, term->send + nr, term->send_n - nr);
+		term->send_n -= nr;
+	}
+	return term->send_n == sizeof(term->send);
+}
+
 void term_send(int c)
 {
-	char b = c;
-	if (term->fd)
-		write(term->fd, &b, 1);
+	if (term->send_n == LEN(term->send))
+		if (!term->fd || term_flush())
+			return;
+	term->send[term->send_n++] = c;
+	term_flush();
 }
 
 static void term_sendstr(char *s)
 {
-	if (term->fd)
-		write(term->fd, s, strlen(s));
+	int i, len = strlen(s);
+	for (i = 0; term->fd && i < 5 && len > 0 && !waitpty(1, 100); i++) {
+		int cp = MIN(len, LEN(term->send) - term->send_n);
+		memcpy(term->send + term->send_n, s, cp);
+		term->send_n += cp;
+		s += cp;
+		len -= cp;
+		term_flush();
+	}
 }
 
 static void term_blank(void)
@@ -870,6 +898,7 @@ static void escseq_g0(void);
 static void escseq_g1(void);
 static void escseq_g2(void);
 static void escseq_g3(void);
+static void escseq_osc(void);
 static void csiseq(void);
 static void csiseq_da(int c);
 static void csiseq_dsr(int c);
@@ -974,6 +1003,9 @@ static void escseq(void)
 	case '+':	/* G3...	escseq_g3 table */
 		escseq_g3();
 		break;
+	case ']':	/* OSC		operating system command */
+		escseq_osc();
+		break;
 	case '7':	/* DECSC	save state (position, charset, attributes) */
 		misc_save(&term->sav);
 		break;
@@ -1009,7 +1041,6 @@ static void escseq(void)
 	case '|':	/* LS3R		invoke G3 charset as GR */
 	case '}':	/* LS2R		invoke G2 charset as GR */
 	case '~':	/* LS1R		invoke G1 charset as GR */
-	case ']':	/* OSC		operating system command */
 	case 'g':	/* BEL		alternate BEL */
 	default:
 		unknown("escseq", c);
@@ -1085,6 +1116,27 @@ static void escseq_g3(void)
 	default:
 		unknown("escseq_g3", c);
 		break;
+	}
+}
+
+static void escseq_osc(void)
+{
+	int c = readpty();
+	int osc = 0;
+	int i;
+	while (isdigit(c)) {
+		osc = osc * 10 + (c - '0');
+		c = readpty();
+	}
+	for (i = 0; i < 4096 && c >= 0; i++) {
+		if (c == 0x07)
+			break;
+		if (c == 0x1b) {
+			c = readpty();
+			if (c == '\\')
+				break;
+		}
+		c = readpty();
 	}
 }
 
