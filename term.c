@@ -328,26 +328,22 @@ static int term_flush(void)
 	return term->send_n == sizeof(term->send);
 }
 
-void term_send(int c)
+void term_send(char *s, int n)
 {
-	if (term->send_n == LEN(term->send))
-		if (!term->fd || term_flush())
-			return;
-	term->send[term->send_n++] = c;
-	term_flush();
+	int i;
+	for (i = 0; term->fd && i < 5 && n > 0 && !waitpty(1, 100); i++) {
+		int cp = MIN(n, LEN(term->send) - term->send_n);
+		memcpy(term->send + term->send_n, s, cp);
+		term->send_n += cp;
+		s += cp;
+		n -= cp;
+		term_flush();
+	}
 }
 
 static void term_sendstr(char *s)
 {
-	int i, len = strlen(s);
-	for (i = 0; term->fd && i < 5 && len > 0 && !waitpty(1, 100); i++) {
-		int cp = MIN(len, LEN(term->send) - term->send_n);
-		memcpy(term->send + term->send_n, s, cp);
-		term->send_n += cp;
-		s += cp;
-		len -= cp;
-		term_flush();
-	}
+	term_send(s, strlen(s));
 }
 
 static void term_blank(void)

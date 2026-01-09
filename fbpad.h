@@ -23,7 +23,7 @@ void term_hide(struct term *term);
 void term_show(struct term *term);
 /* operations on the loaded terminal */
 void term_read(void);
-void term_send(int c);
+void term_send(char *s, int n);
 void term_exec(char **args, int swsig);
 void term_end(void);
 void term_screenshot(char *path);

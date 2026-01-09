@@ -54,14 +54,6 @@ static char pass[1024];
 static int passlen;
 static int cmdmode;		/* execute a command and exit */
 
-static int readchar(void)
-{
-	char b;
-	if (read(0, &b, 1) > 0)
-		return (unsigned char) b;
-	return -1;
-}
-
 /* the current terminal */
 static int cterm(void)
 {
@@ -232,7 +224,11 @@ static void directkey(void)
 	char *shell[32] = SHELL;
 	char *mail[32] = MAIL;
 	char *editor[32] = EDITOR;
-	int c = readchar();
+	char user[16];
+	int n = read(0, user, sizeof(user));
+	int c = (unsigned char) user[0];
+	if (n <= 0)
+		return;
 	if (PASS && locked) {
 		if (c == '\r') {
 			pass[passlen] = '\0';
@@ -250,8 +246,8 @@ static void directkey(void)
 		confirm = 0;
 		return;
 	}
-	if (c == ESC) {
-		switch ((c = readchar())) {
+	if (c == ESC && n > 1) {
+		switch ((c = (unsigned char) user[1])) {
 		case 'c':
 			t_exec(shell, 0);
 			return;
@@ -325,12 +321,10 @@ static void directkey(void)
 				t_set(tterm(strchr(tags, c) - tags));
 				return;
 			}
-			if (tmain())
-				term_send(ESC);
 		}
 	}
-	if (c != -1 && tmain())
-		term_send(c);
+	if (tmain())
+		term_send(user, n);
 }
 
 static void peepterm(int termid)
