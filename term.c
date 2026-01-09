@@ -628,11 +628,16 @@ void term_screenshot(char *path)
 	int i, j;
 	for (i = 0; i < pad_rows(); i++) {
 		char *s = buf;
-		for (j = 0; j < pad_cols(); j++)
-			if (~screen[OFFSET(i, j)] & DWCHAR)
-				s += writeutf8(s, screen[OFFSET(i, j)]);
-		*s++ = '\n';
-		write(fd, buf, s - buf);
+		char *r = s;
+		for (j = 0; j < pad_cols(); j++) {
+			int c = screen[OFFSET(i, j)];
+			if (~c & DWCHAR)
+				s += writeutf8(s, c);
+			if (c)
+				r = s;
+		}
+		*r++ = '\n';
+		write(fd, buf, r - buf);
 	}
 	close(fd);
 }
