@@ -25,14 +25,15 @@
 #define MODE_WRAPREADY		0x200
 #define MODE_CLR8		0x400	/* colours 0-7 */
 
-#define CLR_MK(fg, bg)		((fg) | ((bg) << 10))
-#define CLR_FG(c)		((c) & 0x3ff)
-#define CLR_BG(c)		(((c) >> 10) & 0x3ff)
-#define CLR_M(c)		((c) & (CLR_B | CLR_I))
-#define CLR_B			FN_B
-#define CLR_I			FN_I
-#define FG			0x100
-#define BG			0x101
+/* encoding of term->scrfn entries */
+#define FN_MK(fg, bg)		((fg) | ((bg) << 14))
+#define FN_FG(c)		((c) & 0x3fff)
+#define FN_BG(c)		(((c) >> 14) & 0x3fff)
+#define FN_M(c)			((c) & (FN_B | FN_I))
+/* fg or bg colours: colour index or 12-bit RGB */
+#define XG_RGB			0x1000	/* 12-bit RGB */
+#define XG_FG			0x0100	/* index of fg colour */
+#define XG_BG			0x0101	/* index of bg colour */
 
 #define LIMIT(n, a, b)		((n) < (a) ? (a) : ((n) > (b) ? (b) : (n)))
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
@@ -47,9 +48,9 @@ struct term_state {
 struct term {
 	char send[256];			/* send buffer */
 	int send_n;			/* number of buffered bytes in send[] */
-	int *screen;			/* screen content */
+	int *scrch;			/* screen characters */
+	int *scrfn;			/* screen foreground/background colour */
 	int *hist;			/* scrolling history */
-	int *clr;			/* foreground/background color */
 	int *dirty;			/* changed rows in lazy mode */
 	struct term_state cur, sav;	/* terminal saved state */
 	int fd;				/* terminal file descriptor */
@@ -63,8 +64,8 @@ struct term {
 };
 
 static struct term *term;
-static int *screen;
-static int *clr;
+static int *scrch;
+static int *scrfn;
 static int *dirty;
 static int lazy;
 static int row, col;
@@ -84,15 +85,30 @@ static unsigned int clr16[16] = {
 	COLOR8, COLOR9, COLORA, COLORB, COLORC, COLORD, COLORE, COLORF,
 };
 
+static int clrmap_rgb(int r, int g, int b)
+{
+	return XG_RGB | ((r & 0xf0) << 4 | (g & 0xf0) | (b >> 4));
+}
+
+static int clrmap_rgbdec(int c)
+{
+	int r = (c >> 4) & 0xf0;
+	int g = c & 0xf0;
+	int b = (c & 0x0f) << 4;
+	return (r << 16) | (g << 8) | b;
+}
+
 static int clrmap(int c)
 {
 	int g = (c - 232) * 10 + 8;
 	if (c < 16)
 		return clr16[c];
-	if (c == FG)
+	if (c == XG_FG)
 		return clrfg;
-	if (c == BG)
+	if (c == XG_BG)
 		return clrbg;
+	if (c & XG_RGB)
+		return clrmap_rgbdec(c);
 	if (c < 232) {
 		int ri = (c - 16) / 36 ;
 		int gi = (c - 16) % 36 / 6;
@@ -109,11 +125,11 @@ static int clrmap(int c)
 
 static int color(void)
 {
-	int c = mode & ATTR_REV ? CLR_MK(bg, fg) : CLR_MK(fg, bg);
+	int c = mode & ATTR_REV ? FN_MK(bg, fg) : FN_MK(fg, bg);
 	if (mode & ATTR_BOLD)
-		c |= CLR_B;
+		c |= FN_B;
 	if (mode & ATTR_ITALIC)
-		c |= CLR_I;
+		c |= FN_I;
 	return c;
 }
 
@@ -121,13 +137,13 @@ static int color(void)
 static void _draw_pos(int r, int c, int cursor)
 {
 	int i = OFFSET(r, c);
-	int fg = clrmap(CLR_FG(clr[i]));
-	int bg = clrmap(CLR_BG(clr[i]));
+	int fg = clrmap(FN_FG(scrfn[i]));
+	int bg = clrmap(FN_BG(scrfn[i]));
 	if (cursor && mode & MODE_CURSOR) {
-		fg = cursorfg >= 0 ? cursorfg : clrmap(CLR_BG(clr[i]));
-		bg = cursorbg >= 0 ? cursorbg : clrmap(CLR_FG(clr[i]));
+		fg = cursorfg >= 0 ? cursorfg : clrmap(FN_BG(scrfn[i]));
+		bg = cursorbg >= 0 ? cursorbg : clrmap(FN_FG(scrfn[i]));
 	}
-	pad_put(screen[i], r, c, CLR_M(clr[i]) | fg, bg);
+	pad_put(scrch[i], r, c, FN_M(scrfn[i]) | fg, bg);
 }
 
 /* assumes visible && !lazy */
@@ -138,8 +154,8 @@ static void _draw_row(int r)
 	int i;
 	/* call pad_fill() only once for blank columns with identical backgrounds */
 	for (i = 0; i < pad_cols(); i++) {
-		cbg = CLR_BG(clr[OFFSET(r, i)]);
-		cch = screen[OFFSET(r, i)] ? screen[OFFSET(r, i)] : ' ';
+		cbg = FN_BG(scrfn[OFFSET(r, i)]);
+		cch = scrch[OFFSET(r, i)] ? scrch[OFFSET(r, i)] : ' ';
 		if (fsc >= 0 && (cbg != fbg || cch != ' ')) {
 			pad_fill(r, r + 1, fsc, i, clrmap(fbg));
 			fsc = -1;
@@ -182,8 +198,8 @@ static void draw_cols(int r, int sc, int ec)
 static void draw_char(int ch, int r, int c)
 {
 	int i = OFFSET(r, c);
-	screen[i] = ch;
-	clr[i] = color();
+	scrch[i] = ch;
+	scrfn[i] = color();
 	if (candraw(r, r + 1))
 		_draw_pos(r, c, 0);
 }
@@ -218,9 +234,9 @@ static void screen_reset(int i, int n)
 {
 	int c;
 	candraw(i / pad_cols(), (i + n) / pad_cols());
-	memset(screen + i, 0, n * sizeof(*screen));
+	memset(scrch + i, 0, n * sizeof(*scrch));
 	for (c = 0; c < n; c++)
-		clr[i + c] = CLR_MK(fg, bg);
+		scrfn[i + c] = FN_MK(fg, bg);
 }
 
 static void screen_move(int dst, int src, int n)
@@ -228,8 +244,8 @@ static void screen_move(int dst, int src, int n)
 	int srow = (MIN(src, dst) + (n > 0 ? 0 : n)) / pad_cols();
 	int drow = (MAX(src, dst) + (n > 0 ? n : 0)) / pad_cols();
 	candraw(srow, drow);
-	memmove(screen + dst, screen + src, n * sizeof(*screen));
-	memmove(clr + dst, clr + src, n * sizeof(*clr));
+	memmove(scrch + dst, scrch + src, n * sizeof(*scrch));
+	memmove(scrfn + dst, scrfn + src, n * sizeof(*scrfn));
 }
 
 /* terminal input buffering */
@@ -268,9 +284,9 @@ static int readpty(void)
 
 static void term_zero(struct term *term)
 {
-	memset(term->screen, 0, pad_rows() * pad_cols() * sizeof(term->screen[0]));
+	memset(term->scrch, 0, pad_rows() * pad_cols() * sizeof(term->scrch[0]));
 	memset(term->hist, 0, NHIST * pad_cols() * sizeof(term->hist[0]));
-	memset(term->clr, 0, pad_rows() * pad_cols() * sizeof(term->clr[0]));
+	memset(term->scrfn, 0, pad_rows() * pad_cols() * sizeof(term->scrfn[0]));
 	memset(term->dirty, 0, pad_rows() * sizeof(term->dirty[0]));
 	memset(&term->cur, 0, sizeof(term->cur));
 	memset(&term->sav, 0, sizeof(term->sav));
@@ -291,11 +307,11 @@ struct term *term_make(void)
 	struct term *term = malloc(sizeof(*term));
 	if (!term)
 		return NULL;
-	term->screen = malloc(pad_rows() * pad_cols() * sizeof(term->screen[0]));
+	term->scrch = malloc(pad_rows() * pad_cols() * sizeof(term->scrch[0]));
 	term->hist = malloc(NHIST * pad_cols() * sizeof(term->hist[0]));
-	term->clr = malloc(pad_rows() * pad_cols() * sizeof(term->clr[0]));
+	term->scrfn = malloc(pad_rows() * pad_cols() * sizeof(term->scrfn[0]));
 	term->dirty = malloc(pad_rows() * sizeof(term->dirty[0]));
-	if (!term->screen || !term->hist || !term->clr || !term->dirty) {
+	if (!term->scrch || !term->hist || !term->scrfn || !term->dirty) {
 		term_free(term);
 		return NULL;
 	}
@@ -305,9 +321,9 @@ struct term *term_make(void)
 
 void term_free(struct term *term)
 {
-	free(term->screen);
+	free(term->scrch);
 	free(term->hist);
-	free(term->clr);
+	free(term->scrfn);
 	free(term->dirty);
 	free(term);
 }
@@ -350,7 +366,7 @@ static void term_blank(void)
 {
 	screen_reset(0, pad_rows() * pad_cols());
 	if (visible)
-		pad_fill(0, -1, 0, -1, clrmap(CLR_BG(color())));
+		pad_fill(0, -1, 0, -1, clrmap(FN_BG(color())));
 }
 
 static void ctlseq(void);
@@ -371,8 +387,8 @@ static void term_reset(void)
 	top = 0;
 	bot = pad_rows();
 	mode = MODE_CURSOR | MODE_WRAP | MODE_CLR8;
-	fg = FG;
-	bg = BG;
+	fg = XG_FG;
+	bg = XG_BG;
 	term_blank();
 }
 
@@ -538,8 +554,8 @@ static void resizeupdate(int or, int oc, int nr,  int nc)
 		int r = dst / nc;
 		int c = dst % nc;
 		int src = dr + r < or && c < oc ? (dr + r) * oc + c : -1;
-		term->screen[dst] = src >= 0 ? term->screen[src] : 0;
-		term->clr[dst] = src >= 0 ? term->clr[src] : color();
+		term->scrch[dst] = src >= 0 ? term->scrch[src] : 0;
+		term->scrfn[dst] = src >= 0 ? term->scrfn[src] : color();
 		dst = nc <= oc ? dst + 1 : dst - 1;
 	}
 }
@@ -577,8 +593,8 @@ void term_load(struct term *t, int flags)
 {
 	term = t;
 	misc_load(&term->cur);
-	screen = term->screen;
-	clr = term->clr;
+	scrch = term->scrch;
+	scrfn = term->scrfn;
 	visible = flags;
 	top = term->top;
 	bot = term->bot;
@@ -630,7 +646,7 @@ void term_screenshot(char *path)
 		char *s = buf;
 		char *r = s;
 		for (j = 0; j < pad_cols(); j++) {
-			int c = screen[OFFSET(i, j)];
+			int c = scrch[OFFSET(i, j)];
 			if (~c & DWCHAR)
 				s += writeutf8(s, c);
 			if (c)
@@ -699,8 +715,8 @@ static void scrl_rows(int nr)
 {
 	int i;
 	for (i = 0; i < nr; i++) {
-		memcpy(HISTROW(0), screen + i * pad_cols(),
-				pad_cols() * sizeof(screen[0]));
+		memcpy(HISTROW(0), scrch + i * pad_cols(),
+				pad_cols() * sizeof(scrch[0]));
 		term->hrow = (term->hrow + 1) % NHIST;
 	}
 }
@@ -718,11 +734,11 @@ void term_scrl(int scrl)
 	memset(dirty, 1, pad_rows() * sizeof(*dirty));
 	for (i = 0; i < pad_rows(); i++) {
 		int off = (i - hpos) * pad_cols();
-		int *_scr = i < hpos ? HISTROW(hpos - i) : term->screen + off;
-		int *_clr = i < hpos ? NULL : term->clr + off;
+		int *_scr = i < hpos ? HISTROW(hpos - i) : term->scrch + off;
+		int *_clr = i < hpos ? NULL : term->scrfn + off;
 		for (j = 0; j < pad_cols(); j++) {
-			int c = _clr ? _clr[j] : CLR_MK(BG, FG);
-			pad_put(_scr[j], i, j, CLR_M(c) | clrmap(CLR_FG(c)), clrmap(CLR_BG(c)));
+			int c = _clr ? _clr[j] : FN_MK(XG_BG, XG_FG);
+			pad_put(_scr[j], i, j, FN_M(c) | clrmap(FN_FG(c)), clrmap(FN_BG(c)));
 		}
 	}
 }
@@ -789,8 +805,8 @@ static void setattr(int m)
 		mode |= MODE_CLR8;
 	switch (m) {
 	case 0:
-		fg = FG;
-		bg = BG;
+		fg = XG_FG;
+		bg = XG_BG;
 		mode &= ~ATTR_ALL;
 		break;
 	case 1:
@@ -813,9 +829,9 @@ static void setattr(int m)
 		break;
 	default:
 		if ((m / 10) == 3)
-			fg = m > 37 ? FG : m - 30;
+			fg = m > 37 ? XG_FG : m - 30;
 		if ((m / 10) == 4)
-			bg = m > 47 ? BG : m - 40;
+			bg = m > 47 ? XG_BG : m - 40;
 		if ((m / 10) == 9)
 			fg = 8 + m - 90;
 		if ((m / 10) == 10)
@@ -1249,9 +1265,8 @@ static void csiseq(void)
 		for (i = 0; i < n; i++) {
 			if (args[i] == 38 && args[i + 1] == 2) {
 				mode &= ~MODE_CLR8;
-				fg = (args[i + 2] << 16) |
-					(args[i + 3] << 8) | args[i + 4];
-				i += 5;
+				fg = clrmap_rgb(args[i + 2], args[i + 3], args[i + 4]);
+				i += 4;
 				continue;
 			}
 			if (args[i] == 38) {
@@ -1261,9 +1276,8 @@ static void csiseq(void)
 				continue;
 			}
 			if (args[i] == 48 && args[i + 1] == 2) {
-				bg = (args[i + 2] << 16) |
-					(args[i + 3] << 8) | args[i + 4];
-				i += 5;
+				bg = clrmap_rgb(args[i + 2], args[i + 3], args[i + 4]);
+				i += 4;
 				continue;
 			}
 			if (args[i] == 48) {

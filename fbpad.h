@@ -34,8 +34,8 @@ int term_borderwd(void);
 int term_borderfg(void);
 
 /* pad.c */
-#define FN_I		0x01000000	/* italic font */
-#define FN_B		0x02000000	/* bold font */
+#define FN_I		0x10000000	/* italic font */
+#define FN_B		0x20000000	/* bold font */
 #define FN_C		0x00ffffff	/* font color mask */
 
 int pad_init(void);
