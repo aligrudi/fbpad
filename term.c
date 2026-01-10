@@ -37,7 +37,7 @@
 
 #define LIMIT(n, a, b)		((n) < (a) ? (a) : ((n) > (b) ? (b) : (n)))
 #define BIT_SET(i, b, val)	((val) ? ((i) | (b)) : ((i) & ~(b)))
-#define OFFSET(r, c)		((r) * pad_cols() + (c))
+#define OFFSET(r, c)		((r) * cols + (c))
 
 struct term_state {
 	int row, col;
@@ -64,10 +64,8 @@ struct term {
 };
 
 static struct term *term;
-static int *scrch;
-static int *scrfn;
-static int *dirty;
 static int lazy;
+static int rows, cols;
 static int row, col;
 static int fg, bg;
 static int top, bot;
@@ -137,13 +135,13 @@ static int color(void)
 static void _draw_pos(int r, int c, int cursor)
 {
 	int i = OFFSET(r, c);
-	int fg = clrmap(FN_FG(scrfn[i]));
-	int bg = clrmap(FN_BG(scrfn[i]));
+	int fg = clrmap(FN_FG(term->scrfn[i]));
+	int bg = clrmap(FN_BG(term->scrfn[i]));
 	if (cursor && mode & MODE_CURSOR) {
-		fg = cursorfg >= 0 ? cursorfg : clrmap(FN_BG(scrfn[i]));
-		bg = cursorbg >= 0 ? cursorbg : clrmap(FN_FG(scrfn[i]));
+		fg = cursorfg >= 0 ? cursorfg : clrmap(FN_BG(term->scrfn[i]));
+		bg = cursorbg >= 0 ? cursorbg : clrmap(FN_FG(term->scrfn[i]));
 	}
-	pad_put(scrch[i], r, c, FN_M(scrfn[i]) | fg, bg);
+	pad_put(term->scrch[i], r, c, FN_M(term->scrfn[i]) | fg, bg);
 }
 
 /* assumes visible && !lazy */
@@ -151,10 +149,11 @@ static void _draw_row(int r)
 {
 	int cbg, cch;		/* current background and character */
 	int fbg, fsc = -1;	/* filling background and start column */
+	int *scrch = term->scrch;
 	int i;
 	/* call pad_fill() only once for blank columns with identical backgrounds */
-	for (i = 0; i < pad_cols(); i++) {
-		cbg = FN_BG(scrfn[OFFSET(r, i)]);
+	for (i = 0; i < cols; i++) {
+		cbg = FN_BG(term->scrfn[OFFSET(r, i)]);
 		cch = scrch[OFFSET(r, i)] ? scrch[OFFSET(r, i)] : ' ';
 		if (fsc >= 0 && (cbg != fbg || cch != ' ')) {
 			pad_fill(r, r + 1, fsc, i, clrmap(fbg));
@@ -167,7 +166,7 @@ static void _draw_row(int r)
 			fbg = cbg;
 		}
 	}
-	pad_fill(r, r + 1, fsc >= 0 ? fsc : pad_cols(), -1, clrmap(cbg));
+	pad_fill(r, r + 1, fsc >= 0 ? fsc : cols, -1, clrmap(cbg));
 }
 
 static int candraw(int sr, int er)
@@ -175,7 +174,7 @@ static int candraw(int sr, int er)
 	int i;
 	if (lazy)
 		for (i = sr; i < er; i++)
-			dirty[i] = 1;
+			term->dirty[i] = 1;
 	return visible && !lazy;
 }
 
@@ -198,8 +197,8 @@ static void draw_cols(int r, int sc, int ec)
 static void draw_char(int ch, int r, int c)
 {
 	int i = OFFSET(r, c);
-	scrch[i] = ch;
-	scrfn[i] = color();
+	term->scrch[i] = ch;
+	term->scrfn[i] = color();
 	if (candraw(r, r + 1))
 		_draw_pos(r, c, 0);
 }
@@ -212,7 +211,7 @@ static void draw_cursor(int put)
 
 static void lazy_start(void)
 {
-	memset(dirty, 0, pad_rows() * sizeof(*dirty));
+	memset(term->dirty, 0, rows * sizeof(term->dirty[0]));
 	lazy = 1;
 }
 
@@ -221,10 +220,10 @@ static void lazy_flush(void)
 	int i;
 	if (!visible || !lazy)
 		return;
-	for (i = 0; i < pad_rows(); i++)
-		if (dirty[i])
+	for (i = 0; i < rows; i++)
+		if (term->dirty[i])
 			_draw_row(i);
-	if (dirty[row])
+	if (term->dirty[row])
 		_draw_pos(row, col, 1);
 	lazy = 0;
 	term->hpos = 0;
@@ -233,19 +232,19 @@ static void lazy_flush(void)
 static void screen_reset(int i, int n)
 {
 	int c;
-	candraw(i / pad_cols(), (i + n) / pad_cols());
-	memset(scrch + i, 0, n * sizeof(*scrch));
+	candraw(i / cols, (i + n) / cols);
+	memset(term->scrch + i, 0, n * sizeof(*term->scrch));
 	for (c = 0; c < n; c++)
-		scrfn[i + c] = FN_MK(fg, bg);
+		term->scrfn[i + c] = FN_MK(fg, bg);
 }
 
 static void screen_move(int dst, int src, int n)
 {
-	int srow = (MIN(src, dst) + (n > 0 ? 0 : n)) / pad_cols();
-	int drow = (MAX(src, dst) + (n > 0 ? n : 0)) / pad_cols();
+	int srow = (MIN(src, dst) + (n > 0 ? 0 : n)) / cols;
+	int drow = (MAX(src, dst) + (n > 0 ? n : 0)) / cols;
 	candraw(srow, drow);
-	memmove(scrch + dst, scrch + src, n * sizeof(*scrch));
-	memmove(scrfn + dst, scrfn + src, n * sizeof(*scrfn));
+	memmove(term->scrch + dst, term->scrch + src, n * sizeof(*term->scrch));
+	memmove(term->scrfn + dst, term->scrfn + src, n * sizeof(*term->scrfn));
 }
 
 /* terminal input buffering */
@@ -284,10 +283,11 @@ static int readpty(void)
 
 static void term_zero(struct term *term)
 {
-	memset(term->scrch, 0, pad_rows() * pad_cols() * sizeof(term->scrch[0]));
-	memset(term->hist, 0, NHIST * pad_cols() * sizeof(term->hist[0]));
-	memset(term->scrfn, 0, pad_rows() * pad_cols() * sizeof(term->scrfn[0]));
-	memset(term->dirty, 0, pad_rows() * sizeof(term->dirty[0]));
+	int r = term->rows, c = term->cols;
+	memset(term->scrch, 0, r * c * sizeof(term->scrch[0]));
+	memset(term->hist, 0, NHIST * c * sizeof(term->hist[0]));
+	memset(term->scrfn, 0, r * c * sizeof(term->scrfn[0]));
+	memset(term->dirty, 0, r * sizeof(term->dirty[0]));
 	memset(&term->cur, 0, sizeof(term->cur));
 	memset(&term->sav, 0, sizeof(term->sav));
 	term->fd = 0;
@@ -297,9 +297,40 @@ static void term_zero(struct term *term)
 	term->pid = 0;
 	term->top = 0;
 	term->bot = 0;
-	term->rows = 0;
-	term->cols = 0;
 	term->signal = 0;
+}
+
+static int term_resize(struct term *term, int r, int c)
+{
+	if (r > term->rows || c > term->cols) {
+		int *scrch = malloc(r * c * sizeof(scrch[0]));
+		int *scrfn = malloc(r * c * sizeof(scrfn[0]));
+		int *hist = malloc(NHIST * c * sizeof(hist[0]));
+		int *dirty = malloc(r * sizeof(dirty[0]));
+		int rc = MIN(r * c, term->rows * term->cols);
+		if (!scrch || !scrfn || !hist || !dirty) {
+			free(scrch);
+			free(scrfn);
+			free(hist);
+			free(dirty);
+			return 1;
+		}
+		memcpy(scrch, term->scrch, rc * sizeof(scrch[0]));
+		memcpy(scrfn, term->scrfn, rc * sizeof(scrfn[0]));
+		memset(dirty, 0, r * sizeof(dirty[0]));
+		memset(hist, 0, NHIST * c * sizeof(hist[0]));
+		free(term->scrch);
+		free(term->scrfn);
+		free(term->hist);
+		free(term->dirty);
+		term->scrch = scrch;
+		term->scrfn = scrfn;
+		term->hist = hist;
+		term->dirty = dirty;
+	}
+	term->rows = r;
+	term->cols = c;
+	return 0;
 }
 
 struct term *term_make(void)
@@ -307,11 +338,8 @@ struct term *term_make(void)
 	struct term *term = malloc(sizeof(*term));
 	if (!term)
 		return NULL;
-	term->scrch = malloc(pad_rows() * pad_cols() * sizeof(term->scrch[0]));
-	term->hist = malloc(NHIST * pad_cols() * sizeof(term->hist[0]));
-	term->scrfn = malloc(pad_rows() * pad_cols() * sizeof(term->scrfn[0]));
-	term->dirty = malloc(pad_rows() * sizeof(term->dirty[0]));
-	if (!term->scrch || !term->hist || !term->scrfn || !term->dirty) {
+	memset(term, 0, sizeof(*term));
+	if (term_resize(term, pad_rows(), pad_cols())) {
 		term_free(term);
 		return NULL;
 	}
@@ -364,7 +392,7 @@ static void term_sendstr(char *s)
 
 static void term_blank(void)
 {
-	screen_reset(0, pad_rows() * pad_cols());
+	screen_reset(0, rows * cols);
 	if (visible)
 		pad_fill(0, -1, 0, -1, clrmap(FN_BG(color())));
 }
@@ -385,7 +413,7 @@ static void term_reset(void)
 {
 	row = col = 0;
 	top = 0;
-	bot = pad_rows();
+	bot = rows;
 	mode = MODE_CURSOR | MODE_WRAP | MODE_CLR8;
 	fg = XG_FG;
 	bg = XG_BG;
@@ -411,8 +439,8 @@ static int _openpty(int *master, int *slave)
 static void tio_setsize(int fd)
 {
 	struct winsize winp;
-	winp.ws_col = pad_cols();
-	winp.ws_row = pad_rows();
+	winp.ws_col = cols;
+	winp.ws_row = rows;
 	winp.ws_xpixel = 0;
 	winp.ws_ypixel = 0;
 	ioctl(fd, TIOCSWINSZ, &winp);
@@ -491,13 +519,11 @@ void term_exec(char **args, int swsig)
 	}
 	close(slave);
 	term->fd = master;
-	term->rows = pad_rows();
-	term->cols = pad_cols();
 	term->signal = swsig;
 	fcntl(term->fd, F_SETFD, fcntl(term->fd, F_GETFD) | FD_CLOEXEC);
 	fcntl(term->fd, F_SETFL, fcntl(term->fd, F_GETFL) | O_NONBLOCK);
 	term_reset();
-	memset(term->hist, 0, NHIST * pad_cols() * sizeof(term->hist[0]));
+	memset(term->hist, 0, NHIST * cols * sizeof(term->hist[0]));
 }
 
 static void misc_save(struct term_state *state)
@@ -564,22 +590,25 @@ static void resizeupdate(int or, int oc, int nr,  int nc)
 void term_redraw(int all)
 {
 	if (term->fd) {
-		if (term->rows != pad_rows() || term->cols != pad_cols()) {
-			tio_setsize(term->fd);
-			resizeupdate(term->rows, term->cols, pad_rows(), pad_cols());
-			if (bot == term->rows)
-				bot = pad_rows();
-			term->rows = pad_rows();
-			term->cols = pad_cols();
-			top = MIN(top, term->rows);
-			bot = MIN(bot, term->rows);
-			row = MIN(row, term->rows - 1);
-			col = MIN(col, term->cols - 1);
+		int r = term->rows, c = term->cols;
+		if (r != pad_rows() || c != pad_cols()) {
+			if (!term_resize(term, pad_rows(), pad_cols())) {
+				rows = term->rows;
+				cols = term->cols;
+				resizeupdate(r, c, pad_rows(), pad_cols());
+				tio_setsize(term->fd);
+				if (bot == r)
+					bot = term->rows;
+				top = MIN(top, term->rows);
+				bot = MIN(bot, term->rows);
+				row = MIN(row, term->rows - 1);
+				col = MIN(col, term->cols - 1);
+			}
 		}
 		if (all) {
-			pad_fill(pad_rows(), -1, 0, -1, clrbg);
+			pad_fill(rows, -1, 0, -1, clrbg);
 			lazy_start();
-			memset(dirty, 1, pad_rows() * sizeof(*dirty));
+			memset(term->dirty, 1, rows * sizeof(term->dirty[0]));
 		}
 		if (all || !term->hpos)
 			lazy_flush();
@@ -593,13 +622,12 @@ void term_load(struct term *t, int flags)
 {
 	term = t;
 	misc_load(&term->cur);
-	scrch = term->scrch;
-	scrfn = term->scrfn;
 	visible = flags;
 	top = term->top;
 	bot = term->bot;
 	lazy = term->lazy;
-	dirty = term->dirty;
+	rows = term->rows;
+	cols = term->cols;
 }
 
 void term_end(void)
@@ -642,11 +670,11 @@ void term_screenshot(char *path)
 	char buf[1 << 11];
 	int fd = open(path, O_CREAT | O_TRUNC | O_WRONLY, 0600);
 	int i, j;
-	for (i = 0; i < pad_rows(); i++) {
+	for (i = 0; i < rows; i++) {
 		char *s = buf;
 		char *r = s;
-		for (j = 0; j < pad_cols(); j++) {
-			int c = scrch[OFFSET(i, j)];
+		for (j = 0; j < cols; j++) {
+			int c = term->scrch[OFFSET(i, j)];
 			if (~c & DWCHAR)
 				s += writeutf8(s, c);
 			if (c)
@@ -674,7 +702,7 @@ int term_colors(char *path)
 		} else if (!strcmp("font", t)) {
 			char fr[256], fi[256], fb[256];
 			if (fscanf(fp, "%255s %255s %255s", fr, fi, fb) == 3)
-				pad_font(fr, fi, fb);
+				pad_init(fr, fi, fb);
 		} else if (!strcmp("cursor", t)) {
 			fscanf(fp, "%x %x", &cursorfg, &cursorbg);
 		} else if (!strcmp("border", t)) {
@@ -699,7 +727,7 @@ int term_borderfg(void)
 
 static void empty_rows(int sr, int er)
 {
-	screen_reset(OFFSET(sr, 0), (er - sr) * pad_cols());
+	screen_reset(OFFSET(sr, 0), (er - sr) * cols);
 }
 
 static void blank_rows(int sr, int er)
@@ -709,14 +737,14 @@ static void blank_rows(int sr, int er)
 	draw_cursor(1);
 }
 
-#define HISTROW(pos)	(term->hist + ((term->hrow + NHIST - (pos)) % NHIST) * pad_cols())
+#define HISTROW(pos)	(term->hist + ((term->hrow + NHIST - (pos)) % NHIST) * cols)
 
 static void scrl_rows(int nr)
 {
 	int i;
 	for (i = 0; i < nr; i++) {
-		memcpy(HISTROW(0), scrch + i * pad_cols(),
-				pad_cols() * sizeof(scrch[0]));
+		memcpy(HISTROW(0), term->scrch + i * cols,
+				cols * sizeof(term->scrch[0]));
 		term->hrow = (term->hrow + 1) % NHIST;
 	}
 }
@@ -731,12 +759,12 @@ void term_scrl(int scrl)
 		return;
 	}
 	lazy_start();
-	memset(dirty, 1, pad_rows() * sizeof(*dirty));
-	for (i = 0; i < pad_rows(); i++) {
-		int off = (i - hpos) * pad_cols();
+	memset(term->dirty, 1, rows * sizeof(term->dirty[0]));
+	for (i = 0; i < rows; i++) {
+		int off = (i - hpos) * cols;
 		int *_scr = i < hpos ? HISTROW(hpos - i) : term->scrch + off;
 		int *_clr = i < hpos ? NULL : term->scrfn + off;
-		for (j = 0; j < pad_cols(); j++) {
+		for (j = 0; j < cols; j++) {
 			int c = _clr ? _clr[j] : FN_MK(XG_BG, XG_FG);
 			pad_put(_scr[j], i, j, FN_M(c) | clrmap(FN_FG(c)), clrmap(FN_BG(c)));
 		}
@@ -748,7 +776,7 @@ static void scroll_screen(int sr, int nr, int n)
 	draw_cursor(0);
 	if (sr + n == 0)
 		scrl_rows(sr);
-	screen_move(OFFSET(sr + n, 0), OFFSET(sr, 0), nr * pad_cols());
+	screen_move(OFFSET(sr + n, 0), OFFSET(sr, 0), nr * cols);
 	if (n > 0)
 		empty_rows(sr, sr + n);
 	else
@@ -784,17 +812,17 @@ static void move_cursor(int r, int c)
 	int t, b;
 	draw_cursor(0);
 	t = origin() ? top : 0;
-	b = origin() ? bot : pad_rows();
+	b = origin() ? bot : rows;
 	row = LIMIT(r, t, b - 1);
-	col = LIMIT(c, 0, pad_cols() - 1);
+	col = LIMIT(c, 0, cols - 1);
 	draw_cursor(1);
 	mode = BIT_SET(mode, MODE_WRAPREADY, 0);
 }
 
 static void set_region(int t, int b)
 {
-	top = LIMIT(t - 1, 0, pad_rows() - 1);
-	bot = LIMIT(b ? b : pad_rows(), top + 1, pad_rows());
+	top = LIMIT(t - 1, 0, rows - 1);
+	bot = LIMIT(b ? b : rows, top + 1, rows);
 	if (origin())
 		move_cursor(top, 0);
 }
@@ -854,21 +882,21 @@ static void move_chars(int sc, int nc, int n)
 	if (n > 0)
 		screen_reset(OFFSET(row, sc), n);
 	else
-		screen_reset(OFFSET(row, pad_cols() + n), -n);
-	draw_cols(row, MIN(sc, sc + n), pad_cols());
+		screen_reset(OFFSET(row, cols + n), -n);
+	draw_cols(row, MIN(sc, sc + n), cols);
 	draw_cursor(1);
 }
 
 static void delete_chars(int n)
 {
 	int sc = col + n;
-	int nc = pad_cols() - sc;
+	int nc = cols - sc;
 	move_chars(sc, nc, -n);
 }
 
 static void insert_chars(int n)
 {
-	int nc = pad_cols() - col - n;
+	int nc = cols - col - n;
 	move_chars(col, nc, n);
 }
 
@@ -889,7 +917,7 @@ static void advance(int dr, int dc, int scrl)
 			scroll_screen(top, nr, n);
 	}
 	r = dr ? LIMIT(r, top, bot - 1) : r;
-	c = LIMIT(c, 0, pad_cols() - 1);
+	c = LIMIT(c, 0, cols - 1);
 	move_cursor(r, c);
 }
 
@@ -900,7 +928,7 @@ static void insertchar(int c)
 	if (mode & MODE_INSERT)
 		insert_chars(1);
 	draw_char(c, row, col);
-	if (col == pad_cols() - 1)
+	if (col == cols - 1)
 		mode = BIT_SET(mode, MODE_WRAPREADY, 1);
 	else
 		advance(0, 1, 1);
@@ -982,7 +1010,7 @@ static void ctlseq(void)
 		break;
 	default:
 		c = readutf8(c);
-		if (isdw(c) && col + 1 == pad_cols() && ~mode & MODE_WRAPREADY)
+		if (isdw(c) && col + 1 == cols && ~mode & MODE_WRAPREADY)
 			insertchar(0);
 		if (!iszw(c))
 			insertchar(c);
@@ -1201,8 +1229,8 @@ static void csiseq(void)
 	case 'J':	/* ED		erase display */
 		switch (args[0]) {
 		case 0:
-			kill_chars(col, pad_cols());
-			blank_rows(row + 1, pad_rows());
+			kill_chars(col, cols);
+			blank_rows(row + 1, rows);
 			break;
 		case 1:
 			kill_chars(0, col + 1);
@@ -1230,13 +1258,13 @@ static void csiseq(void)
 	case 'K':	/* EL		erase line */
 		switch (args[0]) {
 		case 0:
-			kill_chars(col, pad_cols());
+			kill_chars(col, cols);
 			break;
 		case 1:
 			kill_chars(0, col + 1);
 			break;
 		case 2:
-			kill_chars(0, pad_cols());
+			kill_chars(0, cols);
 			break;
 		}
 		break;
@@ -1250,11 +1278,11 @@ static void csiseq(void)
 		break;
 	case 'S':	/* SU		scroll up */
 		i = MAX(1, args[0]);
-		scroll_screen(i, pad_rows() - i, -i);
+		scroll_screen(i, rows - i, -i);
 		break;
 	case 'T':	/* SD		scroll down */
 		i = MAX(1, args[0]);
-		scroll_screen(0, pad_rows() - i, i);
+		scroll_screen(0, rows - i, i);
 		break;
 	case 'd':	/* VPA		move to row (current column) */
 		move_cursor(absrow(MAX(1, args[0]) - 1), col);
@@ -1308,10 +1336,10 @@ static void csiseq(void)
 		draw_cursor(1);
 		break;
 	case 'P':	/* DCH		delete characters on current line */
-		delete_chars(LIMIT(args[0], 1, pad_cols() - col));
+		delete_chars(LIMIT(args[0], 1, cols - col));
 		break;
 	case '@':	/* ICH		insert blank characters */
-		insert_chars(LIMIT(args[0], 1, pad_cols() - col));
+		insert_chars(LIMIT(args[0], 1, cols - col));
 		break;
 	case 'n':	/* DSR		device status report */
 		csiseq_dsr(args[0]);
@@ -1320,7 +1348,7 @@ static void csiseq(void)
 		advance(0, MAX(0, args[0] - 1) - col, 0);
 		break;
 	case 'X':	/* ECH		erase characters on current line */
-		kill_chars(col, MIN(col + MAX(1, args[0]), pad_cols()));
+		kill_chars(col, MIN(col + MAX(1, args[0]), cols));
 		break;
 	case '[':	/* IGN		ignored control sequence */
 	case 'E':	/* CNL		move cursor down and to column 1 */

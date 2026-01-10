@@ -38,10 +38,9 @@ int term_borderfg(void);
 #define FN_B		0x20000000	/* bold font */
 #define FN_C		0x00ffffff	/* font color mask */
 
-int pad_init(void);
+int pad_init(char *fr, char *fi, char *fb);
 void pad_free(void);
 void pad_conf(int row, int col, int rows, int cols);
-int pad_font(char *fr, char *fi, char *fb);
 void pad_put(int ch, int r, int c, int fg, int bg);
 int pad_rows(void);
 int pad_cols(void);

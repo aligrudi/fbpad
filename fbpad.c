@@ -448,7 +448,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "fbpad: failed to initialize the framebuffer\n");
 		return 1;
 	}
-	if (pad_init()) {
+	if (pad_init(FR, FI, FB)) {
 		fprintf(stderr, "fbpad: cannot find fonts\n");
 		return 1;
 	}

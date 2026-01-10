@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "conf.h"
 #include "draw.h"
 #include "fbpad.h"
 
@@ -12,18 +11,29 @@ static int fnrows, fncols;
 static int bpp;
 static struct font *fonts[3];
 
-static int gc_init(void);
+static int gc_init(int grows, int gcols);
 static void gc_free(void);
-static void gc_refresh(void);
 
-int pad_init(void)
+static int pad_font(char *fr, char *fi, char *fb)
 {
-	if (pad_font(FR, FI, FB))
+	struct font *r = fr ? font_open(fr) : NULL;
+	if (!r || gc_init(font_rows(r), font_cols(r)))
+		return 1;
+	font_free(fonts[0]);
+	font_free(fonts[1]);
+	font_free(fonts[2]);
+	fonts[0] = r;
+	fonts[1] = fi ? font_open(fi) : NULL;
+	fonts[2] = fb ? font_open(fb) : NULL;
+	return 0;
+}
+
+int pad_init(char *fr, char *fi, char *fb)
+{
+	if (pad_font(fr, fi, fb))
 		return 1;
 	fnrows = font_rows(fonts[0]);
 	fncols = font_cols(fonts[0]);
-	if (gc_init())
-		return 1;
 	rows = fb_rows() / fnrows;
 	cols = fb_cols() / fncols;
 	bpp = FBM_BPP(fb_mode());
@@ -74,20 +84,31 @@ static void fb_mixed(char *d, int fg, int bg, unsigned val)
 /* glyph bitmap cache: use CGLCNT lists of size CGLLEN each */
 #define GCLCNT		(1 << 7)		/* glyph cache list count */
 #define GCLLEN		(1 << 4)		/* glyph cache list length */
-#define GCGLEN		(fnrows * fncols * 4)	/* bytes to store a glyph */
 #define GCN		(GCLCNT * GCLLEN)	/* total glpyhs */
+#define GCGLEN(rs, cs)	((rs) * (cs) * 4)	/* bytes to store a glyph */
 #define GCIDX(c)	((c) & (GCLCNT - 1))
 
 static char *gc_mem;		/* cached glyph's memory */
+static int gc_rows, gc_cols;	/* glyph size */
 static int gc_next[GCLCNT];	/* the next slot to use in each list */
 static int gc_glyph[GCN];	/* cached glyphs */
 static int gc_bg[GCN];
 static int gc_fg[GCN];
 
-static int gc_init(void)
+static int gc_init(int grows, int gcols)
 {
-	gc_mem = malloc(GCLCNT * GCLLEN * GCGLEN);
-	return !gc_mem;
+	char *mem;
+	memset(gc_next, 0, sizeof(gc_next));
+	memset(gc_glyph, 0, sizeof(gc_glyph));
+	if (gc_mem && grows == gc_rows && gcols == gc_cols)
+		return 0;
+	if ((mem = malloc(GCLCNT * GCLLEN * GCGLEN(grows, gcols)))) {
+		free(gc_mem);
+		gc_mem = mem;
+		gc_rows = grows;
+		gc_cols = gcols;
+	}
+	return !mem;
 }
 
 static void gc_free(void)
@@ -101,7 +122,7 @@ static char *gc_get(int c, int fg, int bg)
 	int i;
 	for (i = idx; i < idx + GCLLEN; i++)
 		if (gc_glyph[i] == c && gc_fg[i] == fg && gc_bg[i] == bg)
-			return gc_mem + i * GCGLEN;
+			return gc_mem + i * GCGLEN(gc_rows, gc_cols);
 	return NULL;
 }
 
@@ -115,13 +136,7 @@ static char *gc_put(int c, int fg, int bg)
 	gc_glyph[idx] = c;
 	gc_fg[idx] = fg;
 	gc_bg[idx] = bg;
-	return gc_mem + idx * GCGLEN;
-}
-
-static void gc_refresh(void)
-{
-	memset(gc_next, 0, sizeof(gc_next));
-	memset(gc_glyph, 0, sizeof(gc_glyph));
+	return gc_mem + idx * GCGLEN(gc_rows, gc_cols);
 }
 
 static void bmp2fb(char *d, char *s, int fg, int bg, int nr, int nc)
@@ -200,6 +215,8 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 	int sc = fncols * c;
 	char *bits;
 	int i;
+	if (r >= rows && c >= cols)
+		return;
 	bits = ch2fb(fnsel(fg, bg), ch, fg, bg);
 	if (!bits)
 		bits = ch2fb(0, ch, fg, bg);
@@ -214,7 +231,8 @@ void pad_fill(int sr, int er, int sc, int ec, int c)
 {
 	int fber = er >= 0 ? er * fnrows : fbrows;
 	int fbec = ec >= 0 ? ec * fncols : fbcols;
-	fb_box(sr * fnrows, fber, sc * fncols, fbec, c & FN_C);
+	fb_box(sr * fnrows, MIN(fber, fbrows),
+		sc * fncols, MIN(fbec, fbcols), c & FN_C);
 }
 
 int pad_rows(void)
@@ -225,21 +243,6 @@ int pad_rows(void)
 int pad_cols(void)
 {
 	return cols;
-}
-
-int pad_font(char *fr, char *fi, char *fb)
-{
-	struct font *r = fr ? font_open(fr) : NULL;
-	if (!r)
-		return 1;
-	font_free(fonts[0]);
-	font_free(fonts[1]);
-	font_free(fonts[2]);
-	fonts[0] = r;
-	fonts[1] = fi ? font_open(fi) : NULL;
-	fonts[2] = fb ? font_open(fb) : NULL;
-	gc_refresh();
-	return 0;
 }
 
 char *pad_fbdev(void)
