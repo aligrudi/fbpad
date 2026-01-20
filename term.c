@@ -46,7 +46,9 @@ struct term_state {
 };
 
 struct term {
+	char recv[256];			/* receive buffer */
 	char send[256];			/* send buffer */
+	int recv_n;			/* number of buffered bytes in recv[] */
 	int send_n;			/* number of buffered bytes in send[] */
 	int *scrch;			/* screen characters */
 	int *scrfn;			/* screen foreground/background colour */
@@ -250,12 +252,16 @@ static void screen_move(int dst, int src, int n)
 /* terminal input buffering */
 
 #define PTYLEN			(1 << 16)
+#define pty_mark()		(ptyreq = ptycur)
+#define pty_back()		(ptycur = ptyreq)
+#define pty_left()		(ptylen - ptycur)
 
 static char ptybuf[PTYLEN];		/* always emptied in term_read() */
 static int ptylen;			/* buffer length */
 static int ptycur;			/* current offset */
+static int ptyreq;			/* the beginning of the last request */
 
-static int waitpty(int out, int us)
+static int pty_wait(int out, int us)
 {
 	struct pollfd ufds[1];
 	ufds[0].fd = term->fd;
@@ -263,20 +269,36 @@ static int waitpty(int out, int us)
 	return poll(ufds, 1, us) <= 0;
 }
 
-static int readpty(void)
+static int pty_read(void)
 {
 	int nr;
 	if (ptycur < ptylen)
 		return (unsigned char) ptybuf[ptycur++];
 	if (!term->fd)
 		return -1;
-	ptylen = 0;
+	if (ptyreq < ptylen)
+		memmove(ptybuf, ptybuf + ptyreq, ptylen - ptyreq);
+	ptycur = ptyreq < ptycur ? ptycur - ptyreq : 0;
+	ptylen = ptyreq < ptylen ? ptylen - ptyreq : 0;
+	ptyreq = 0;
 	while ((nr = read(term->fd, ptybuf + ptylen, PTYLEN - ptylen)) > 0)
 		ptylen += nr;
-	if (!ptylen && errno == EAGAIN && !waitpty(0, 100))
-		ptylen = read(term->fd, ptybuf, PTYLEN);
-	ptycur = 1;
-	return ptylen > 0 ? (unsigned char) ptybuf[0] : -1;
+	return ptycur < ptylen ? (unsigned char) ptybuf[ptycur++] : -1;
+}
+
+static void pty_load(char *buf, int len)
+{
+	ptycur = 0;
+	ptyreq = 0;
+	ptylen = MIN(sizeof(ptybuf), len);
+	memcpy(ptybuf, buf, ptylen);
+}
+
+static int pty_save(char *buf, int size)
+{
+	int len = MIN(size, ptylen - ptycur);
+	memcpy(buf, ptybuf + ptycur, len);
+	return len;
 }
 
 /* term interface functions */
@@ -375,7 +397,7 @@ static int term_flush(void)
 void term_send(char *s, int n)
 {
 	int i;
-	for (i = 0; term->fd && i < 5 && n > 0 && !waitpty(1, 100); i++) {
+	for (i = 0; term->fd && i < 4 && n > 0 && !pty_wait(1, 50); i++) {
 		int cp = MIN(n, LEN(term->send) - term->send_n);
 		memcpy(term->send + term->send_n, s, cp);
 		term->send_n += cp;
@@ -397,15 +419,18 @@ static void term_blank(void)
 		pad_fill(0, -1, 0, -1, clrmap(FN_BG(color())));
 }
 
-static void ctlseq(void);
+static int ctlseq(void);
 void term_read(void)
 {
-	ctlseq();
-	while (ptycur < ptylen) {
-		if (visible && !lazy && ptylen - ptycur > 15)
+	do {
+		if (ctlseq()) {
+			pty_back();
+			break;
+		}
+		pty_mark();
+		if (visible && !lazy && pty_left() > 15)
 			lazy_start();
-		ctlseq();
-	}
+	} while (pty_left() > 0);
 	lazy_flush();
 }
 
@@ -553,6 +578,7 @@ void term_save(struct term *term)
 	term->top = top;
 	term->bot = bot;
 	term->lazy = lazy;
+	term->recv_n = pty_save(term->recv, sizeof(term->recv));
 }
 
 void term_hide(struct term *term)
@@ -628,6 +654,7 @@ void term_load(struct term *t, int flags)
 	lazy = term->lazy;
 	rows = term->rows;
 	cols = term->cols;
+	pty_load(term->recv, term->recv_n);
 }
 
 void term_end(void)
@@ -937,17 +964,17 @@ static void insertchar(int c)
 
 /* partial vt102 implementation */
 
-static void escseq(void);
-static void escseq_cs(void);
-static void escseq_g0(void);
-static void escseq_g1(void);
-static void escseq_g2(void);
-static void escseq_g3(void);
-static void escseq_osc(void);
-static void csiseq(void);
-static void csiseq_da(int c);
-static void csiseq_dsr(int c);
-static void modeseq(int c, int set);
+static int escseq(void);
+static int escseq_cs(void);
+static int escseq_g0(void);
+static int escseq_g1(void);
+static int escseq_g2(void);
+static int escseq_g3(void);
+static int escseq_osc(void);
+static int csiseq(void);
+static int csiseq_da(int c);
+static int csiseq_dsr(int c);
+static int modeseq(int c, int set);
 
 /* comments taken from: http://www.ivarch.com/programs/termvt102.shtml */
 
@@ -956,49 +983,49 @@ static int readutf8(int c)
 	int c1, c2, c3;
 	if (~c & 0xc0)		/* ASCII or invalid */
 		return c;
-	c1 = readpty();
+	c1 = pty_read();
 	if (~c & 0x20)
 		return ((c & 0x1f) << 6) | (c1 & 0x3f);
-	c2 = readpty();
+	c2 = pty_read();
 	if (~c & 0x10)
 		return ((c & 0x0f) << 12) | ((c1 & 0x3f) << 6) | (c2 & 0x3f);
-	c3 = readpty();
+	c3 = pty_read();
 	if (~c & 0x08)
 		return ((c & 0x07) << 18) | ((c1 & 0x3f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
-	return c;
+	return c1 < 0 || c2 < 0 || c3 < 0 ? -1 : c;
 }
 
 #define unknown(ctl, c)
 
 /* control sequences */
-static void ctlseq(void)
+static int ctlseq(void)
 {
-	int c = readpty();
+	int c = pty_read();
+	if (c < 0)
+		return 1;
 	switch (c) {
 	case 0x09:	/* HT		horizontal tab to next tab stop */
 		advance(0, 8 - col % 8, 0);
-		break;
+		return 0;
 	case 0x0a:	/* LF		line feed */
 	case 0x0b:	/* VT		line feed */
 	case 0x0c:	/* FF		line feed */
 		advance(1, (mode & MODE_AUTOCR) ? -col : 0, 1);
-		break;
+		return 0;
 	case 0x08:	/* BS		backspace one column */
 		advance(0, -1, 0);
-		break;
+		return 0;
 	case 0x1b:	/* ESC		start escape sequence */
-		escseq();
-		break;
+		return escseq();
 	case 0x0d:	/* CR		carriage return */
 		advance(0, -col, 0);
-		break;
+		return 0;
 	case 0x9b:	/* CSI		equivalent to ESC [ */
-		csiseq();
-		break;
+		return csiseq();
 	case 0x00:	/* NUL		ignored */
 	case 0x07:	/* BEL		beep */
 	case 0x7f:	/* DEL		ignored */
-		break;
+		return 0;
 	case 0x05:	/* ENQ		trigger answerback message */
 	case 0x0e:	/* SO		activate G1 character set & newline */
 	case 0x0f:	/* SI		activate G0 character set */
@@ -1007,68 +1034,64 @@ static void ctlseq(void)
 	case 0x18:	/* CAN		interrupt escape sequence */
 	case 0x1a:	/* SUB		interrupt escape sequence */
 		unknown("ctlseq", c);
-		break;
+		return 0;
 	default:
-		c = readutf8(c);
+		if ((c = readutf8(c)) < 0)
+			return 1;
 		if (isdw(c) && col + 1 == cols && ~mode & MODE_WRAPREADY)
 			insertchar(0);
 		if (!iszw(c))
 			insertchar(c);
 		if (isdw(c))
 			insertchar(c | DWCHAR);
-		break;
 	}
+	return 0;
 }
 
 #define ESCM(c)		(((c) & 0xf0) == 0x20)
 #define ESCF(c)		((c) > 0x30 && (c) < 0x7f)
 
 /* escape sequences */
-static void escseq(void)
+static int escseq(void)
 {
-	int c = readpty();
+	int c = pty_read();
 	while (ESCM(c))
-		c = readpty();
+		c = pty_read();
+	if (c < 0)
+		return 1;
 	switch (c) {
 	case '[':	/* CSI		control sequence introducer */
-		csiseq();
-		break;
+		return csiseq();
 	case '%':	/* CS...	escseq_cs table */
-		escseq_cs();
-		break;
+		return escseq_cs();
 	case '(':	/* G0...	escseq_g0 table */
-		escseq_g0();
-		break;
+		return escseq_g0();
 	case ')':	/* G1...	escseq_g1 table */
-		escseq_g1();
-		break;
+		return escseq_g1();
 	case '*':	/* G2...	escseq_g2 table */
-		escseq_g2();
-		break;
+		return escseq_g2();
 	case '+':	/* G3...	escseq_g3 table */
-		escseq_g3();
-		break;
+		return escseq_g3();
 	case ']':	/* OSC		operating system command */
-		escseq_osc();
-		break;
+		return escseq_osc();
 	case '7':	/* DECSC	save state (position, charset, attributes) */
 		misc_save(&term->sav);
-		break;
+		return 0;
 	case '8':	/* DECRC	restore most recently saved state */
 		misc_load(&term->sav);
-		break;
+		return 0;
 	case 'M':	/* RI		reverse line feed */
 		advance(-1, 0, 1);
-		break;
+		return 0;
 	case 'D':	/* IND		line feed */
 		advance(1, 0, 1);
-		break;
+		return 0;
 	case 'E':	/* NEL		newline */
 		advance(1, -col, 1);
-		break;
+		return 0;
 	case 'c':	/* RIS		reset */
 		term_reset();
-		break;
+		return 0;
 	case 'H':	/* HTS		set tab stop at current column */
 	case 'Z':	/* DECID	DEC private ID; return ESC [ ? 6 c (VT102) */
 	case '#':	/* DECALN	("#8") DEC alignment test - fill screen with E's */
@@ -1089,26 +1112,30 @@ static void escseq(void)
 	case 'g':	/* BEL		alternate BEL */
 	default:
 		unknown("escseq", c);
-		break;
 	}
+	return 0;
 }
 
-static void escseq_cs(void)
+static int escseq_cs(void)
 {
-	int c = readpty();
+	int c = pty_read();
+	if (c < 0)
+		return 1;
 	switch (c) {
 	case '@':	/* CSDFL	select default charset (ISO646/8859-1) */
 	case 'G':	/* CSUTF8	select UTF-8 */
 	case '8':	/* CSUTF8	select UTF-8 (obsolete) */
 	default:
 		unknown("escseq_cs", c);
-		break;
 	}
+	return 0;
 }
 
-static void escseq_g0(void)
+static int escseq_g0(void)
 {
-	int c = readpty();
+	int c = pty_read();
+	if (c < 0)
+		return 1;
 	switch (c) {
 	case '8':	/* G0DFL	G0 charset = default mapping (ISO8859-1) */
 	case '0':	/* G0GFX	G0 charset = VT100 graphics mapping */
@@ -1117,13 +1144,15 @@ static void escseq_g0(void)
 	case 'B':	/* G0TXT	G0 charset = ASCII mapping */
 	default:
 		unknown("escseq_g0", c);
-		break;
 	}
+	return 0;
 }
 
-static void escseq_g1(void)
+static int escseq_g1(void)
 {
-	int c = readpty();
+	int c = pty_read();
+	if (c < 0)
+		return 1;
 	switch (c) {
 	case '8':	/* G1DFL	G1 charset = default mapping (ISO8859-1) */
 	case '0':	/* G1GFX	G1 charset = VT100 graphics mapping */
@@ -1132,13 +1161,15 @@ static void escseq_g1(void)
 	case 'B':	/* G1TXT	G1 charset = ASCII mapping */
 	default:
 		unknown("escseq_g1", c);
-		break;
 	}
+	return 0;
 }
 
-static void escseq_g2(void)
+static int escseq_g2(void)
 {
-	int c = readpty();
+	int c = pty_read();
+	if (c < 0)
+		return 1;
 	switch (c) {
 	case '8':	/* G2DFL	G2 charset = default mapping (ISO8859-1) */
 	case '0':	/* G2GFX	G2 charset = VT100 graphics mapping */
@@ -1146,13 +1177,15 @@ static void escseq_g2(void)
 	case 'K':	/* G2USR	G2 charset = user defined mapping */
 	default:
 		unknown("escseq_g2", c);
-		break;
 	}
+	return 0;
 }
 
-static void escseq_g3(void)
+static int escseq_g3(void)
 {
-	int c = readpty();
+	int c = pty_read();
+	if (c < 0)
+		return 1;
 	switch (c) {
 	case '8':	/* G3DFL	G3 charset = default mapping (ISO8859-1) */
 	case '0':	/* G3GFX	G3 charset = VT100 graphics mapping */
@@ -1160,29 +1193,32 @@ static void escseq_g3(void)
 	case 'K':	/* G3USR	G3 charset = user defined mapping */
 	default:
 		unknown("escseq_g3", c);
-		break;
 	}
+	return 0;
 }
 
-static void escseq_osc(void)
+static int escseq_osc(void)
 {
-	int c = readpty();
+	int c = pty_read();
 	int osc = 0;
 	int i;
 	while (isdigit(c)) {
 		osc = osc * 10 + (c - '0');
-		c = readpty();
+		c = pty_read();
 	}
+	if (c < 0)
+		return 1;
 	for (i = 0; i < 4096 && c >= 0; i++) {
 		if (c == 0x07)
 			break;
 		if (c == 0x1b) {
-			c = readpty();
+			c = pty_read();
 			if (c == '\\')
 				break;
 		}
-		c = readpty();
+		c = pty_read();
 	}
+	return c < 0;
 }
 
 static int absrow(int r)
@@ -1196,36 +1232,38 @@ static int absrow(int r)
 
 #define MAXCSIARGS	32
 /* ECMA-48 CSI sequences */
-static void csiseq(void)
+static int csiseq(void)
 {
 	int args[MAXCSIARGS + 8] = {0};
 	int i;
 	int n = 0;
-	int c = readpty();
+	int c = pty_read();
 	int priv = 0;
 
-	if (strchr("<=>?", c)) {
+	if (c >= 0 && strchr("<=>?", c)) {
 		priv = c;
-		c = readpty();
+		c = pty_read();
 	}
 	while (CSIP(c)) {
 		int arg = 0;
 		while (isdigit(c)) {
 			arg = arg * 10 + (c - '0');
-			c = readpty();
+			c = pty_read();
 		}
 		if (CSIP(c))
-			c = readpty();
+			c = pty_read();
 		if (n < MAXCSIARGS)
 			args[n++] = arg;
 	}
 	while (CSII(c))
-		c = readpty();
+		c = pty_read();
+	if (c < 0)
+		return 1;
 	switch (c) {
 	case 'H':	/* CUP		move cursor to row, column */
 	case 'f':	/* HVP		move cursor to row, column */
 		move_cursor(absrow(MAX(0, args[0] - 1)), MAX(0, args[1] - 1));
-		break;
+		return 0;
 	case 'J':	/* ED		erase display */
 		switch (args[0]) {
 		case 0:
@@ -1360,24 +1398,23 @@ static void csiseq(void)
 	case '`':	/* HPA		move cursor to column in current row */
 	default:
 		unknown("csiseq", c);
-		break;
 	}
+	return 0;
 }
 
-static void csiseq_da(int c)
+static int csiseq_da(int c)
 {
 	switch (c) {
 	case 0x00:
 		term_sendstr("\x1b[?6c");
 		break;
-	default:
-		/* we don't care much about cursor shape */
-		/* printf("csiseq_da <0x%x>\n", c); */
-		break;
+	default:	/* ignoring cursor shape requests */
+		unknown("csiseq_da", c);
 	}
+	return 0;
 }
 
-static void csiseq_dsr(int c)
+static int csiseq_dsr(int c)
 {
 	char status[1 << 5];
 	switch (c) {
@@ -1391,12 +1428,12 @@ static void csiseq_dsr(int c)
 		break;
 	default:
 		unknown("csiseq_dsr", c);
-		break;
 	}
+	return 0;
 }
 
 /* ANSI/DEC specified modes for SM/RM ANSI Specified Modes */
-static void modeseq(int c, int set)
+static int modeseq(int c, int set)
 {
 	switch (c) {
 	case 0x87:	/* DECAWM	Auto Wrap */
@@ -1445,6 +1482,6 @@ static void modeseq(int c, int set)
 	case 0x93:	/* DECPEX	print screen: prints full screen (set); prints scroll region (reset) */
 	default:
 		unknown("modeseq", c);
-		break;
 	}
+	return 0;
 }
