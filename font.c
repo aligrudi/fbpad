@@ -194,8 +194,8 @@ int font_bitmap(struct font *font, void *dst, int c)
 		for (i = 0; i < font->rows; i++) {
 			unsigned char *row = (unsigned char *) beg + i * rlen;
 			for (j = 0; j < font->cols; j++) {
-				int val = row[j >> 3] & (1 << (j & 0x7));
-				((unsigned char *) dst)[i * font->cols + 7 - j] = val ? 255 : 0;
+				int val = row[j >> 3] & (1 << (7 - (j & 0x7)));
+				((unsigned char *) dst)[i * font->cols + j] = val ? 255 : 0;
 			}
 		}
 	} else {
