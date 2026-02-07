@@ -63,6 +63,9 @@ file is as follows:
   shell   mksh
   editor  vi
 
+  # Text screenshot file path
+  scrshot /tmp/scr
+
   # Lock screen password
   #pass    password
 
@@ -87,8 +90,8 @@ file is as follows:
 
 At least one font must be specified in the font line to use fbpad.
 Two font formats are supported: fbpad's tinyfont and PSF2.  For
-testing you can try http://dev.rudi.ir/courr.tf.  Tinyfont files can
-be generated using fbpad_mkfn program (http://dev.rudi.ir/).
+testing you can try https://dev.rudi.ir/courr.tf.  Tinyfont files can
+be generated using fbpad_mkfn program (https://dev.rudi.ir/).
 
 If you want to use fbpad's scrsnap feature, you can specify the saved
 line to specify the list of saved tags.  Framebuffer memory is saved
