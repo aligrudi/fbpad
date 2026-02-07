@@ -10,7 +10,6 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
-#include "conf.h"
 #include "fbpad.h"
 
 #define MODE_CURSOR		0x01
@@ -73,17 +72,6 @@ static int fg, bg;
 static int top, bot;
 static int mode;
 static int visible;
-static int clrfg = FGCOLOR;
-static int clrbg = BGCOLOR;
-static int cursorfg = -1;
-static int cursorbg = -1;
-static int borderfg = 0xff0000;
-static int borderwd = 2;
-
-static unsigned int clr16[16] = {
-	COLOR0, COLOR1, COLOR2, COLOR3, COLOR4, COLOR5, COLOR6, COLOR7,
-	COLOR8, COLOR9, COLORA, COLORB, COLORC, COLORD, COLORE, COLORF,
-};
 
 static int clrmap_rgb(int r, int g, int b)
 {
@@ -102,11 +90,11 @@ static int clrmap(int c)
 {
 	int g = (c - 232) * 10 + 8;
 	if (c < 16)
-		return clr16[c];
+		return conf_clr16()[c];
 	if (c == XG_FG)
-		return clrfg;
+		return conf_fg();
 	if (c == XG_BG)
-		return clrbg;
+		return conf_bg();
 	if (c & XG_RGB)
 		return clrmap_rgbdec(c);
 	if (c < 232) {
@@ -139,9 +127,11 @@ static void _draw_pos(int r, int c, int cursor)
 	int i = OFFSET(r, c);
 	int fg = clrmap(FN_FG(term->scrfn[i]));
 	int bg = clrmap(FN_BG(term->scrfn[i]));
+	int cfg = conf_cursorfg();
+	int cbg = conf_cursorbg();
 	if (cursor && mode & MODE_CURSOR) {
-		fg = cursorfg >= 0 ? cursorfg : clrmap(FN_BG(term->scrfn[i]));
-		bg = cursorbg >= 0 ? cursorbg : clrmap(FN_FG(term->scrfn[i]));
+		fg = cfg >= 0 ? cfg : clrmap(FN_BG(term->scrfn[i]));
+		bg = cbg >= 0 ? cbg : clrmap(FN_FG(term->scrfn[i]));
 	}
 	pad_put(term->scrch[i], r, c, FN_M(term->scrfn[i]) | fg, bg);
 }
@@ -397,7 +387,9 @@ static int term_flush(void)
 void term_send(char *s, int n)
 {
 	int i;
-	for (i = 0; term->fd && i < 4 && n > 0 && !pty_wait(1, 50); i++) {
+	if (!term || !term->fd)
+		return;
+	for (i = 0; i < 4 && n > 0 && !pty_wait(1, 50); i++) {
 		int cp = MIN(n, LEN(term->send) - term->send_n);
 		memcpy(term->send + term->send_n, s, cp);
 		term->send_n += cp;
@@ -422,6 +414,8 @@ static void term_blank(void)
 static int ctlseq(void);
 void term_read(void)
 {
+	if (!term || !term->fd)
+		return;
 	do {
 		if (ctlseq()) {
 			pty_back();
@@ -523,6 +517,8 @@ extern char **environ;
 void term_exec(char **args, int swsig)
 {
 	int master, slave;
+	if (!term || term->fd)
+		return;
 	term_zero(term);
 	if (_openpty(&master, &slave) == -1)
 		return;
@@ -530,10 +526,11 @@ void term_exec(char **args, int swsig)
 		return;
 	if (!term->pid) {
 		char *envp[256] = {NULL};
-		char pgid[32];
+		char pgid[32], term[32];
 		snprintf(pgid, sizeof(pgid), "TERM_PGID=%d", getpid());
+		snprintf(term, sizeof(term), "TERM=%s", conf_term());
 		envcpy(envp, environ, LEN(envp) - 3);
-		envset(envp, "TERM=" TERM);
+		envset(envp, term);
 		envset(envp, pad_fbdev());
 		if (swsig)
 			envset(envp, pgid);
@@ -615,7 +612,7 @@ static void resizeupdate(int or, int oc, int nr,  int nc)
 /* redraw the screen; if all is zero, update changed lines only */
 void term_redraw(int all)
 {
-	if (term->fd) {
+	if (term && term->fd) {
 		int r = term->rows, c = term->cols;
 		if (r != pad_rows() || c != pad_cols()) {
 			if (!term_resize(term, pad_rows(), pad_cols())) {
@@ -632,7 +629,7 @@ void term_redraw(int all)
 			}
 		}
 		if (all) {
-			pad_fill(rows, -1, 0, -1, clrbg);
+			pad_fill(rows, -1, 0, -1, conf_bg());
 			lazy_start();
 			memset(term->dirty, 1, rows * sizeof(term->dirty[0]));
 		}
@@ -647,18 +644,22 @@ void term_redraw(int all)
 void term_load(struct term *t, int flags)
 {
 	term = t;
-	misc_load(&term->cur);
-	visible = flags;
-	top = term->top;
-	bot = term->bot;
-	lazy = term->lazy;
-	rows = term->rows;
-	cols = term->cols;
-	pty_load(term->recv, term->recv_n);
+	if (term) {
+		misc_load(&term->cur);
+		visible = flags;
+		top = term->top;
+		bot = term->bot;
+		lazy = term->lazy;
+		rows = term->rows;
+		cols = term->cols;
+		pty_load(term->recv, term->recv_n);
+	}
 }
 
 void term_end(void)
 {
+	if (!term)
+		return;
 	if (term->fd)
 		close(term->fd);
 	term_zero(term);
@@ -692,7 +693,7 @@ static int writeutf8(char *dst, int c)
 	return 4;
 }
 
-void term_screenshot(char *path)
+void term_screenshot(struct term *term, char *path)
 {
 	char buf[1 << 11];
 	int fd = open(path, O_CREAT | O_TRUNC | O_WRONLY, 0600);
@@ -711,43 +712,6 @@ void term_screenshot(char *path)
 		write(fd, buf, r - buf);
 	}
 	close(fd);
-}
-
-int term_colors(char *path)
-{
-	char t[256];
-	FILE *fp = fopen(path, "r");
-	if (fp == NULL)
-		return 1;
-	while (fscanf(fp, "%31s", t) == 1) {
-		if (!strcmp("color", t)) {
-			fscanf(fp, "%x %x", &clrfg, &clrbg);
-		} else if (!strcmp("color16", t)) {
-			int i;
-			for (i = 0; i < 16; i++)
-				fscanf(fp, "%x", &clr16[i]);
-		} else if (!strcmp("font", t)) {
-			char fr[256], fi[256], fb[256];
-			if (fscanf(fp, "%255s %255s %255s", fr, fi, fb) == 3)
-				pad_init(fr, fi, fb);
-		} else if (!strcmp("cursor", t)) {
-			fscanf(fp, "%x %x", &cursorfg, &cursorbg);
-		} else if (!strcmp("border", t)) {
-			fscanf(fp, "%x %d", &borderfg, &borderwd);
-		}
-		fgets(t, sizeof(t), fp);
-	}
-	return 0;
-}
-
-int term_borderwd(void)
-{
-	return borderwd;
-}
-
-int term_borderfg(void)
-{
-	return borderfg;
 }
 
 /* high-level drawing functions */
@@ -778,8 +742,10 @@ static void scrl_rows(int nr)
 
 void term_scrl(int scrl)
 {
-	int i, j;
-	int hpos = LIMIT(term->hpos + scrl, 0, NHIST);
+	int hpos, i, j;
+	if (!term)
+		return;
+	hpos = LIMIT(term->hpos + scrl, 0, NHIST);
 	term->hpos = hpos;
 	if (!hpos) {
 		lazy_flush();
@@ -1353,7 +1319,7 @@ static int csiseq(void)
 			}
 			setattr(args[i]);
 		}
-		if (mode & MODE_CLR8 && mode & ATTR_BOLD && BRIGHTEN)
+		if (mode & MODE_CLR8 && mode & ATTR_BOLD && conf_brighten())
 			if (fg < 8)
 				fg += 8;
 		break;

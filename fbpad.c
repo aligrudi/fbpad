@@ -28,17 +28,15 @@
 #include <termios.h>
 #include <unistd.h>
 #include <linux/vt.h>
-#include "conf.h"
 #include "fbpad.h"
 #include "draw.h"
 
 #define CTRLKEY(x)	((x) - 96)
 #define POLLFLAGS	(POLLIN | POLLHUP | POLLERR | POLLNVAL)
-#define NTAGS		(sizeof(tags) - 1)
+#define NTAGS		32
 #define NTERMS		(NTAGS * 2)
-#define TERMOPEN(i)	(term_fd(terms[i]))
+#define TERMOPEN(i)	(terms[i] && term_fd(terms[i]))
 
-static char tags[] = TAGS;
 static struct term *terms[NTERMS];
 static int tops[NTAGS];		/* top terms of tags */
 static int split[NTAGS];	/* terms are shown together */
@@ -84,15 +82,9 @@ static int nterm(void)
 	return n;
 }
 
-/* term struct of cterm() */
-static struct term *tmain(void)
-{
-	return TERMOPEN(cterm()) ? terms[cterm()] : NULL;
-}
-
 static void t_conf(int idx)
 {
-	int brwid = term_borderwd();
+	int brwid = conf_borderwd();
 	int h1 = fb_rows() / 2 / pad_crows() * pad_crows();
 	int h2 = fb_rows() - h1 - 4 * brwid;
 	int w1 = fb_cols() / 2 / pad_ccols() * pad_ccols();
@@ -115,7 +107,8 @@ static void t_hide(int idx, int save)
 		term_hide(terms[idx]);
 	if (save && saved[idx % NTAGS] && TERMOPEN(idx))
 		scr_snap(idx);
-	term_save(terms[idx]);
+	if (terms[idx])
+		term_save(terms[idx]);
 }
 
 /* show=0 (hidden), show=1 (visible), show=2 (load), show=3 (redraw) */
@@ -143,10 +136,10 @@ static int t_hideshow(int oidx, int save, int nidx, int show, int perm)
 	int ret;
 	t_hide(oidx, save);
 	if (show && split[otag] && otag == ntag && perm)
-		pad_border(0, term_borderwd());
+		pad_border(0, conf_borderwd());
 	ret = t_show(nidx, show);
 	if (show && split[ntag] && perm)
-		pad_border(term_borderfg(), term_borderwd());
+		pad_border(conf_borderfg(), conf_borderwd());
 	return ret;
 }
 
@@ -184,13 +177,17 @@ static void t_split(int n)
 
 static void t_exec(char **args, int swsig)
 {
-	if (!tmain())
-		term_exec(args, swsig);
+	if (!terms[cterm()]) {
+		terms[cterm()] = term_make();
+		term_load(terms[cterm()], 1);
+	}
+	term_exec(args, swsig);
 }
 
 static void listtags(void)
 {
 	/* colors for tags based on their number of terminals */
+	char *tags = conf_tags();
 	int fg = 0x96cb5c, bg = 0x516f7b;
 	int colors[] = {0x173f4f, fg, 0x68cbc0 | FN_B};
 	int c = 0;
@@ -221,18 +218,19 @@ static void listtags(void)
 
 static void directkey(void)
 {
-	char *shell[32] = SHELL;
-	char *mail[32] = MAIL;
-	char *editor[32] = EDITOR;
+	char *tags = conf_tags();
+	char *shell[4] = {conf_shell()};
+	char *mail[4] = {conf_mail()};
+	char *editor[4] = {conf_editor()};
 	char user[16];
 	int n = read(0, user, sizeof(user));
 	int c = (unsigned char) user[0];
 	if (n <= 0)
 		return;
-	if (PASS && locked) {
+	if (conf_pass()[0] && locked) {
 		if (c == '\r') {
 			pass[passlen] = '\0';
-			if (!strcmp(PASS, pass))
+			if (!strcmp(conf_pass(), pass))
 				locked = 0;
 			passlen = 0;
 			return;
@@ -242,7 +240,7 @@ static void directkey(void)
 		return;
 	}
 	if (confirm) {
-		exitit = c == QUITKEY;
+		exitit = c == conf_quitkey();
 		confirm = 0;
 		return;
 	}
@@ -282,20 +280,22 @@ static void directkey(void)
 				t_set(nterm());
 			return;
 		case CTRLKEY('q'):
-			if (QUITKEY)
+			if (conf_quitkey())
 				confirm = 1;
 			else
 				exitit = 1;
 			return;
 		case 's':
-			term_screenshot(SCRSHOT);
+			if (terms[cterm()])
+				term_screenshot(terms[cterm()], conf_scrshot());
 			return;
 		case 'y':
 			term_redraw(1);
 			return;
 		case CTRLKEY('e'):
-			if (!term_colors(CLRFILE))
-				term_redraw(1);
+			if (conf_read() > 0)
+				pad_init(conf_font(0), conf_font(1), conf_font(2));
+			term_redraw(1);
 			return;
 		case CTRLKEY('l'):
 			locked = 1;
@@ -323,8 +323,7 @@ static void directkey(void)
 			}
 		}
 	}
-	if (tmain())
-		term_send(user, n);
+	term_send(user, n);
 }
 
 static void peepterm(int termid)
@@ -444,27 +443,27 @@ int main(int argc, char **argv)
 	char *show = "\x1b[?25h";
 	char **args = argv + 1;
 	int i;
+	conf_read();
 	if (fb_init(getenv("FBDEV"))) {
 		fprintf(stderr, "fbpad: failed to initialize the framebuffer\n");
 		return 1;
 	}
-	if (pad_init(FR, FI, FB)) {
+	if (pad_init(conf_font(0), conf_font(1), conf_font(2))) {
 		fprintf(stderr, "fbpad: cannot find fonts\n");
 		return 1;
 	}
-	for (i = 0; i < NTERMS; i++)
-		terms[i] = term_make();
 	write(1, hide, strlen(hide));
 	signalsetup();
 	fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
 	while (args[0] && args[0][0] == '-')
 		args++;
-	for (i = 0; i < NTAGS; i++)
-		saved[i] = strchr(TAGS_SAVED, tags[i % NTAGS]) != NULL;
+	for (i = 0; conf_tags()[i]; i++)
+		saved[i] = strchr(conf_saved(), conf_tags()[i % NTAGS]) != NULL;
 	mainloop(args[0] ? args : NULL);
 	write(1, show, strlen(show));
 	for (i = 0; i < NTERMS; i++)
-		term_free(terms[i]);
+		if (terms[i])
+			term_free(terms[i]);
 	pad_free();
 	scr_done();
 	fb_free();

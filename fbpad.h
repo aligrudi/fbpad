@@ -21,17 +21,14 @@ void term_save(struct term *term);
 int term_fd(struct term *term);
 void term_hide(struct term *term);
 void term_show(struct term *term);
+void term_screenshot(struct term *term, char *path);
 /* operations on the loaded terminal */
 void term_read(void);
 void term_send(char *s, int n);
 void term_exec(char **args, int swsig);
 void term_end(void);
-void term_screenshot(char *path);
 void term_scrl(int pos);
 void term_redraw(int all);
-int term_colors(char *path);
-int term_borderwd(void);
-int term_borderfg(void);
 
 /* pad.c */
 #define FN_I		0x10000000	/* italic font */
@@ -62,3 +59,24 @@ void scr_snap(int idx);
 int scr_load(int idx);
 void scr_free(int idx);
 void scr_done(void);
+
+/* conf.c */
+int conf_read(void);
+char *conf_tags(void);
+char *conf_saved(void);
+int conf_fg(void);
+int conf_bg(void);
+int conf_cursorfg(void);
+int conf_cursorbg(void);
+int conf_borderwd(void);
+int conf_borderfg(void);
+unsigned *conf_clr16(void);
+char *conf_scrshot(void);
+char *conf_term(void);
+char *conf_font(int i);
+char *conf_shell(void);
+char *conf_editor(void);
+char *conf_mail(void);
+char *conf_pass(void);
+int conf_quitkey(void);
+int conf_brighten(void);

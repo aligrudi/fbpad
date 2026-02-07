@@ -160,7 +160,7 @@ static char *ch2fb(int fn, int c, int fg, int bg)
 		return NULL;
 	if ((fbbits = gc_get(c, fg, bg)))
 		return fbbits;
-	if (font_bitmap(fonts[fn], bits, c))
+	if (!fonts[fn] || font_bitmap(fonts[fn], bits, c))
 		return NULL;
 	fbbits = gc_put(c, fg, bg);
 	bmp2fb(fbbits, bits, fg & FN_C, bg & FN_C,

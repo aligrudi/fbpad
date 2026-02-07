@@ -9,18 +9,18 @@ while holding the alt key).
 ==============	=======================================
 KEY		COMMAND
 ==============	=======================================
-m-c		execute a shell (SHELL)
-m-m		execute mail program (MAIL)
-m-e		execute editor program (EDITOR)
-m-x 		switch to tag 'x' (TAGS)
+m-c		execute a shell
+m-m		execute the mail program
+m-e		execute the editor
+m-x 		switch to tag 'x'
 m-j		switch to current tag's alternative terminal
 m-k		like m-j
 m-p		show tag summary
 m-o		jump to the previous tag
 m-tab		show the next terminal
-m-s		create a text screenshot (SCRSHOT)
+m-s		create a text screenshot
 m-y		redraw the terminal
-c-m-e		reload the fonts and terminal colors (CLRFILE)
+c-m-e		reload .fbpad file
 c-m-l		lock the screen; use PASS to unlock
 c-m-o		disable/enable tag switching
 c-m-q		quit fbpad
@@ -46,35 +46,31 @@ corresponding framebuffer region.
 SETTING UP
 ==========
 
-Fbpad can be configured by editing the conf.h header.  To start fbpad,
-FR must point to a valid fbpad font (for testing you can try
-http://litcave.rudi.ir/courr.tf), and SHELL to the shell you want
-fbpad to execute.  Once these are set, fbpad can be started without
-problems.
+Fbpad reads $HOME/.fbpad file at startup.  The format of .fbpad
+file is as follows:
 
-Fbpad fonts can be generated using fbpad_mkfn program
-(http://litcave.rudi.ir/).  The FR, FI, and FB macros specify the path
-of fbpad fonts for regular, italic, and bold fonts.  If FI or FB is
-NULL, the regular font is used for italic or bold text.
+  # Fonts: regular, italic, bold
+  font    /path/to/0.tf /path/to/1.tf /path/to/2.tf
 
-Next, you may want to change the list of fbpad tags by changing the
-TAGS macro.  The FGCOLOR and BGCOLOR macros specify the foreground and
-background colors.  Individual colors can be customized by editing the
-hex RGB color description of COLOR* macros.  Also SCRSHOT macro
-specifies where fbpad text screenshots, created by "m-s" command, must
-be saved.
+  # Tags list
+  tags    xnlhtr01234uiva
 
-If you want to use fbpad's scrsnap feature, you can edit TAGS_SAVED
-to change the list of saved tags.  Framebuffer memory is saved and
-reloaded for terminals in these tags, which is very convenient when
-you are using programs that modify the framebuffer simultaneously,
-like fbpdf.
+  # Saved tags; it must be a subset of tags (scrsnap)
+  saved   ui
 
-CLRFILE
-=======
+  # Other variables
+  term    linux
+  shell   mksh
+  editor  vi
 
-If CLRFILE is set, fbpad fonts and colors can be changed using c-m-e.
-This is an example:
+  # Lock screen password
+  #pass    password
+
+  # Quit confirmation key
+  #quitkey x
+
+  # Brighten bold text
+  brighten 1
 
   # Foreground and background colors
   color   ffefef 333333
@@ -89,8 +85,16 @@ This is an example:
   # Border color and width
   border  ffbb55 3
 
-  # Fonts: regular, italic, bold
-  font    /path/to/0.tf /path/to/1.tf /path/to/2.tf
+At least one font must be specified in the font line to use fbpad.
+Two font formats are supported: fbpad's tinyfont and PSF2.  For
+testing you can try http://dev.rudi.ir/courr.tf.  Tinyfont files can
+be generated using fbpad_mkfn program (http://dev.rudi.ir/).
+
+If you want to use fbpad's scrsnap feature, you can specify the saved
+line to specify the list of saved tags.  Framebuffer memory is saved
+and reloaded for terminals in these tags, which is very convenient
+when you are using programs that modify the framebuffer
+simultaneously, like fbpdf.
 
 256-COLOR MODE
 ==============
