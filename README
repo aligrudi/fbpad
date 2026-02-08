@@ -4,15 +4,15 @@ FBPAD
 Fbpad is a small Linux framebuffer virtual terminal.  It manages many
 terminals through single-letter tags; each tag can hold two terminals.
 The following table lists fbpad's key-bindings (m-k means pressing k,
-while holding the alt key).
+while holding the alt key).  The list of tags or commands can be can
+be configured in the ~/.fbpad file.
 
 ==============	=======================================
 KEY		COMMAND
 ==============	=======================================
-m-c		execute a shell
-m-m		execute the mail program
-m-e		execute the editor
-m-x 		switch to tag 'x'
+m-c		execute a shell (configured via ~/.fbpad)
+m-;		like m-c but with switching signals
+m-x 		switch to tag 'x' or execute command 'x'
 m-j		switch to current tag's alternative terminal
 m-k		like m-j
 m-p		show tag summary
@@ -28,7 +28,6 @@ m-,		scroll up
 m-.		scroll down
 m-=		split tag horizontally/vertically
 m--		unsplit tag
-m-;		like m-c but with switching signals
 ==============	=======================================
 
 To execute a single program in fbpad, the program and its arguments
@@ -60,8 +59,10 @@ file is as follows:
 
   # Other variables
   term    linux
-  shell   mksh
-  editor  vi
+
+  # Commands to execute with m-X; m-c and m-; execute a shell
+  command c mksh
+  command ; mksh
 
   # Text screenshot file path
   scrshot /tmp/scr

@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,18 +14,38 @@ static int cursorbg = -1;
 static int borderfg = 0xff0000;
 static int borderwd = 2;
 static char term[128] = "linux";
-static char shell[128];
-static char editor[128];
-static char mail[128];
 static char pass[128];
 static char scrshot[128] = "/tmp/scr";
 static char quitkey;
 static int brighten = 1;
+static char cmd_buf[4096];
+static int cmd_pos;
+static char *cmd_list[128][8] = {
+	['c'] = {"sh"},
+	[';'] = {"sh"},
+};
 
 static unsigned clr16[16] = {
 	0x000000, 0xaa0000, 0x00aa00, 0xaa5500, 0x0000aa, 0xaa00aa, 0x00aaaa, 0xaaaaaa,
 	0x555555, 0xff5555, 0x55ff55, 0xffff55, 0x5555ff, 0xff55ff, 0x55ffff, 0xffffff,
 };
+
+static void cmd_read(int c, char *src)
+{
+	int i;
+	memset(cmd_list[c], 0, sizeof(cmd_list[c]));
+	for (i = 0; i < LEN(cmd_list[0]) && cmd_pos < LEN(cmd_buf) - 1; i++) {
+		int beg = cmd_pos;
+		while (isspace((unsigned char) *src))
+			src++;
+		while (*src && !isspace((unsigned char) *src) && cmd_pos < LEN(cmd_buf) - 1)
+			cmd_buf[cmd_pos++] = *src++;
+		if (beg < cmd_pos) {
+			cmd_buf[cmd_pos++] = '\0';
+			cmd_list[c][i] = cmd_buf + beg;
+		}
+	}
+}
 
 /* load .fbpad; returns -1 for failure, 1 if fonts are updated */
 int conf_read(void)
@@ -59,12 +80,6 @@ int conf_read(void)
 			fscanf(fp, "%x %d", &borderfg, &borderwd);
 		} else if (!strcmp("term", t)) {
 			fscanf(fp, "%127s", term);
-		} else if (!strcmp("shell", t)) {
-			fscanf(fp, "%127s", shell);
-		} else if (!strcmp("editor", t)) {
-			fscanf(fp, "%127s", editor);
-		} else if (!strcmp("mail", t)) {
-			fscanf(fp, "%127s", mail);
 		} else if (!strcmp("scrshot", t)) {
 			fscanf(fp, "%127s", scrshot);
 		} else if (!strcmp("pass", t)) {
@@ -73,10 +88,23 @@ int conf_read(void)
 			fscanf(fp, " %c", &quitkey);
 		} else if (!strcmp("brighten", t)) {
 			fscanf(fp, "%d", &brighten);
+		} else if (!strcmp("command", t)) {
+			char key;
+			char cmd[512];
+			if (fscanf(fp, " %c", &key) == 1) {
+				fgets(cmd, sizeof(cmd), fp);
+				cmd_read((unsigned char) key, cmd);
+			}
+			continue;
 		}
 		fgets(t, sizeof(t), fp);
 	}
 	return fnup;
+}
+
+char **conf_command(int c)
+{
+	return c >= 0 && c < LEN(cmd_list) && cmd_list[c][0] ? cmd_list[c] : NULL;
 }
 
 char *conf_tags(void)
@@ -137,23 +165,6 @@ char *conf_term(void)
 char *conf_font(int i)
 {
 	return i >= 0 && i < 3 ? fonts[i] : "";
-}
-
-char *conf_shell(void)
-{
-	char *sh = shell[0] ? shell : getenv("SHELL");
-	return sh ? sh : "/bin/sh";
-}
-
-char *conf_editor(void)
-{
-	char *ed = editor[0] ? editor : getenv("VISUAL");
-	return ed ? ed : "vi";
-}
-
-char *conf_mail(void)
-{
-	return mail;
 }
 
 char *conf_pass(void)

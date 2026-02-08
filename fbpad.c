@@ -219,9 +219,6 @@ static void listtags(void)
 static void directkey(void)
 {
 	char *tags = conf_tags();
-	char *shell[4] = {conf_shell()};
-	char *mail[4] = {conf_mail()};
-	char *editor[4] = {conf_editor()};
 	char user[16];
 	int n = read(0, user, sizeof(user));
 	int c = (unsigned char) user[0];
@@ -245,29 +242,23 @@ static void directkey(void)
 		return;
 	}
 	if (c == ESC && n > 1) {
-		switch ((c = (unsigned char) user[1])) {
-		case 'c':
-			t_exec(shell, 0);
+		c = (unsigned char) user[1];
+		if (!TERMOPEN(cterm()) && conf_command(c)) {
+			t_exec(conf_command(c), c == ';');
 			return;
-		case ';':
-			t_exec(shell, 1);
-			return;
-		case 'm':
-			if (TERMOPEN(cterm()))
-				saved[ctag] = 1;
-			t_exec(mail, 0);
-			return;
+		}
+		switch (c) {
 		case 'e':
-			if (TERMOPEN(cterm())) {
-				saved[ctag] = 0;
-				scr_free(ctag);
-				scr_free(aterm(ctag));
-			}
-			t_exec(editor, 0);
+			saved[ctag] = 0;
+			scr_free(ctag);
+			scr_free(aterm(ctag));
 			return;
 		case 'j':
 		case 'k':
 			t_set(aterm(cterm()));
+			return;
+		case 'm':
+			saved[ctag] = 1;
 			return;
 		case 'o':
 			t_set(tterm(ltag));
