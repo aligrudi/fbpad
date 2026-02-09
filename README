@@ -45,8 +45,8 @@ corresponding framebuffer region.
 SETTING UP
 ==========
 
-Fbpad reads $HOME/.fbpad file at startup.  The format of .fbpad
-file is as follows:
+Fbpad reads $HOME/.fbpad file at startup.  The format of this file is
+as follows:
 
   # Fonts: regular, italic, bold
   font    /path/to/0.tf /path/to/1.tf /path/to/2.tf
@@ -54,7 +54,7 @@ file is as follows:
   # Tags list
   tags    xnlhtr01234uiva
 
-  # Saved tags; it must be a subset of tags (scrsnap)
+  # Saved tags; it must be a subset of tags (the scrsnap feature)
   saved   ui
 
   # Other variables
@@ -94,11 +94,10 @@ Two font formats are supported: fbpad's tinyfont and PSF2.  For
 testing you can try https://dev.rudi.ir/courr.tf.  Tinyfont files can
 be generated using fbpad_mkfn program (https://dev.rudi.ir/).
 
-If you want to use fbpad's scrsnap feature, you can specify the saved
-line to specify the list of saved tags.  Framebuffer memory is saved
-and reloaded for terminals in these tags, which is very convenient
-when you are using programs that modify the framebuffer
-simultaneously, like fbpdf.
+The saved line specifies the list tags that use fbpad's scrsnap
+feature.  Framebuffer memory is saved and reloaded for terminals in
+these tags, which is very convenient when using programs that modify
+the framebuffer simultaneously, like fbpdf.
 
 256-COLOR MODE
 ==============
