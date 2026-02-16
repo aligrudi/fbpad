@@ -215,7 +215,7 @@ void pad_put(int ch, int r, int c, int fg, int bg)
 	int sc = fncols * c;
 	char *bits;
 	int i;
-	if (r >= rows && c >= cols)
+	if (r >= rows || c >= cols)
 		return;
 	bits = ch2fb(fnsel(fg, bg), ch, fg, bg);
 	if (!bits)
