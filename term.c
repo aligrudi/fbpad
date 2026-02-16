@@ -310,6 +310,8 @@ static void term_zero(struct term *term)
 	term->top = 0;
 	term->bot = 0;
 	term->signal = 0;
+	term->send_n = 0;
+	term->recv_n = 0;
 }
 
 static int term_resize(struct term *term, int r, int c)
@@ -1168,6 +1170,8 @@ static int escseq_osc(void)
 	int c = pty_read();
 	int osc = 0;
 	int i;
+	if (!isdigit(c))
+		return 0;
 	while (isdigit(c)) {
 		osc = osc * 10 + (c - '0');
 		c = pty_read();
