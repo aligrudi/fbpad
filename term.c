@@ -316,6 +316,8 @@ static void term_zero(struct term *term)
 
 static int term_resize(struct term *term, int r, int c)
 {
+	if (r == term->rows && c == term->cols)
+		return 1;
 	if (r > term->rows || c > term->cols) {
 		int *scrch = malloc(r * c * sizeof(scrch[0]));
 		int *scrfn = malloc(r * c * sizeof(scrfn[0]));
@@ -345,6 +347,49 @@ static int term_resize(struct term *term, int r, int c)
 	term->rows = r;
 	term->cols = c;
 	return 0;
+}
+
+static void resizeupdate(int or, int oc, int nr,  int nc)
+{
+	int dr = row >= nr ? row - nr + 1 : 0;
+	int dst = nc <= oc ? 0 : nr * nc - 1;
+	while (dst >= 0 && dst < nr * nc) {
+		int r = dst / nc;
+		int c = dst % nc;
+		int src = dr + r < or && c < oc ? (dr + r) * oc + c : -1;
+		term->scrch[dst] = src >= 0 ? term->scrch[src] : 0;
+		term->scrfn[dst] = src >= 0 ? term->scrfn[src] : color();
+		dst = nc <= oc ? dst + 1 : dst - 1;
+	}
+}
+
+static void tio_setsize(int fd)
+{
+	struct winsize winp;
+	winp.ws_col = cols;
+	winp.ws_row = rows;
+	winp.ws_xpixel = 0;
+	winp.ws_ypixel = 0;
+	ioctl(fd, TIOCSWINSZ, &winp);
+}
+
+static void term_resizeupdate(void)
+{
+	int r = term->rows, c = term->cols;
+	if (!term_resize(term, pad_rows(), pad_cols())) {
+		rows = term->rows;
+		cols = term->cols;
+		if (term->fd)
+			resizeupdate(r, c, pad_rows(), pad_cols());
+		if (term->fd)
+			tio_setsize(term->fd);
+		if (bot == r)
+			bot = term->rows;
+		top = MIN(top, term->rows);
+		bot = MIN(bot, term->rows);
+		row = MIN(row, term->rows - 1);
+		col = MIN(col, term->cols - 1);
+	}
 }
 
 struct term *term_make(void)
@@ -455,16 +500,6 @@ static int _openpty(int *master, int *slave)
 	sprintf(name, "/dev/pts/%d", ptyno);
 	*slave = open(name, O_RDWR | O_NOCTTY);
 	return 0;
-}
-
-static void tio_setsize(int fd)
-{
-	struct winsize winp;
-	winp.ws_col = cols;
-	winp.ws_row = rows;
-	winp.ws_xpixel = 0;
-	winp.ws_ypixel = 0;
-	ioctl(fd, TIOCSWINSZ, &winp);
 }
 
 static void tio_login(int fd)
@@ -597,39 +632,12 @@ void term_signal(struct term *term)
 	term->signal = 1;
 }
 
-static void resizeupdate(int or, int oc, int nr,  int nc)
-{
-	int dr = row >= nr ? row - nr + 1 : 0;
-	int dst = nc <= oc ? 0 : nr * nc - 1;
-	while (dst >= 0 && dst < nr * nc) {
-		int r = dst / nc;
-		int c = dst % nc;
-		int src = dr + r < or && c < oc ? (dr + r) * oc + c : -1;
-		term->scrch[dst] = src >= 0 ? term->scrch[src] : 0;
-		term->scrfn[dst] = src >= 0 ? term->scrfn[src] : color();
-		dst = nc <= oc ? dst + 1 : dst - 1;
-	}
-}
-
 /* redraw the screen; if all is zero, update changed lines only */
 void term_redraw(int all)
 {
+	if (term)
+		term_resizeupdate();
 	if (term && term->fd) {
-		int r = term->rows, c = term->cols;
-		if (r != pad_rows() || c != pad_cols()) {
-			if (!term_resize(term, pad_rows(), pad_cols())) {
-				rows = term->rows;
-				cols = term->cols;
-				resizeupdate(r, c, pad_rows(), pad_cols());
-				tio_setsize(term->fd);
-				if (bot == r)
-					bot = term->rows;
-				top = MIN(top, term->rows);
-				bot = MIN(bot, term->rows);
-				row = MIN(row, term->rows - 1);
-				col = MIN(col, term->cols - 1);
-			}
-		}
 		if (all) {
 			pad_fill(rows, -1, 0, -1, conf_bg());
 			lazy_start();
@@ -655,6 +663,7 @@ void term_load(struct term *t, int flags)
 		rows = term->rows;
 		cols = term->cols;
 		pty_load(term->recv, term->recv_n);
+		term_resizeupdate();
 	}
 }
 
