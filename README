@@ -10,10 +10,10 @@ be configured in the ~/.fbpad file.
 ==============	=======================================
 KEY		COMMAND
 ==============	=======================================
-m-c		execute a shell (configured via ~/.fbpad)
-m-;		like m-c but with switching signals
+m-c		execute a shell (configured in ~/.fbpad)
+m-;		like m-c but with switching signals enabled
 m-x 		switch to tag 'x' or execute command 'x'
-m-j		switch to current tag's alternative terminal
+m-j		switch between the current tag's terminals
 m-k		like m-j
 m-p		show tag summary
 m-o		jump to the previous tag
