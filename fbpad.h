@@ -78,3 +78,4 @@ char **conf_command(int c);
 char *conf_pass(void);
 int conf_quitkey(void);
 int conf_brighten(void);
+int conf_lazy(void);

@@ -18,6 +18,7 @@ static char pass[128];
 static char scrshot[128] = "/tmp/scr";
 static char quitkey;
 static int brighten = 1;
+static int lazy = 30;
 static char cmd_buf[4096];
 static int cmd_pos;
 static char *cmd_list[128][8] = {
@@ -88,6 +89,8 @@ int conf_read(void)
 			fscanf(fp, " %c", &quitkey);
 		} else if (!strcmp("brighten", t)) {
 			fscanf(fp, "%d", &brighten);
+		} else if (!strcmp("lazy", t)) {
+			fscanf(fp, "%d", &lazy);
 		} else if (!strcmp("command", t)) {
 			char key;
 			char cmd[512];
@@ -180,4 +183,9 @@ int conf_quitkey(void)
 int conf_brighten(void)
 {
 	return brighten;
+}
+
+int conf_lazy(void)
+{
+	return lazy;
 }

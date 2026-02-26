@@ -469,7 +469,7 @@ void term_read(void)
 			break;
 		}
 		pty_mark();
-		if (visible && !lazy && pty_left() > 15)
+		if (visible && !lazy && pty_left() > conf_lazy())
 			lazy_start();
 	} while (pty_left() > 0);
 	lazy_flush();
