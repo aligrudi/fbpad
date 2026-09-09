@@ -791,19 +791,18 @@ static void scroll_screen(int sr, int nr, int n)
 
 static void insert_lines(int n)
 {
-	int sr = MAX(top, row);
-	int nr = bot - row - n;
-	if (nr > 0)
-		scroll_screen(sr, nr, n);
+	int sr = row;
+	int nl = MIN(n, bot - sr);
+	int nr = bot - sr - nl;
+	scroll_screen(sr, nr, nl);
 }
 
 static void delete_lines(int n)
 {
-	int r = MAX(top, row);
-	int sr = r + n;
-	int nr = bot - r - n;
-	if (nr > 0)
-		scroll_screen(sr, nr, -n);
+	int sr = MIN(row + n, bot);
+	int nl = MIN(n, bot - row);
+	int nr = bot - row - nl;
+	scroll_screen(sr, nr, -nl);
 }
 
 static int origin(void)
