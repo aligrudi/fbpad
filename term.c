@@ -959,16 +959,19 @@ static int readutf8(int c)
 	int c1, c2, c3;
 	if (~c & 0xc0)		/* ASCII or invalid */
 		return c;
-	c1 = pty_read();
+	if ((c1 = pty_read()) < 0)
+		return -1;
 	if (~c & 0x20)
 		return ((c & 0x1f) << 6) | (c1 & 0x3f);
-	c2 = pty_read();
+	if ((c2 = pty_read()) < 0)
+		return -1;
 	if (~c & 0x10)
 		return ((c & 0x0f) << 12) | ((c1 & 0x3f) << 6) | (c2 & 0x3f);
-	c3 = pty_read();
+	if ((c3 = pty_read()) < 0)
+		return -1;
 	if (~c & 0x08)
 		return ((c & 0x07) << 18) | ((c1 & 0x3f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f);
-	return c1 < 0 || c2 < 0 || c3 < 0 ? -1 : c;
+	return c;
 }
 
 #define unknown(ctl, c)
@@ -1293,11 +1296,11 @@ static int csiseq(void)
 			delete_lines(MAX(1, args[0]));
 		break;
 	case 'S':	/* SU		scroll up */
-		i = MAX(1, args[0]);
+		i = LIMIT(args[0], 1, bot - top);
 		scroll_screen(i, rows - i, -i);
 		break;
 	case 'T':	/* SD		scroll down */
-		i = MAX(1, args[0]);
+		i = LIMIT(args[0], 1, bot - top);
 		scroll_screen(0, rows - i, i);
 		break;
 	case 'd':	/* VPA		move to row (current column) */
