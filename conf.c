@@ -71,9 +71,7 @@ int conf_read(void)
 			for (i = 0; i < 16; i++)
 				fscanf(fp, "%x", &clr16[i]);
 		} else if (!strcmp("font", t)) {
-			char fr[256], fi[256], fb[256];
-			if (fscanf(fp, "%511s %511s %511s", fonts[0], fonts[1], fonts[2]) == 3)
-				pad_init(fr, fi, fb);
+			fscanf(fp, "%511s %511s %511s", fonts[0], fonts[1], fonts[2]);
 			fnup = 1;
 		} else if (!strcmp("cursor", t)) {
 			fscanf(fp, "%x %x", &cursorfg, &cursorbg);
